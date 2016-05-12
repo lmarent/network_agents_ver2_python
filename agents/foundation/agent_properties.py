@@ -14,9 +14,10 @@ l_port_consumer = 14000
 
 # Addresses for marketplace, clockserver, and own agent address
 # are defined below.
-addr_mktplace = '157.253.38.210'
-addr_clock_server = '157.253.38.210'
-addr_agent = '157.253.38.210'
+addr_mktplace_isp = '192.168.2.13'
+addr_mktplace_backhaul = '192.168.2.12'
+addr_clock_server = '192.168.2.12'
+addr_agent = '192.168.2.13'
 
 threshold = 0.5
 neighbor_radius = 0.03

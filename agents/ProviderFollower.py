@@ -125,9 +125,11 @@ class ProviderFollower(Provider):
 	'''
         logger.debug('The state for agent %s is %s', 
 			self._list_vars['Id'], str(self._list_vars['State']))
-	fileResult = open(self._list_vars['Id'] + '.log',"a")
-	self.registerLog(fileResult, 'executing algorithm - Period: ' + 
+   
+	   fileResult = open(self._list_vars['Id'] + '.log',"a")
+	   self.registerLog(fileResult, 'executing algorithm - Period: ' + 
 			 str(self._list_vars['Current_Period']) )
+    
         if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
 	    logger.info('Biding for agent %s in the period %s', 
 			   str(self._list_vars['Id']), 
@@ -136,7 +138,8 @@ class ProviderFollower(Provider):
 	    logger.debug('Number of bids: %s for provider: %s', \
 			len(self._list_vars['Bids']), self._list_vars['Id'])
 	    staged_bids = {}
-	    if (self._used_variables['startPeriod'] <= 
+	    
+         if (self._used_variables['startPeriod'] <= 
 		    self._list_vars['Current_Period']):
 		if (len(self._list_vars['Bids']) == 0):
 		    serviceId = (self._service).getId()
