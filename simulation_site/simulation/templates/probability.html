@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>{{ probabilitydistribution }}</h1>
+
+<p>name: {{ probabilitydistribution.name }}</p>
+
+<ul>
+{% for discreteprobabilitydistribution in probabilitydistribution.discreteprobabilitydistribution_set.all %}
+   <li>{{ discreteprobabilitydistribution.value }}<br/>
+       {{ discreteprobabilitydistribution.label }} {{ discreteprobabilitydistribution.label }}<br/>
+   </li>
+{% endfor %}
+</ul>
+
+{% endblock %}

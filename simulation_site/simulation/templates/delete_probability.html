@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Delete Probability Distribution</h1>
+
+<p>Are you sure you want to delete the probability distribution {{ probabilitydistribution }}?</p>
+
+<form action="{% url "probabilities-delete" pk=probabilitydistribution.id %}" method="POST">
+  {% csrf_token %}
+
+  <input type="submit" value="Yes, delete." />
+  <a href="{% url "probabilities-list" %}">No, cancel.</a>
+</form>
+
+{% endblock %}

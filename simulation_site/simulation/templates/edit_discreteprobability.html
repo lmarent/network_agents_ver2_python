@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Edit Discrete probability</h1>
+
+<p>Editing values for {{ probabilitydistribution }}</p>
+
+<form action="{% url "probabilities-edit-discrete" pk=probabilitydistribution.id %}"
+      method="POST">
+    {% csrf_token %}
+    {{ form.management_form }}
+    {% for discrete_form in form %}
+
+        <ul>
+        {{ discrete_form.as_ul }}
+        </ul>
+
+    {% endfor %}
+
+    <input type="submit" value="Save" />
+</form>
+
+{% endblock %}

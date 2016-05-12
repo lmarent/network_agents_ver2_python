@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{% if probabilitydistribution.id %}
+<h1>Edit Probability Distribution</h1>
+{% else %}
+<h1>Add Probability Distribution</h1>
+{% endif %}
+
+<form action="{{ action }}" method="POST">
+  {% csrf_token %}
+  <ul>
+    {{ form.as_ul }}
+  </ul>
+  <input id="save_distribution" type="submit" value="Save" />
+</form>
+
+<a href="{% url "probabilities-list" %}">back to list</a>
+{% endblock %}
