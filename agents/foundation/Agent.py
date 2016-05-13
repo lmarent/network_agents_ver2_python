@@ -227,8 +227,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     '''
     def receive_bid_information(self, message):
         logging.debug('Initiating Receive bid information')
-        if ((self._list_args['Type'] == Agent.PROVIDER_TYPE) or 
-             (self._list_args['Type'] == Agent.PRESENTER_TYPE)):
+        if ((self._list_args['Type'] == Agent.PROVIDER_ISP) or (self._list_args['Type'] == Agent.PROVIDER_BACKHAUL) or (self._list_args['Type'] == Agent.PRESENTER_TYPE)):
             period = int(message.getParameter("Period"))
             document = self.removeIlegalCharacters(message.getBody())
             try:
@@ -246,8 +245,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     '''
     def receive_purchase_feedback(self, message):
         logging.debug('Initiating Receive Purchase feedback')
-        if ((self._list_args['Type'] == Agent.PROVIDER_TYPE) or 
-            (self._list_args['Type'] == Agent.PRESENTER_TYPE)):
+        if ((self._list_args['Type'] == Agent.PROVIDER_ISP) or (self._list_args['Type'] == Agent.PROVIDER_BACKHAUL) or (self._list_args['Type'] == Agent.PRESENTER_TYPE)):
             period = int(message.getParameter("Period"))
             self._list_args['Current_Period'] = period
             document = self.removeIlegalCharacters(message.getBody())
@@ -261,7 +259,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
                 logging.debug('Purchase statistics Loaded')
                 # After receiving the purchase information the provider can 
                 # start to create new bids.
-                if self._list_args['Type'] == Agent.PROVIDER_TYPE:
+                if ((self._list_args['Type'] == Agent.PROVIDER_ISP) or (self._list_args['Type'] == Agent.PROVIDER_BACKHAUL)):
                     self._list_args['State'] = AgentServerHandler.BID_PERMITED    
                 if self._list_args['Type'] == Agent.PRESENTER_TYPE:
                     logging.info('Receive Purchase feedback - Period: %s', 
@@ -281,7 +279,8 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     def process_getUnitaryCost(self, message):
         logging.debug('Initiating process GetUnitaryCost')
         bid = None
-        if (self._list_args['Type'] == Agent.PROVIDER_TYPE):
+        if ((self._list_args['Type'] == Agent.PROVIDER_ISP) or (self._list_args['Type'] == Agent.PROVIDER_BACKHAUL)):
+            
             bidId = message.getParameter("BidId")
             if bidId in self._list_args['Bids']:
                 bid = (self._list_args['Bids']).get(bidId)
@@ -451,7 +450,7 @@ class Agent(Process):
 
     CONSUMER_TYPE = "consumer"
     PROVIDER_ISP = "provider_isp"
-    PROVIDER_BACKHAUL = "Provider_backhaul"
+    PROVIDER_BACKHAUL = "provider_backhaul"
     PRESENTER_TYPE = "presenter"
 
     def __init__(self, strID, Id, agent_type, serviceId, agent_seed):
@@ -497,7 +496,7 @@ class Agent(Process):
         logging.info('Agent created with arguments %s', self._list_vars) 
         try:
             # Connect to servers.            
-            self.connect_servers(agent_type)
+            self.connect_servers(agent_type, strID)
             # Request the definition of the service
             connect = Message("")
             connect.setMethod(Message.GET_SERVICES)
@@ -514,7 +513,7 @@ class Agent(Process):
     ''' 
     This function connects the agent to servers ( clock server and markets places)
     '''
-    def connect_servers(self, agent_type):
+    def connect_servers(self, agent_type, strID):
         if (agent_type == Agent.PROVIDER_ISP):
             port = agent_properties.mkt_place_listening_port
             address = agent_properties.addr_mktplace_isp
@@ -522,7 +521,7 @@ class Agent(Process):
             self._channelMarketPlace = Channel_Marketplace(address, port)
             address = agent_properties.addr_mktplace_backhaul
             # This will be the channel to buy resources.
-            self._channelMarketPlaceBuy = Channel_Marketplace()
+            self._channelMarketPlaceBuy = Channel_Marketplace(address, port)
         else:
             port = agent_properties.mkt_place_listening_port
             address = agent_properties.addr_mktplace_isp                
@@ -569,7 +568,10 @@ class Agent(Process):
         port_message.setMethod(Message.SEND_PORT)
         port_message.setParameter("Port", str(port))
         logging.debug('Announcing type %s to servers', self._list_vars['Type'])
-        port_message.setParameter("Type", self._list_vars['Type'])
+        if ((self._list_vars['Type'] == Agent.PROVIDER_ISP) or (self._list_vars['Type'] == Agent.PROVIDER_BACKHAUL)):
+            port_message.setParameter("Type", "provider")
+        else:
+            port_message.setParameter("Type", self._list_vars['Type'])
         response3 = (self._channelClockServer).sendMessage(port_message)
         response4 = (self._channelMarketPlace).sendMessage(port_message)
         if (response3.isMessageStatusOk() 

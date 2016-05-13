@@ -20,16 +20,16 @@ import xml.dom.minidom
 logger = logging.getLogger('provider_application')
 
 
+'''
+The Provider class defines methods to be used by the service
+provider agent. It includes methods for pricing and quality
+strategies, place offerings into the marketplace, get other 
+providers offerings and determine the best strategy to capture 
+more market share.    
+'''
 class Provider(Agent):
-    '''
-    The Provider class defines methods to be used by the service
-    provider agent. It includes methods for pricing and quality
-    strategies, place offerings into the marketplace, get other 
-    providers offerings and determine the best strategy to capture 
-    more market share.    
-    '''
 
-    def __init__(self, strID, Id, serviceId, providerSeed, marketPosition, 
+    def __init__(self, strID, Id, providerType, serviceId, providerSeed, marketPosition, 
                  adaptationFactor, monopolistPosition, debug, resources, 
                  numberOffers, numAccumPeriods, numAncestors, startFromPeriod):
         try:
@@ -39,7 +39,7 @@ class Provider(Agent):
                       + ' market position:' + str(marketPosition)
                   + ' monopolist position:' + str(monopolistPosition)
                   + 'debug:' + str(debug) )
-            super(Provider, self).__init__(strID, Id,'provider', serviceId, providerSeed) 
+            super(Provider, self).__init__(strID, Id, providerType, serviceId, providerSeed) 
             self._used_variables['marketPosition'] = marketPosition
             # Is a value between 0 and 1, 1 means that the provider can complete follow another provider, 0
             # the provider fails to adapt others' strategies. 
@@ -105,40 +105,40 @@ class Provider(Agent):
             # if market prosition greater than 0.65
             # the provider's offer is going to compete on quality
             if (market_position > 0.65): 
-            min_val_adj = min_value + (( max_value - min_value ) * 0.65)
-            max_val_adj = max_value
+                min_val_adj = min_value + (( max_value - min_value ) * 0.65)
+                max_val_adj = max_value
             
             # if market prosition greater than 0.35 and less than 0.65
             # the provider's offer is going to compete on price AND quality
             elif ((market_position >= 0.35) and (market_position <= 0.65)): 
-            min_val_adj = min_value + (( max_value - min_value ) * 0.35)
-            max_val_adj = min_value + (( max_value - min_value ) * 0.65)
+                min_val_adj = min_value + (( max_value - min_value ) * 0.35)
+                max_val_adj = min_value + (( max_value - min_value ) * 0.65)
             
             # if market prosition less than 0.35
             # the provider's offer is going to compete on price
             else:
-            min_val_adj = min_value 
-            max_val_adj = min_value + (( max_value - min_value ) * 0.35)
+                min_val_adj = min_value 
+                max_val_adj = min_value + (( max_value - min_value ) * 0.35)
         
         # if optimum does not equals one, minimize decision variable
         else:
             # if market prosition greater than 0.65
             # the provider's offer is going to compete on quality
             if (market_position > 0.65): 
-            min_val_adj = min_value 
-            max_val_adj = min_value + (( max_value - min_value ) * 0.35)
+                min_val_adj = min_value 
+                max_val_adj = min_value + (( max_value - min_value ) * 0.35)
             
             # if market prosition greater than 0.35 and less than 0.65
             # the provider's offer is going to compete on price AND quality
             elif ((market_position >= 0.35) and (market_position <= 0.65)): 
-            min_val_adj = min_value + (( max_value - min_value ) * 0.35)
-            max_val_adj = min_value + (( max_value - min_value ) * 0.65)
+                min_val_adj = min_value + (( max_value - min_value ) * 0.35)
+                max_val_adj = min_value + (( max_value - min_value ) * 0.65)
             
             # if market prosition less than 0.35
             # the provider's offer is going to compete on price
             else:
-            min_val_adj = min_value + (( max_value - min_value ) * 0.65)
-            max_val_adj = max_value
+                min_val_adj = min_value + (( max_value - min_value ) * 0.65)
+                max_val_adj = max_value
             
         logger.debug('Ending calculateIntervals - outputs' + \
                 str(min_val_adj) + ':' + str(max_val_adj))
@@ -156,20 +156,45 @@ class Provider(Agent):
             minValue = ((self._service)._decision_variables[decisionVariable]).getMinValue()
             maxValue = ((self._service)._decision_variables[decisionVariable]).getMaxValue()
             resourceId = ((self._service)._decision_variables[decisionVariable]).getResource() 
-            if ((self._service)._decision_variables[decisionVariable].getModeling() 
-                == DecisionVariable.MODEL_QUALITY):
-            value = float(bid.getDecisionVariable(decisionVariable))
-            if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() \
-                == DecisionVariable.OPT_MAXIMIZE):
-                percentage = (value - minValue) / minValue
-            else:
-                percentage = (maxValue - value) / maxValue
-            totalPercentage = totalPercentage + percentage
-            if resourceId in resources:
-                unitaryCost = float((resources[resourceId])['Cost'])
-                totalUnitaryCost = totalUnitaryCost + (unitaryCost * (1+totalPercentage) )
+            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                    value = float(bid.getDecisionVariable(decisionVariable))
+                    if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+                            percentage = (value - minValue) / minValue
+                    else:
+                        percentage = (maxValue - value) / maxValue
+                    totalPercentage = totalPercentage + percentage
+                    if resourceId in resources:
+                        unitaryCost = float((resources[resourceId])['Cost'])
+                        totalUnitaryCost = totalUnitaryCost + (unitaryCost * (1+totalPercentage) )
         logger.debug('End - calculateBidUnitaryCost:' + str(totalUnitaryCost))
-        return totalUnitaryCost  
+        return totalUnitaryCost
+    
+    def calculateBidResources(self, bid):
+        '''
+        Calculates the bid resource consumption as a function of their decision variables
+        '''    
+        logger.debug('Starting - calculateBidResources')
+        totalUnitaryCost = 0
+        totalPercentage = 0
+        resources = self._used_variables['resources']
+        res_resources = {}
+        for decisionVariable in (self._service)._decision_variables:
+            minValue = ((self._service)._decision_variables[decisionVariable]).getMinValue()
+            maxValue = ((self._service)._decision_variables[decisionVariable]).getMaxValue()
+            resourceId = ((self._service)._decision_variables[decisionVariable]).getResource() 
+            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                    value = float(bid.getDecisionVariable(decisionVariable))
+                    if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+                        percentage = (value - minValue) / minValue
+                    else:
+                        percentage = (maxValue - value) / maxValue
+                    totalPercentage = totalPercentage + percentage
+                    if resourceId in resources:
+                        res_resources[resourceId].setdefault(0)
+                        res_resources[resourceId] += (1 + totalPercentage )
+        logger.debug('End - calculateBidResources:')
+        return res_resources
+        
 
     def calculateBidUnitaryResourceRequirements(self, bid):
         '''
@@ -185,7 +210,7 @@ class Provider(Agent):
             resourceId = ((self._service)._decision_variables[decisionVariable]).getResource() 
             if ((self._service)._decision_variables[decisionVariable].getModeling() 
                 == DecisionVariable.MODEL_QUALITY):
-            value = float(bid.getDecisionVariable(decisionVariable))
+                value = float(bid.getDecisionVariable(decisionVariable))
             if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() \
                 == DecisionVariable.OPT_MAXIMIZE):
                 percentage = (value - minValue) / minValue
@@ -216,32 +241,9 @@ class Provider(Agent):
         for decisionVariable in (self._service)._decision_variables:
             if ((self._service)._decision_variables[decisionVariable].getModeling() 
                 == DecisionVariable.MODEL_PRICE):
-            min_val = (self._service)._decision_variables[decisionVariable].getMinValue()
-            max_val = (self._service)._decision_variables[decisionVariable].getMaxValue()
-            min_val_adj, max_val_adj = self.calculateIntervalsPrice(market_position, min_val, max_val)
-            if (k == 1):
-                (output[0])[decisionVariable] = min_val_adj
-            elif (k == 2):
-                (output[0])[decisionVariable] = min_val_adj
-                (output[1])[decisionVariable] = max_val_adj
-            if (k >= 3):
-                step_size = (max_val_adj - min_val_adj) / (k - 1)
-                for i in range(0,k):
-                    (output[i])[decisionVariable] = min_val_adj + step_size * i
-        
-        for decisionVariable in (self._service)._decision_variables:
-            if ((self._service)._decision_variables[decisionVariable].getModeling() 
-                == DecisionVariable.MODEL_QUALITY):
-            if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() \
-                == DecisionVariable.OPT_MAXIMIZE):
-                optimum = 1 # Maximize
-            else:
-                optimum = 2 # Minimize
-            
-            min_val = (self._service)._decision_variables[decisionVariable].getMinValue()
-            max_val = (self._service)._decision_variables[decisionVariable].getMaxValue()
-            min_val_adj, max_val_adj = self.calculateIntervalsQuality(market_position, min_val, max_val, optimum)
-            if (optimum == 1):
+                min_val = (self._service)._decision_variables[decisionVariable].getMinValue()
+                max_val = (self._service)._decision_variables[decisionVariable].getMaxValue()
+                min_val_adj, max_val_adj = self.calculateIntervalsPrice(market_position, min_val, max_val)
                 if (k == 1):
                     (output[0])[decisionVariable] = min_val_adj
                 elif (k == 2):
@@ -250,17 +252,40 @@ class Provider(Agent):
                 if (k >= 3):
                     step_size = (max_val_adj - min_val_adj) / (k - 1)
                     for i in range(0,k):
-                        (output[i])[decisionVariable] = min_val_adj + (step_size * i)
-            else:
-                if (k == 1):
-                    (output[0])[decisionVariable] = max_val_adj
-                elif (k == 2):
-                    (output[0])[decisionVariable] = max_val_adj
-                    (output[1])[decisionVariable] = min_val_adj
-                if (k >= 3):
-                    step_size = (max_val_adj - min_val_adj) / (k - 1)
-                    for i in range(0,k):
-                        (output[i])[decisionVariable] = max_val_adj - (step_size * i)
+                        (output[i])[decisionVariable] = min_val_adj + step_size * i
+        
+        for decisionVariable in (self._service)._decision_variables:
+            if ((self._service)._decision_variables[decisionVariable].getModeling() 
+                == DecisionVariable.MODEL_QUALITY):
+                if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() \
+                    == DecisionVariable.OPT_MAXIMIZE):
+                    optimum = 1 # Maximize
+                else:
+                    optimum = 2 # Minimize
+            
+                min_val = (self._service)._decision_variables[decisionVariable].getMinValue()
+                max_val = (self._service)._decision_variables[decisionVariable].getMaxValue()
+                min_val_adj, max_val_adj = self.calculateIntervalsQuality(market_position, min_val, max_val, optimum)
+                if (optimum == 1):
+                    if (k == 1):
+                        (output[0])[decisionVariable] = min_val_adj
+                    elif (k == 2):
+                        (output[0])[decisionVariable] = min_val_adj
+                        (output[1])[decisionVariable] = max_val_adj
+                    if (k >= 3):
+                        step_size = (max_val_adj - min_val_adj) / (k - 1)
+                        for i in range(0,k):
+                            (output[i])[decisionVariable] = min_val_adj + (step_size * i)
+                else:
+                    if (k == 1):
+                        (output[0])[decisionVariable] = max_val_adj
+                    elif (k == 2):
+                        (output[0])[decisionVariable] = max_val_adj
+                        (output[1])[decisionVariable] = min_val_adj
+                    if (k >= 3):
+                        step_size = (max_val_adj - min_val_adj) / (k - 1)
+                        for i in range(0,k):
+                            (output[i])[decisionVariable] = max_val_adj - (step_size * i)
         logger.debug('Ranges created in bid initialization')
         return self.createInitialBids(k, output)
     
@@ -871,7 +896,7 @@ class Provider(Agent):
                         newBid.insertParentBid(bid)
                         self.registerLog(fileResult, 'New bid created - ready to be send' +  newBid.__str__())
                         staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE,
-                                                         'MarketShare' : marketShare, 'Forecast:' marketShare }
+                                                         'MarketShare': marketShare, 'Forecast': marketShare }
                         newBidStage = True
             else:
                 self.registerLog(fileResult, 'Bid not moved:' + bid.getId()) 
@@ -880,7 +905,7 @@ class Provider(Agent):
             # As we move the bid, the originator bid must be inactive
             if (marketShare == 0):
                 staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.INACTIVE, 
-                                          'MarketShare' : marketShare, 'Forecast:' marketShare }
+                                              'MarketShare' : marketShare, 'Forecast': marketShare }
         logger.debug("Ending moveBid")
 
     def summariesUsedCapacity(self, fileResult):
@@ -1117,15 +1142,14 @@ class Provider(Agent):
                 raise ProviderException('Capacity not received')
         logger.debug("Ends send capacity")
 
+    '''
+    The run method is responsible for activate the socket to send 
+    the offer to the marketplace. Then, close down the sockets
+    to the marketplace and the simulation environment (demand server).
+    '''
     def run(self):
-        '''
-        The run method is responsible for activate the socket to send 
-        the offer to the marketplace. Then, close down the sockets
-        to the marketplace and the simulation environment (demand server).
-        '''
         print 'start agent' + str(self._list_vars['State'])
-        proc_name = self.name
-            self.start_listening()
+        self.start_listening()
         try:
             if (self._used_variables['debug'] == True):
                 fileResult = open(str(self._list_vars['Id']) + '.log',"w")
@@ -1147,7 +1171,11 @@ class Provider(Agent):
         finally:
             # Close the sockets
             self._server.stop()
-            self._channelMarketPlace.close()
+            if (self._list_vars['Type'] == Agent.PROVIDER_ISP):
+                self._channelMarketPlaceBuy.close()
+                self._channelMarketPlace.close()
+            else:
+                self._channelMarketPlace.close()
             self._channelClockServer.close()
             return        
         
