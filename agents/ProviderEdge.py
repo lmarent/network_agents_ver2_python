@@ -2,7 +2,6 @@ from foundation.FoundationException import FoundationException
 import foundation.agent_properties
 import uuid
 import logging
-import time
 from foundation.Agent import AgentServerHandler
 from foundation.Agent import Agent
 from foundation.Message import Message
@@ -10,6 +9,8 @@ from foundation.DecisionVariable import DecisionVariable
 from ProviderAgentException import ProviderException
 from Provider import Provider
 from foundation.Bid import Bid
+import MySQLdb
+
 
 
 logger = logging.getLogger('Edge_provider_application')
@@ -28,9 +29,52 @@ class ProviderEdge(Provider):
 				 numberOffers, numAccumPeriods, numAncestors, startFromPeriod):
         try:
             super(ProviderEdge, self).__init__(strID, Id, Agent.PROVIDER_ISP, serviceId, accessProviderSeed, marketPosition, adaptationFactor, monopolistPosition, debug, resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod)
-            logger.debug('Agent: %s - Edge Provider Created', self._list_vars['Id'])
+            logger.debug('Agent: %s - Edge Provider Created', self._list_vars['strId'])
         except FoundationException as e:
             raise ProviderException(e.__str__())
+
+
+	''' 
+	The initialize function is responsible for initializing the 
+	edge provider agent and get the decision variables from the simulation
+	environment (demand server). 
+	'''
+    def initialize(self):
+        logger.debug('Agent: %s - Initilizing provider', self._list_vars['strId'])
+        for decisionVariable in (self._service)._decision_variables:
+            ((self._service)._decision_variables[decisionVariable]).executeSample(self._list_vars['Random'])
+        #Bring services required to fulfill resources.
+        # Open database connection
+        db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+
+        # prepare a cursor object using cursor() method
+        cursor = db.cursor()
+        resource_services = {}
+        resources = self._used_variables['resources']
+        prov_id = int(self._list_vars['Id'])
+        for resourceId in resources:
+            # Prepare SQL query to SELECT providers from the database.
+            sql = "select b.resource_id, c.id, c.name  \
+                    from simulation_provider a, simulation_provider_resource b, simulation_service c \
+                    where a.id = %s and a.id = b.id and b.resource_id = %s and c.id = b.service_id"
+                                
+            iResourceId = int(resourceId)
+            cursor.execute(sql, (prov_id, iResourceId))
+            results = cursor.fetchall()
+            res_services = []
+            for row in results:
+                serviceId = row[0]
+                res_services.append(str(serviceId))
+                if (str(serviceId) not in (self._services).keys()):
+                    connect = Message("")
+                    connect.setMethod(Message.GET_SERVICES)
+                    connect.setParameter("Service",str(serviceId))
+                    response = (self._channelClockServer).sendMessage(connect)
+                    if (response.isMessageStatusOk() ):
+                        self._services[serviceId] = self.handleGetService(response.getBody())
+                    
+            resource_services[resourceId] = res_services
+        self._list_vars['Resource_Service'] = resource_services       
 	        	
     ''' 
     The Purchase method assigns all the parameters and access provider ID
@@ -55,214 +99,117 @@ class ProviderEdge(Provider):
         # Check if message was succesfully received by the marketplace
         if messageResult.isMessageStatusOk():
             quantity = float(messageResult.getParameter("Quantity_Purchased"))
-            if quantity > 0:
-                logger.debug( 'Agent: %s - Period: %s - Purchase: %s Vendor: %s', 
-            				self._list_vars['Id'], str(self._list_vars['Current_Period']), 
-            			        idStr, bid.getProvider())
-                return True
-            else:
-                 logger.debug( 'Agent: %s - Period: %s - Not purchase - Vendor: %s Message: %s', 
-        				self._list_vars['Id'], str(self._list_vars['Current_Period']), 
-        				bid.getProvider(), messageResult.__str__())
-                 return False
+            return quantity
         else:
             logger.error('Agent: %s - Period: %s - Purchase not received! Communication failed - Message: %s', 
-                             self._list_vars['Id'], str(self._list_vars['Current_Period']), messageResult.__str__())
+                             self._list_vars['strId'], str(self._list_vars['Current_Period']), messageResult.__str__())
             logger.error('Agent: %s - Period: %s - Purchase not received! Communication failed', 
-                         self._list_vars['Id'], str(self._list_vars['Current_Period']))
+                         self._list_vars['strId'], str(self._list_vars['Current_Period']))
             raise ProviderException('Purchase not received! Communication failed')
-	    
-	''' 
-	The initialize function is responsible for initializing the 
-	access provider agent and get the decision variables from the simulation
-	environment (demand server). 
-	'''
-    def initialize(self):
-        logger.debug('Agent: %s - Initilizing consumer', self._list_vars['Id'])
-        for decisionVariable in (self._service)._decision_variables:
-            ((self._service)._decision_variables[decisionVariable]).executeSample(self._list_vars['Random'])
-
+	        
+    
+    '''
+    Purchase an specific quantity, return the total purchased quantity 
+    '''
+    def purchase_resource(self, front, quantity, evaluatedBids, disutilities_sorted):
+        remainingPurchasedQuantity = quantity
+        for disutility in disutilities_sorted:
+            logger.debug('Agent: %s - Period: %s - Front: %s  disutility: %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), str(front), str(disutility) )
+            lenght = len(evaluatedBids[disutility])
+            while ((lenght > 0) and (remainingPurchasedQuantity > 0)):
+                index_rand = (self._list_vars['Random']).randrange(0, lenght)
+                logger.debug('Agent: %s - Period: %s - Index: %d \n', self._list_vars['strId'], str(self._list_vars['Current_Period']), index_rand)
+                bid = evaluatedBids[disutility].pop(index_rand)
+                qtyPurchased = self.purchase(bid, remainingPurchasedQuantity)
+                remainingPurchasedQuantity = remainingPurchasedQuantity - qtyPurchased  
+                lenght = len(evaluatedBids[disutility])
+            if (remainingPurchasedQuantity == 0 ):
+                return quantity - remainingPurchasedQuantity
+                
+        return quantity - remainingPurchasedQuantity
+        
 	'''
 	The getDisutility function is responsible for assigning the access provider
 	agent a disutility function from the simulation environment (
 	demand server)
 	'''
-    def getDisutility(self, bid):
-	logger.debug('Agent: %s - Period: %s - Initiating getDisutility - Bid: %s', 
-		    self._list_vars['Id'], str(self._list_vars['Current_Period']), bid.getId())
-	disutility_quality = 0 # can be only non negative
-	disutility_price = 0 # can be positive or negative
-	for decisionVariable in (self._service)._decision_variables:
-	    # Obtains the sampled value
-	    valueSample = ((self._service)._decision_variables[decisionVariable]).getSample(DecisionVariable.PDST_VALUE)
-	    logger.debug('Agent: %s - Decision Variable: %s - Value %s', 
-			 self._list_vars['Id'], 
-			 decisionVariable, str(valueSample))
-	    # Obtains the sampled sensitivity
-	    sensitivitySample = ((self._service)._decision_variables[decisionVariable]).getSample(DecisionVariable.PDST_SENSITIVITY)
-	    offered = bid.getDecisionVariable(decisionVariable)
-	    logger.debug('Agent: %s - Decision Variable %s  Sensitivity: %s - Offered %s', 
-			self._list_vars['Id'],  decisionVariable, str(sensitivitySample), str(offered))
-	    if (((self._service)._decision_variables[decisionVariable]).getModeling() 
-			== DecisionVariable.MODEL_QUALITY):
-		
-		if (((self._service)._decision_variables[decisionVariable]).getOptimizationObjective() 
-			== DecisionVariable.OPT_MAXIMIZE):
-		    if offered < valueSample:
-			disutility_quality = disutility_quality + (max(0, ((valueSample - offered)/ valueSample))  * sensitivitySample)
-		elif (((self._service)._decision_variables[decisionVariable]).getOptimizationObjective() 
-			== DecisionVariable.OPT_MINIMIZE):
-		    if offered > valueSample:
-			disutility_quality = disutility_quality + (max(0, ((offered - valueSample)/ valueSample))  * sensitivitySample)
-	    else:
-		disutility_price = disutility_price + (((offered - valueSample) / valueSample)  * sensitivitySample)
-	logger.debug('Agent: %s - Period: %s - Finishing getDisutility - Disutility price: %s - Disutility Quality', 
-		      self._list_vars['Id'], str(self._list_vars['Current_Period']), 
-		      str(disutility_price), str(disutility_quality))
-	disutility = disutility_price + disutility_quality
-	logger.debug('Agent: %s - Period: %s - Finishing getDisutility - Disutility: %s', 
-		      self._list_vars['Id'], str(self._list_vars['Current_Period']), str(disutility))
-	return disutility
-    
-    
-    def purchase(self, disutilities_sorted):
-        for disutility in disutilities_sorted:
-            logger.debug('Agent: %s - Period: %s - Front: %s  disutility: %s Nbr Bids: %s Threshold %s', self._list_vars['Id'], str(self._list_vars['Current_Period']), str(front), str(disutility), str(len(evaluatedBids[disutility]) ), str(Threshold) )
-            if (disutility < Threshold):
-                lenght = len(evaluatedBids[disutility])
-                while (lenght > 0):
-                    index_rand = (self._list_vars['Random']).randrange(0, lenght)
-                    logger.debug('Agent: %s - Period: %s - Index: %d \n', self._list_vars['Id'], str(self._list_vars['Current_Period']), index_rand)
-                    bid = evaluatedBids[disutility].pop(index_rand)
-                    if (self.purchase(bid, quantity)):
-                        purchased = True
-                        break
-                    else:
-                        logger.debug('Agent: %s - Period: %s - Could not purchase: %s', self._list_vars['Id'],  str(self._list_vars['Current_Period']),bid.getId())                            
-                        pass
-                    lenght = len(evaluatedBids[disutility])
-                    if (purchased == True):
-                        break
-            else:
-                logger.debug('Agent: %s - Period: %s - It is not going to buy', self._list_vars['Id'], str(self._list_vars['Current_Period']) ) 
-                break
-        
-    def evaluate_front_bids(self, bidList):
+    def getDisutility(self, resourceId, serviceId, bid):
+        resources = self._used_variables['resources']
+        service = self._services[serviceId]
+        disutil = 0
+        offered = 0
+        unitaryCost = float((resources[resourceId])['Cost'])
+        for decisionVariable in (service)._decision_variables:        
+            if ((service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                offered = offered + bid.getDecisionVariable(decisionVariable)
+        disutil = unitaryCost - offered
+        return disutil
+
+       
+    '''
+    Evaluate the bids than comes from the server.
+    '''
+    def evaluate_front_bids(self, resourceId, serviceId, quantity, front, bidList):
         # Sorts the offerings  based on the customer's needs 
-        logger.debug('Agent: %s - Period: %s - Front: %s - Nbr Bids: %s', 
-                      self._list_vars['Id'], str(self._list_vars['Current_Period']), 
-        			     str(front), str(len(bidList)))
-        
+        logger.debug('Agent: %s - Period: %s - Front: %s - Nbr Bids: %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), str(front), str(len(bidList)))
         evaluatedBids = {}
         for bid in bidList:
-            disutility = self.getDisutility(bid)
+            disutility = self.getDisutility(resourceId, bid)
             if disutility in evaluatedBids:
                 evaluatedBids[disutility].append(bid)
             else:
                 evaluatedBids[disutility] = [bid]
-            # Purchase based on the disutility order.
-            disutilities_sorted = sorted(evaluatedBids)
-            purchased = self.purchase(disutilities_sorted)
-            if (purchased == True):
-                break
-            
-        
-    def exec_resource_purchase():
+        # Purchase based on the disutility order.
+        disutilities_sorted = sorted(evaluatedBids)
+        purchased = self.purchase_resource(front, resourceId, quantity, evaluatedBids, disutilities_sorted)
+        return purchased
+   
+    '''
+    Execute purchases for an specific services that is required for a resource.
+    '''
+    def exec_service_purchase(self, resourceId, serviceId, quantity):
         dic_return = self.createAskBids(serviceId)
-        logger.debug('Agent: %s - Period: %s - Number of fronts: %s', 
-		          self._list_vars['Id'], str(self._list_vars['Current_Period']), 
-			  str(len(dic_return)))
-        purchased = False
-	    # Sorts the offerings  based on the customer's needs 
+        logger.debug('Agent: %s - Period: %s - Number of fronts: %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), str(len(dic_return)))
+        # Sorts the offerings  based on the customer's needs 
+        remainingPurchasedQuantity = quantity
         keys_sorted = sorted(dic_return,reverse=True)
         for front in keys_sorted:
             bidList = dic_return[front]
-            purchased = self.evaluate_front_bids(self, bidList):
-            if (purchased == True):
-                break
-        if (purchased == True):
-            logger.debug('Agent: %s - Period: %s - Puchase the bid: %s with quantity: \
-			       %s in period: %d', self._list_vars['Id'], str(self._list_vars['Current_Period']),
-			       bid.getId(), str(quantity), self._list_vars['Current_Period'])            
-        else:
-            logger.debug(' Agent: %s - Period: %s - could not puchase', 
-		   self._list_vars['Id'], str(self._list_vars['Current_Period']))
+            purchased = self.evaluate_front_bids(self, resourceId, serviceId, remainingPurchasedQuantity, front, bidList)
+            remainingPurchasedQuantity = remainingPurchasedQuantity - purchased
+            if (remainingPurchasedQuantity == 0 ):
+                return True
+        return False
         
-        logger.debug('Agent: %s - Period: %s - Ending exec_algorithm',
-		     self._list_vars['Id'], str(self._list_vars['Current_Period']))
-        
+                    
+    '''
+    Execute resource purchases for an specific resource.
+    '''
+    def exec_resource_purchase(self, resourceId, quantity):
+        res_purchased = True        
+        services = (self._list_vars['Resource_Service'])[resourceId]
+        for serviceId in services:
+            purchased = self.exec_service_purchase(self, resourceId, serviceId, quantity)
+            if (purchased == False):
+                res_purchased = purchased
+            
+        logger.debug('Agent: %s - Period: %s - Ending exec_algorithm',self._list_vars['strId'], str(self._list_vars['Current_Period']))
+        return res_purchased
 
     '''
-    Execute the purchase process for the access network agent
+    Execute the purchase process for the network provider
     '''
     def exec_purchases(self, resources):
-        Threshold = foundation.agent_properties.threshold
-        serviceId = (self._service).getId()
-        for resourceId in resources:        
-        dic_return = self.createAskBids(serviceId)
-        logger.debug('Agent: %s - Period: %s - Number of fronts: %s', 
-		          self._list_vars['Id'], str(self._list_vars['Current_Period']), 
-			  str(len(dic_return)))
-        purchased = False
-	    # Sorts the offerings  based on the customer's needs 
-        keys_sorted = sorted(dic_return,reverse=True)
-        for front in keys_sorted:
-            bidList = dic_return[front]
-            logger.debug('Agent: %s - Period: %s - Front: %s - Nbr Bids: %s', 
-        			     self._list_vars['Id'], str(self._list_vars['Current_Period']), 
-        			     str(front), str(len(bidList)))
-            evaluatedBids = {}
-            for bid in bidList:
-                disutility = self.getDisutility(bid)
-                if disutility in evaluatedBids:
-                    evaluatedBids[disutility].append(bid)
-                else:
-                    evaluatedBids[disutility] = [bid]
-            # Purchase based on the disutility order.
-            disutilities_sorted = sorted(evaluatedBids)
-            for disutility in disutilities_sorted:
-                logger.debug('Agent: %s - Period: %s - Front: %s  disutility: %s Nbr Bids: %s Threshold %s', 
-        			         self._list_vars['Id'], str(self._list_vars['Current_Period']), 
-                          str(front), str(disutility), str(len(evaluatedBids[disutility]) ), 
-            				 str(Threshold) )
-
-                if (disutility < Threshold): 
-                    lenght = len(evaluatedBids[disutility])
-                    while (lenght > 0):
-                        index_rand = (self._list_vars['Random']).randrange(0, lenght)
-                        logger.debug('Agent: %s - Period: %s - Index: %d \n', 
-            					  self._list_vars['Id'], str(self._list_vars['Current_Period']),
-            					  index_rand)
-                        bid = evaluatedBids[disutility].pop(index_rand)
-                        if (self.purchase(bid, quantity)):
-                            purchased = True
-                            break
-                        else:
-                            logger.debug('Agent: %s - Period: %s - Could not purchase: %s', 
-                					      self._list_vars['Id'],  str(self._list_vars['Current_Period']),
-                					      bid.getId())                            
-                            pass
-                        lenght = len(evaluatedBids[disutility])
-                    if (purchased == True):
-                        break
-                else:
-                    logger.debug('Agent: %s - Period: %s - It is not going to buy', 
-        				      self._list_vars['Id'], str(self._list_vars['Current_Period']) ) 
-                    break
-            if (purchased == True):
-                break
-        if (purchased == True):
-            logger.debug('Agent: %s - Period: %s - Puchase the bid: %s with quantity: \
-			       %s in period: %d', self._list_vars['Id'], str(self._list_vars['Current_Period']),
-			       bid.getId(), str(quantity), self._list_vars['Current_Period'])            
-        else:
-            logger.debug(' Agent: %s - Period: %s - could not puchase', 
-		   self._list_vars['Id'], str(self._list_vars['Current_Period']))
-        
-        logger.debug('Agent: %s - Period: %s - Ending exec_algorithm',
-		     self._list_vars['Id'], str(self._list_vars['Current_Period']))
-        
-    
+        res_purchased = True
+        for resourceId in resources:
+            purchased = self.exec_resource_purchase(resourceId, resources[resourceId])
+            if (purchased == False):
+                res_purchased = purchased
+        return res_purchased
+                
+    '''
+    Create the forecast for the staged bids.
+    '''
     def create_forecast(self, staged_bids):
         logger.debug('Start - create forecast')
         res_resources = {}
@@ -306,10 +253,10 @@ class ProviderEdge(Provider):
 	'''
     def exec_algorithm(self):
         logger.info('Agent: %s - Period %s - Initiating exec_algorithm ', 
-		    self._list_vars['Id'], str(self._list_vars['Current_Period'])  )          
+		    self._list_vars['strId'], str(self._list_vars['Current_Period'])  )          
         staged_bids = {}
         if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
-            fileResult = open(self._list_vars['Id'] + '.log',"a")
+            fileResult = open(self._list_vars['strId'] + '.log',"a")
              # Sends the request to the market place to find the best offerings             
              # This executes offers for the provider
             if (len(self._list_vars['Bids']) == 0):

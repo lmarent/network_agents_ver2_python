@@ -301,7 +301,7 @@ class Provider(Agent):
             bid = Bid()
             uuidId = uuid.uuid1()    # make a UUID based on the host ID and current time
             idStr = str(uuidId)
-            bid.setValues(idStr,self._list_vars['Id'], (self._service).getId())
+            bid.setValues(idStr,self._list_vars['strId'], (self._service).getId())
             for decisionVariable in (self._service)._decision_variables:
                 bid.setDecisionVariable(decisionVariable, (output[i])[decisionVariable])
                 if (((self._service)._decision_variables[decisionVariable]).getModeling() 
@@ -435,7 +435,7 @@ class Provider(Agent):
             else:
                 # This bid was never used.
                 output[bidId] = {bidId : 0}
-        logger.debug('Ending Summarize Bid Usage agent' + self._list_vars['Id'] + '\n' )
+        logger.debug('Ending Summarize Bid Usage agent' + self._list_vars['strId'] + '\n' )
         return output
     
     def isDominated(self, bid, competitorBid):    
@@ -483,7 +483,7 @@ class Provider(Agent):
                         newBid = Bid()
                         uuidId = uuid.uuid1()    # make a UUID based on the host ID and current time
                         idStr = str(uuidId)
-                        newBid.setValues(idStr,self._list_vars['Id'], (self._service).getId())
+                        newBid.setValues(idStr,self._list_vars['strId'], (self._service).getId())
                         for decisionVariable in (self._service)._decision_variables:
                             newBid.setDecisionVariable(decisionVariable, providerBid.getDecisionVariable(decisionVariableId))
                             # Only creates bids that can produce profits
@@ -933,7 +933,7 @@ class Provider(Agent):
                                          + 'Total Quantity:' + str(total_quantity) )
                                 self.registerLog(fileResult, ' UsedCapacity:' + str(usedCapacity[resource]) ) 
                     
-        logger.debug('Ending Summarize Bid Usage agent' + self._list_vars['Id'] )
+        logger.debug('Ending Summarize Bid Usage agent' + self._list_vars['strId'] )
         return usedCapacity
     
     def canAdoptStrongPosition(self, fileResult):
@@ -1069,7 +1069,7 @@ class Provider(Agent):
         Determine the new offer based on current position, in this case
         these bids have competitors and we want to improve the market share.
         '''
-        logger.debug('Starting moveForMarketShare: %s', self._list_vars['Id'])
+        logger.debug('Starting moveForMarketShare: %s', self._list_vars['strId'])
         sortedActiveBids = self.sortByLastMarketShare(fileResult)
         for bidId in sortedActiveBids:
             if bidId not in staged_bids:
@@ -1077,7 +1077,7 @@ class Provider(Agent):
                 moveDirections = self.evaluateDirectionalDerivate(bid, summarizedUsage, fileResult) 
                 marketShare = self.getMarketShare(bid, fileResult, self._list_vars['Current_Period']) 
                 self.moveBid(bid, moveDirections, marketShare, staged_bids, fileResult)
-        logger.debug('Finish of moving bids for provider: %s', self._list_vars['Id'])
+        logger.debug('Finish of moving bids for provider: %s', self._list_vars['strId'])
                  
     def exec_algorithm(self):
         '''
@@ -1087,16 +1087,16 @@ class Provider(Agent):
         possible.
         '''
         logger.debug('The state for agent %s is %s', 
-                self._list_vars['Id'], str(self._list_vars['State']))
-        fileResult = open(self._list_vars['Id'] + '.log',"a")
+                self._list_vars['strId'], str(self._list_vars['State']))
+        fileResult = open(self._list_vars['strId'] + '.log',"a")
         self.registerLog(fileResult, 'executing algorithm - Period: '+ str(self._list_vars['Current_Period']) )
         if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
             logger.info('Biding for agent %s in the period %s', 
-                   str(self._list_vars['Id']), 
+                   str(self._list_vars['strId']), 
                    str(self._list_vars['Current_Period']))
     
             logger.debug('Number of bids: %s for provider: %s', \
-                len(self._list_vars['Bids']), self._list_vars['Id'])
+                len(self._list_vars['Bids']), self._list_vars['strId'])
             staged_bids = {}
             if (len(self._list_vars['Bids']) == 0):
                 marketPosition = self._used_variables['marketPosition']
@@ -1120,7 +1120,7 @@ class Provider(Agent):
         self._list_vars['State'] = AgentServerHandler.IDLE
             
         logger.info('Ending exec_algorithm %s is %s', 
-                self._list_vars['Id'], str(self._list_vars['State']))
+                self._list_vars['strId'], str(self._list_vars['State']))
 
     def send_capacity(self):
         '''
@@ -1131,7 +1131,7 @@ class Provider(Agent):
             resourceNode = (self._used_variables['resources'])[resourceId]
             message = Message('')
             message.setMethod(Message.SEND_AVAILABILITY)
-            message.setParameter("Provider", self._list_vars['Id'])
+            message.setParameter("Provider", self._list_vars['strId'])
             message.setParameter("Resource", resourceId)
             message.setParameter("Quantity",str(resourceNode['Capacity']))
             messageResult = self._channelMarketPlace.sendMessage(message)
@@ -1141,7 +1141,13 @@ class Provider(Agent):
                 print 'Here I am'
                 raise ProviderException('Capacity not received')
         logger.debug("Ends send capacity")
-
+    
+    def initialize(self):
+        ''' 
+        This method is run for Edge providers
+        '''
+        pass
+    
     '''
     The run method is responsible for activate the socket to send 
     the offer to the marketplace. Then, close down the sockets
@@ -1150,9 +1156,10 @@ class Provider(Agent):
     def run(self):
         print 'start agent' + str(self._list_vars['State'])
         self.start_listening()
+        self.initialize()
         try:
             if (self._used_variables['debug'] == True):
-                fileResult = open(str(self._list_vars['Id']) + '.log',"w")
+                fileResult = open(str(self._list_vars['strId']) + '.log',"w")
                 fileResult.write("Starting provider\n") 
                 fileResult.close()
     
@@ -1163,7 +1170,7 @@ class Provider(Agent):
                     self.exec_algorithm()
                     print 'Go out from exec_algorithm, state:' + str(self._list_vars['State'])
                 time.sleep(0.1)
-            logger.debug('Shuting down the agent %s', self._list_vars['Id'])
+            logger.debug('Shuting down the agent %s', self._list_vars['strId'])
         except ProviderException as e:
             logger.error(e.message)
         except Exception as e:

@@ -118,7 +118,7 @@ class ProviderInnovator(Provider):
 
     def formBidClusters(self, k, bidList):
 	logger.debug('Agent %s - formBidClusters:', 
-		      self._list_vars['Id'])
+		      self._list_vars['strId'])
 	numDecisionVariables = len((self._service)._decision_variables)
 	numBids = len(bidList)
 	data = np.zeros((numBids, numDecisionVariables))
@@ -130,7 +130,7 @@ class ProviderInnovator(Provider):
 	       j = j + 1
 	   i = i + 1
 	logger.debug('Agent %s - formBidClusters - Data: %s', 
-		      self._list_vars['Id'], data)
+		      self._list_vars['strId'], data)
 	
 	if numBids > k:
 	    numCentroids = k
@@ -139,7 +139,7 @@ class ProviderInnovator(Provider):
 	centroids,_ = kmeans(data, numCentroids)
 	idx,_ = vq(data,centroids)
 	logger.debug('Agent %s - formBidClusters - Centroids %s', 
-		      self._list_vars['Id'], str(idx))
+		      self._list_vars['strId'], str(idx))
 	# Iterate over the list of clusters and create clusters 
 	bidClusters = {}
 	i = 0
@@ -155,12 +155,12 @@ class ProviderInnovator(Provider):
 		j = j + 1
 	    i = i + 1
 	logger.debug('Agent %s - formBidClusters - Output %s', 
-		      self._list_vars['Id'], str(bidClusters))
+		      self._list_vars['strId'], str(bidClusters))
 	return bidClusters
 
     def createDominateBidOnCluster(self, clusterBidList):
 	logger.debug('Agent %s - createDominateBidOnCluster - Start %s', 
-		      self._list_vars['Id'], str(clusterBidList))
+		      self._list_vars['strId'], str(clusterBidList))
 	output= {}
 	i = 0
 	for decisionVariable in (self._service)._decision_variables:
@@ -182,9 +182,9 @@ class ProviderInnovator(Provider):
 		adjust = 0
 	    adjust = adjust * (max_val_adj - min_val_adj)
 	    logger.debug('Agent %s - createDominateBidOnCluster - DecisionVariable %s - Adjust: %s', 
-		      self._list_vars['Id'], str(decisionVariable),  str(adjust))
+		      self._list_vars['strId'], str(decisionVariable),  str(adjust))
 	    logger.debug('Agent %s - createDominateBidOnCluster %s', 
-			  self._list_vars['Id'], str(clusterBidList.shape))
+			  self._list_vars['strId'], str(clusterBidList.shape))
 	    if (clusterBidList.shape == (2,)):
 		if optimum == 1:
 		    output[decisionVariable] = clusterBidList[i] + adjust
@@ -197,7 +197,7 @@ class ProviderInnovator(Provider):
 		    output[decisionVariable] = np.min(clusterBidList[:,i]) - adjust
 	    i = i + 1
 	logger.debug('Agent %s - createDominateBidOnCluster - Out: %s', 
-		      self._list_vars['Id'], str(output))
+		      self._list_vars['strId'], str(output))
 	return output
     
     def initilizeFromBidList(self, k, bidList):
@@ -212,7 +212,7 @@ class ProviderInnovator(Provider):
 	# Sorts the offerings  based on the customer's needs, only iterate
 	# on the first pareto front.
 	logger.debug('The agent %s is initializing from Fronts', 
-			self._list_vars['Id'])
+			self._list_vars['strId'])
 			
 	keys_sorted = sorted(fronts,reverse=True)
 	output = {}
@@ -221,7 +221,7 @@ class ProviderInnovator(Provider):
 	    output = self.initilizeFromBidList(k, bidList)
 	    break
 	logger.debug('The agent %s is initializing from Fronts - Output: %s', 
-			self._list_vars['Id'], str(output))
+			self._list_vars['strId'], str(output))
 	return self.createInitialBids(k, output)
 
     def exec_algorithm(self):
@@ -232,17 +232,17 @@ class ProviderInnovator(Provider):
 	possible.
 	'''
         logger.debug('The state for agent %s is %s', 
-			self._list_vars['Id'], str(self._list_vars['State']))
-	fileResult = open(self._list_vars['Id'] + '.log',"a")
+			self._list_vars['strId'], str(self._list_vars['State']))
+	fileResult = open(self._list_vars['strId'] + '.log',"a")
 	self.registerLog(fileResult, 'executing algorithm - Period: ' + 
 			 str(self._list_vars['Current_Period']) )
         if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
 	    logger.info('Biding for agent %s in the period %s', 
-			   str(self._list_vars['Id']), 
+			   str(self._list_vars['strId']), 
 			   str(self._list_vars['Current_Period']))
 
 	    logger.debug('Number of bids: %s for provider: %s', \
-			len(self._list_vars['Bids']), self._list_vars['Id'])
+			len(self._list_vars['Bids']), self._list_vars['strId'])
 	    staged_bids = {}
 	    if (self._used_variables['startPeriod'] <= 
 		    self._list_vars['Current_Period']):
@@ -258,7 +258,7 @@ class ProviderInnovator(Provider):
 			staged_bids = self.initilizeFromFronts(initialNumberBids, fronts)
 		    
 		    logger.debug('Number of created bids: %s for provider innovator: %s', 
-			    str(len(staged_bids)), self._list_vars['Id']) 
+			    str(len(staged_bids)), self._list_vars['strId']) 
 		else:
 		    # By assumption providers at this point have the bid usage updated.
 		    summarizedUsage = self.sumarizeBidUsage() 
@@ -278,4 +278,4 @@ class ProviderInnovator(Provider):
 	self._list_vars['State'] = AgentServerHandler.IDLE
 	    
 	logger.info('Ending exec_algorithm %s is %s', 
-			self._list_vars['Id'], str(self._list_vars['State']))
+			self._list_vars['strId'], str(self._list_vars['State']))

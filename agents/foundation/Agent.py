@@ -461,8 +461,9 @@ class Agent(Process):
         logging.debug('Init agent %s', strID) 
         self._used_variables = {}
         self._list_vars = {}
-        self._list_vars['Id'] = strID                                
-        self._list_vars['Type'] = agent_type                   
+        self._list_vars['Id'] = Id
+        self._list_vars['strId'] = strID
+        self._list_vars['Type'] = agent_type
         self._list_vars['Address'] = agent_properties.addr_agent
         self._list_vars['Current_Period'] = 0  
         randomGenerator = random.Random()
@@ -504,6 +505,8 @@ class Agent(Process):
             response = (self._channelClockServer).sendMessage(connect)
             if (response.isMessageStatusOk() ):
                 self._service = self.handleGetService(response.getBody())
+                self._services = {}
+                self._services[serviceId] = self.handleGetService(response.getBody())
                 logging.debug('service:' + self._service.__str__())
                 logging.debug('init consumer- finish service retrieve')
         
@@ -691,7 +694,7 @@ class Agent(Process):
     def createAskBids(self, serviceId):
         messageAsk = Message('')
         messageAsk.setMethod(Message.GET_BEST_BIDS)
-        messageAsk.setParameter('Provider', self._list_vars['Id'])
+        messageAsk.setParameter('Provider', self._list_vars['strId'])
         messageAsk.setParameter('Service', serviceId)
         messageResult = self._channelMarketPlace.sendMessage(messageAsk)
         if messageResult.isMessageStatusOk():

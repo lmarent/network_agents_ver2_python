@@ -401,10 +401,10 @@ class Presenter(Agent):
 	possible.
 	'''
         logger.debug('The state for agent %s is %s', 
-			self._list_vars['Id'], str(self._list_vars['State']))
+			self._list_vars['strId'], str(self._list_vars['State']))
         if (self._list_vars['State'] == AgentServerHandler.ACTIVATE):
 	    logger.info('Plotting information in agent %s in the period %s', 
-			   self._list_vars['Id'], 
+			   self._list_vars['strId'], 
 			   str(self._list_vars['Current_Period']))
 
 	    logger.debug('Number of bids: %s ',	
@@ -418,7 +418,7 @@ class Presenter(Agent):
 
 	self._list_vars['State'] = AgentServerHandler.IDLE
 	logger.info('Ending exec_algorithm in agent %s in the period %s', 
-		    self._list_vars['Id'], 
+		    self._list_vars['strId'], 
 		    str(self._list_vars['Current_Period']))
 
     def run(self):

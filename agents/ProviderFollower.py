@@ -22,7 +22,7 @@ class ProviderFollower(Provider):
            raise ProviderException(e.__str__())
 
     def formBidClusters(self, k, bidList):
-        	logger.debug('Agent %s - formBidClusters:', self._list_vars['Id'])
+        	logger.debug('Agent %s - formBidClusters:', self._list_vars['strId'])
         	numDecisionVariables = len((self._service)._decision_variables)
         	numBids = len(bidList)
         	data = np.zeros((numBids, numDecisionVariables))
@@ -34,7 +34,7 @@ class ProviderFollower(Provider):
         	       j = j + 1
         	   i = i + 1
         	logger.debug('Agent %s - formBidClusters - Data: %s', 
-        		      self._list_vars['Id'], data)
+        		      self._list_vars['strId'], data)
         	
         	if numBids > k:
         	    numCentroids = k
@@ -42,12 +42,12 @@ class ProviderFollower(Provider):
         	    numCentroids = numBids
         	centroids,_ = kmeans(data, numCentroids)
         	idx,_ = vq(data,centroids)
-        	logger.debug('Agent %s - formBidClusters - Centroids %s', self._list_vars['Id'], str(centroids))
+        	logger.debug('Agent %s - formBidClusters - Centroids %s', self._list_vars['strId'], str(centroids))
         	# Iterate over the list of clusters and create clusters 
         	return numCentroids, centroids
 
     def createBidsOnCluster(self, centroid):
-        logger.debug('Agent %s - createBidsOnCluster - Start %s', self._list_vars['Id'], str(centroid))
+        logger.debug('Agent %s - createBidsOnCluster - Start %s', self._list_vars['strId'], str(centroid))
         output= {}
         j = 0
         for decisionVariable in (self._service)._decision_variables:
@@ -66,13 +66,13 @@ class ProviderFollower(Provider):
             else:
                 adjust = 0
             adjust = adjust * (max_val_adj - min_val_adj)
-            logger.debug('Agent %s - createBidsOnCluster - DecisionVariable %s - Adjust: %s', self._list_vars['Id'], str(decisionVariable),  str(adjust))
+            logger.debug('Agent %s - createBidsOnCluster - DecisionVariable %s - Adjust: %s', self._list_vars['strId'], str(decisionVariable),  str(adjust))
             if optimum == 1:
                 output[decisionVariable] = centroid[j]
             else:
                 output[decisionVariable] = centroid[j]
             j = j + 1
-        logger.debug('Agent %s - createBidsOnCluster - Out: %s', self._list_vars['Id'], str(output))
+        logger.debug('Agent %s - createBidsOnCluster - Out: %s', self._list_vars['strId'], str(output))
         return output
     
     def initilizeFromBidList(self, k, bidList):
@@ -89,7 +89,7 @@ class ProviderFollower(Provider):
         	# Sorts the offerings  based on the customer's needs, only iterate
         	# on the first pareto front.
         	logger.debug('The agent %s is initializing from Fronts', 
-        			self._list_vars['Id'])
+        			self._list_vars['strId'])
         			
         	keys_sorted = sorted(fronts,reverse=True)
         	output = {}
@@ -98,7 +98,7 @@ class ProviderFollower(Provider):
         	    output = self.initilizeFromBidList(k, bidList)
         	    break
         	logger.debug('The agent %s is initializing from Fronts - Output: %s', 
-        			self._list_vars['Id'], str(output))
+        			self._list_vars['strId'], str(output))
         	return self.createInitialBids(k, output)
 
     '''
@@ -108,12 +108,12 @@ class ProviderFollower(Provider):
 	possible.
 	'''
     def exec_algorithm(self):
-        logger.debug('The state for agent %s is %s', self._list_vars['Id'], str(self._list_vars['State']))
-        fileResult = open(self._list_vars['Id'] + '.log',"a")
+        logger.debug('The state for agent %s is %s', self._list_vars['strId'], str(self._list_vars['State']))
+        fileResult = open(self._list_vars['strId'] + '.log',"a")
         self.registerLog(fileResult, 'executing algorithm - Period: ' + str(self._list_vars['Current_Period']) )
         if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
-            logger.info('Biding for agent %s in the period %s', str(self._list_vars['Id']), str(self._list_vars['Current_Period']))
-            logger.debug('Number of bids: %s for provider: %s', len(self._list_vars['Bids']), self._list_vars['Id'])
+            logger.info('Biding for agent %s in the period %s', str(self._list_vars['strId']), str(self._list_vars['Current_Period']))
+            logger.debug('Number of bids: %s for provider: %s', len(self._list_vars['Bids']), self._list_vars['strId'])
             staged_bids = {}
             if (self._used_variables['startPeriod'] <= self._list_vars['Current_Period']):
                 if (len(self._list_vars['Bids']) == 0):
@@ -126,7 +126,7 @@ class ProviderFollower(Provider):
                     else:
                         # Initilize based on bids actually on the market.
                         staged_bids = self.initilizeFromFronts(initialNumberBids, fronts)
-                    logger.debug('Number of created bids: %s for provider innovator: %s', str(len(staged_bids)), self._list_vars['Id']) 
+                    logger.debug('Number of created bids: %s for provider innovator: %s', str(len(staged_bids)), self._list_vars['strId']) 
                 else:
                     # By assumption providers at this point have the bid usage updated.
                     summarizedUsage = self.sumarizeBidUsage() 
@@ -143,5 +143,5 @@ class ProviderFollower(Provider):
             else:
                 pass
         self._list_vars['State'] = AgentServerHandler.IDLE	
-        logger.info('Ending exec_algorithm %s is %s', self._list_vars['Id'], str(self._list_vars['State']))
+        logger.info('Ending exec_algorithm %s is %s', self._list_vars['strId'], str(self._list_vars['State']))
 	

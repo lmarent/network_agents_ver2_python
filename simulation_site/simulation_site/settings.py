@@ -62,7 +62,7 @@ DATABASES = {
         'NAME': 'Network_Simulation',
         'USER': 'root',
         'PASSWORD': 'password',
-        'HOST': '127.0.0.1',
+        'HOST': '192.168.2.13',
         'PORT': '3306',
     }
 }

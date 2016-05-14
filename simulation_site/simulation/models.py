@@ -193,6 +193,7 @@ class Provider_Resource(models.Model):
     resource = models.ForeignKey(Resource)
     capacity = models.FloatField(default=0)
     cost = models.FloatField(default=0)
+    service = models.ForeignKey(Service)
 
 class offeringData(models.Model):
     DECISION_VARIABLES = 'D'

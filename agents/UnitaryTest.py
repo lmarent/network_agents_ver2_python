@@ -82,7 +82,7 @@ class Presenter_Test(Agent):
 		# creates bids for the service 01
 		bid = Bid()
 		idStr = 'Bid1'
-		bid.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid.setDecisionVariable("Delay", 0.145)
 		bid.setDecisionVariable("Price", 20)
 		bid.setStatus(Bid.ACTIVE)
@@ -99,7 +99,7 @@ class Presenter_Test(Agent):
 		# Now we try to create many bid so we can verify the pareto front.
 		bid3 = Bid()
 		idStr = 'Bid3'
-		bid3.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid3.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid3.setDecisionVariable("Delay", 0.16)
 		bid3.setDecisionVariable("Price", 18)
 		bid3.setStatus(Bid.ACTIVE)
@@ -110,7 +110,7 @@ class Presenter_Test(Agent):
 
 		bid4 = Bid()
 		idStr = 'Bid4'
-		bid4.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid4.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid4.setDecisionVariable("Delay", 0.167)
 		bid4.setDecisionVariable("Price", 16.6)
 		bid4.setStatus(Bid.ACTIVE)
@@ -121,7 +121,7 @@ class Presenter_Test(Agent):
 		
 		bid5 = Bid()
 		idStr = 'Bid5'
-		bid5.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid5.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid5.setDecisionVariable("Delay", 0.15)
 		bid5.setDecisionVariable("Price", 19.5)
 		bid5.setStatus(Bid.ACTIVE)
@@ -132,7 +132,7 @@ class Presenter_Test(Agent):
 		
 		bid6 = Bid()
 		idStr = 'Bid6'
-		bid6.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid6.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid6.setDecisionVariable("Delay", 0.18)
 		bid6.setDecisionVariable("Price", 15.5)
 		bid6.setStatus(Bid.ACTIVE)
@@ -166,7 +166,7 @@ class Presenter_Test(Agent):
 		# Sends the availability for the provider
 		messageAvail = Message('')
 		messageAvail.setMethod(Message.SEND_AVAILABILITY)
-		messageAvail.setParameter("Provider", self._list_vars['Id'])
+		messageAvail.setParameter("Provider", self._list_vars['strId'])
 		messageAvail.setParameter("Resource", "Bandwidth")
 		messageAvail.setParameter("Quantity", "100")
 		messageAvailRes = self._channelMarketPlace.sendMessage(messageAvail)
@@ -177,14 +177,14 @@ class Presenter_Test(Agent):
 		
 		bid7 = Bid()
 		idStr = 'Bid7'
-		bid7.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid7.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid7.setDecisionVariable("Delay", 0.17)
 		bid7.setDecisionVariable("Price", 15.5)
 		bid7.setStatus(Bid.ACTIVE)
 
 		bid8 = Bid()
 		idStr = 'Bid8'
-		bid8.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid8.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid8.setDecisionVariable("Delay", 0.18)
 		bid8.setDecisionVariable("Price", 15.5)
 		bid8.setStatus(Bid.ACTIVE)
@@ -197,14 +197,14 @@ class Presenter_Test(Agent):
 
 		bid7 = Bid()
 		idStr = 'Bid7'
-		bid7.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid7.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid7.setDecisionVariable("Delay", 0.17)
 		bid7.setDecisionVariable("Price", 15.5)
 		bid7.setStatus(Bid.ACTIVE)
 
 		bid8 = Bid()
 		idStr = 'Bid8'
-		bid8.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid8.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid8.setDecisionVariable("Delay", 0.18)
 		bid8.setDecisionVariable("Price", 15.5)
 		bid8.setStatus(Bid.ACTIVE)
@@ -217,14 +217,14 @@ class Presenter_Test(Agent):
 
 		bid7 = Bid()
 		idStr = 'Bid7'
-		bid7.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid7.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid7.setDecisionVariable("Delay", 0.17)
 		bid7.setDecisionVariable("Price", 16.5)
 		bid7.setStatus(Bid.ACTIVE)
 
 		bid8 = Bid()
 		idStr = 'Bid8'
-		bid8.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid8.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid8.setDecisionVariable("Delay", 0.18)
 		bid8.setDecisionVariable("Price", 15.5)
 		bid8.setStatus(Bid.ACTIVE)
@@ -237,14 +237,14 @@ class Presenter_Test(Agent):
 
 		bid7 = Bid()
 		idStr = 'Bid7'
-		bid7.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid7.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid7.setDecisionVariable("Delay", 0.17)
 		bid7.setDecisionVariable("Price", 16.5)
 		bid7.setStatus(Bid.ACTIVE)
 
 		bid8 = Bid()
 		idStr = 'Bid8'
-		bid8.setValues(idStr, self._list_vars['Id'], "Service_01")
+		bid8.setValues(idStr, self._list_vars['strId'], "Service_01")
 		bid8.setDecisionVariable("Delay", 0.18)
 		bid8.setDecisionVariable("Price", 15.5)
 		bid8.setStatus(Bid.ACTIVE)
