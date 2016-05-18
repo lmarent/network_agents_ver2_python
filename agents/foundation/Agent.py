@@ -534,28 +534,31 @@ class Agent(Process):
         # Send the Connect message to ClockServer
         connect = Message("")
         connect.setMethod(Message.CONNECT)
-        connect.setParameter("Provider",strID)
+        connect.setParameter("Agent",strID)
         response1 = (self._channelClockServer).sendMessage(connect)
+        if (response1.isMessageStatusOk() == False):
+            raise FoundationException("Agent: It could not connect to clock server")
             
         # Send the Connect message to MarketPlace 
         if (agent_type == Agent.PROVIDER_ISP):
             response2 = (self._channelMarketPlace).sendMessage(connect)
-            if (response1.isMessageStatusOk() and response2.isMessageStatusOk() ):
+            if (response2.isMessageStatusOk()):
                 response3 = (self._channelMarketPlaceBuy).sendMessage(connect)
                 if (response3.isMessageStatusOk() ):
                     logging.debug('We could connect to servers')
                 else:
-                    raise FoundationException("It could not connect to servers")
+                    logging.error('Provider ISP: It could not connect to the market place to Buy')
+                    raise FoundationException("Provider ISP: It could not connect to the market place to Buy")
             else:
-                logging.error('The agent could not connect to servers')
-                raise FoundationException("It could not connect to servers")
+                logging.error('Provider ISP: It could not connect to market place to sell')
+                raise FoundationException("Provider ISP: It could not connect to market place to sell")
         else:
             response2 = (self._channelMarketPlace).sendMessage(connect)
-            if ( response1.isMessageStatusOk() and response2.isMessageStatusOk() ):
+            if ( response2.isMessageStatusOk() ):
                 logging.debug('We could connect to both servers')
             else:
-                logging.error('The agent could not connect to servers')
-                raise FoundationException("It could not connect to servers")
+                logging.error('The agent could not connect to market place')
+                raise FoundationException("Agent: It could not connect to market place")
         
 
     '''

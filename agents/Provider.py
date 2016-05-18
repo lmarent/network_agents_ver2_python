@@ -12,10 +12,10 @@ import copy
 import logging
 import math
 import operator
-import random
 import time
 import uuid
-import xml.dom.minidom
+import MySQLdb
+
 
 logger = logging.getLogger('provider_application')
 
@@ -174,7 +174,6 @@ class Provider(Agent):
         Calculates the bid resource consumption as a function of their decision variables
         '''    
         logger.debug('Starting - calculateBidResources')
-        totalUnitaryCost = 0
         totalPercentage = 0
         resources = self._used_variables['resources']
         res_resources = {}
@@ -190,8 +189,10 @@ class Provider(Agent):
                         percentage = (maxValue - value) / maxValue
                     totalPercentage = totalPercentage + percentage
                     if resourceId in resources:
-                        res_resources[resourceId].setdefault(0)
-                        res_resources[resourceId] += (1 + totalPercentage )
+                        if (resourceId in res_resources.keys()):
+                            res_resources[resourceId] = res_resources[resourceId] + ( 1 + totalPercentage ) 
+                        else: 
+                            res_resources[resourceId] = (1 + totalPercentage ) 
         logger.debug('End - calculateBidResources:')
         return res_resources
         
@@ -312,8 +313,7 @@ class Provider(Agent):
             unitaryBidCost = self.calculateBidUnitaryCost(bid)
             bid.setUnitaryCost(unitaryBidCost)
             if priceBid >= unitaryBidCost:
-                staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.ACTIVE, 
-                                                'MarketShare' : 0, 'Forecast' : 0}
+                staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0}
         logger.debug('Ending - createInitialBids')
         return staged_bids
     
@@ -465,6 +465,48 @@ class Provider(Agent):
         else:
             return False
     
+    def copyBid(self, providerBid):
+        newBid = Bid()
+        uuidId = uuid.uuid1()    # make a UUID based on the host ID and current time
+        idStr = str(uuidId)
+        newBid.setValues(idStr,self._list_vars['strId'], (self._service).getId())
+        for decisionVariable in (self._service)._decision_variables:
+            newBid.setDecisionVariable(decisionVariable, providerBid.getDecisionVariable(decisionVariable))
+        
+        return newBid
+    
+    def getMarketShareZone(self, bid, related_bids, current_period, num_periods):
+        db1 = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+        cursor = db1.cursor() 
+        sql = 'select a.period, a.quantity from \
+                     Network_Simulation.simulation_bid_purchases a, \
+                     Network_Simulation.simulation_generalparameters b \
+               where a.execution_count = b.execution_count \
+                 and a.bidId = %s'
+        cursor.execute(sql, (bid.BidId()))
+        results = cursor.fetchall()
+        marketZoneDemand = {}
+        bidDemand = {}
+        totQuantity = 0
+        for row in results:
+            bidDemand[row[0]] = row[1]
+            totQuantity = totQuantity + row[1]
+            # Insert the demand for the bid only when the sql found data.
+            if (len(bidDemand) > 0):
+                marketZoneDemand[bid.BidId()] = bidDemand
+
+        for providerBid in related_bids:
+            cursor.execute(sql, ( providerBid.BidId()))
+            bidDemand2 = {}
+            for row in results:
+                bidDemand2[row[0]] = row[1]
+                totQuantity = totQuantity + row[1]
+                # Insert the demand for the bid only when the sql found data.
+                if (len(bidDemand2) > 0):
+                    marketZoneDemand[providerBid.BidId()] = bidDemand2
+        db1.close()
+        return marketZoneDemand, totQuantity
+    
     def replaceDominatedBids(self, staged_bids):
         '''
         In case a offer hasn't been sucessful in the market, i.e. has low
@@ -475,24 +517,19 @@ class Provider(Agent):
         for bid in self._list_vars['Bids']:
             if bid in self._list_vars['Related_Bids']:
                 related_bids = (self._list_vars['Related_Bids'])[bid]
+                numrelatedBids = len(related_bids)
                 for providerBid in related_bids:
                     if (self.isDominated(bid, providerBid)):
                         # Puts inactive the bid and copy the information for the competitor's bid 
-                        staged_bids[bid.BidId()] = {'Object': bid, 'Action': Bid.INACTIVE, 
-                                                        'MarketShare' : 0, 'Forecast' : 0 }
-                        newBid = Bid()
-                        uuidId = uuid.uuid1()    # make a UUID based on the host ID and current time
-                        idStr = str(uuidId)
-                        newBid.setValues(idStr,self._list_vars['strId'], (self._service).getId())
-                        for decisionVariable in (self._service)._decision_variables:
-                            newBid.setDecisionVariable(decisionVariable, providerBid.getDecisionVariable(decisionVariableId))
-                            # Only creates bids that can produce profits
+                        staged_bids[bid.BidId()] = {'Object': bid, 'Action': Bid.INACTIVE, 'MarketShare' : {}, 'Forecast' : 0 }
+                        newBid = self.copyBid(providerBid)
                         unitaryBidCost = self.calculateBidUnitaryCost(newBid)
                         newBid.setUnitaryCost(unitaryBidCost)
-                        priceBid = newBid.getDecisionVariable((self._service).getPriceDecisionVariable())
+                        priceBid = newBid.getDecisionVariable((self._service).getPriceDecisionVariable())                        
                         if priceBid >= unitaryBidCost:
-                            staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 
-                                                                'MarketShare' : 0, 'Forecast' : 0 }
+                            marketZoneDemand, totQuantity = self.getMarketShareZone(bid, related_bids)
+                            staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 'MarketShare' : marketZoneDemand, 'Forecast' : totQuantity / numrelatedBids}
+                                    
                         break
         logger.debug('Ending replace dominance bids ')
     
@@ -849,7 +886,6 @@ class Provider(Agent):
         '''
         logger.debug("Initiating moveBid")
         send = False
-        isPrice = False
         newBidStage = False
         self.registerLog(fileResult, 'moveBid:' + bid.getId()) 
         for directionMove in moveDirections:
@@ -895,8 +931,7 @@ class Provider(Agent):
                     if (self.isANonValueAddedBid( newBid, staged_bids) == False):
                         newBid.insertParentBid(bid)
                         self.registerLog(fileResult, 'New bid created - ready to be send' +  newBid.__str__())
-                        staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE,
-                                                         'MarketShare': marketShare, 'Forecast': marketShare }
+                        staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': marketShare }
                         newBidStage = True
             else:
                 self.registerLog(fileResult, 'Bid not moved:' + bid.getId()) 
@@ -905,9 +940,18 @@ class Provider(Agent):
             # As we move the bid, the originator bid must be inactive
             if (marketShare == 0):
                 staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.INACTIVE, 
-                                              'MarketShare' : marketShare, 'Forecast': marketShare }
+                                              'MarketShare' : {}, 'Forecast': marketShare }
         logger.debug("Ending moveBid")
-
+    
+    ''' 
+    returns the available capacity for a specic resource.
+    '''
+    def getAvailableCapacity(self, resourceId):
+        if (resourceId in self._used_variables['resources']):
+            return ((self._used_variables['resources']).get(resourceId)).get('Capacity')
+        return 0
+        
+    
     def summariesUsedCapacity(self, fileResult):
         '''
         returns how much capacity is used.
