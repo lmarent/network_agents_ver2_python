@@ -75,6 +75,16 @@ class Service(object):
 		return decisionVariable
 	return None
 	
+    def getDecisionVariableObjetive(self, decisionVariableId):
+        optimum = 0 # undefined.
+        for decisionVariable in self._decision_variables:
+            if (decisionVariable == decisionVariableId):
+                if (self._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+                    optimum = 1 # Maximize
+                else:
+                    optimum = 2 # Minimize       
+        return optimum
+ 
     def setFromXmlNode(self, serviceXmlNode):
 	'''
 	This method converts the object from XML to string.

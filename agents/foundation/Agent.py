@@ -35,9 +35,17 @@ import xml.dom.minidom
 #    {Key : competitor bid Id, competitor bid}
 
 
-logging.basicConfig(level=logging.INFO,
+logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-10s) %(message)s',
                     )
+logger = logging.getLogger('agent')
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler('agent_logs.log')
+fh.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
 
 class AgentServerHandler(asyncore.dispatcher_with_send):
     '''
@@ -68,8 +76,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     This method activates the agent with all its parameters.
     '''
     def activate(self, message):
-        logging.debug('Activating the consumer: %s', 
-                             str(self._list_args['Id']) )
+        logger.debug('Activating the consumer: %s', str(self._list_args['Id']) )
         if (self._list_args['Type'] == Agent.CONSUMER_TYPE):
             parameters = {}
             serviceId = message.getParameter("Service")
@@ -83,7 +90,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
             self._list_args['Parameters'] = parameters
             self._list_args['Current_Period'] = period
         if (self._list_args['Type'] == Agent.PRESENTER_TYPE):
-            logging.info('Activating the Presenter: %s - Period %s', 
+            logger.info('Activating the Presenter: %s - Period %s', 
                      str(self._list_args['Id']), 
                              str(self._list_args['Current_Period'])  )
             self._list_args['State'] = AgentServerHandler.ACTIVATE        
@@ -116,7 +123,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     This method addresses the offers from competitors.
     '''
     def handledCompetitorBid(self , bidCompetitor):
-        logging.debug('Initiating handle Competitor Bid')
+        logger.debug('Initiating handle Competitor Bid')
         idElement = bidCompetitor.getElementsByTagName("Id_C")[0]
         bid_competior_id = self.getText(idElement.childNodes)
         quantityElement = bidCompetitor.getElementsByTagName("Q_C")[0]
@@ -128,7 +135,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     aiming to share the market.
     '''
     def handlePurchaseCompetitorBids(self, bidPair, bidCompetitors):
-        logging.debug('Initiating handle Bid competitors')
+        logger.debug('Initiating handle Bid competitors')
         for bidCompetitor in bidCompetitors:
             bid_competior_id, quantity_competitor = self.handledCompetitorBid(bidCompetitor)
             if bid_competior_id in bidPair:
@@ -142,17 +149,17 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     was not bought, the method tries to equal the competitor offer.
     '''
     def handleBid(self,period, bidNode):
-        logging.debug('Initiating handle Bid')
+        logger.debug('Initiating handle Bid')
         idElement = bidNode.getElementsByTagName("Id")[0]
         bidId = self.getText(idElement.childNodes)
         quantityElement = bidNode.getElementsByTagName("Quantity")[0]
         quantity = float(self.getText(quantityElement.childNodes))
         bidCompetitors = bidNode.getElementsByTagName("Cmp_Bid")
-        logging.debug('handled Bid - loaded Id and quantity')
+        logger.debug('handled Bid - loaded Id and quantity')
         if (bidId in self._list_args['Bids_Usage']):
-            logging.debug('handled Bid - Bid found in bid usage')
+            logger.debug('handled Bid - Bid found in bid usage')
             if (period in (self._list_args['Bids_Usage'])[bidId]):
-                logging.debug('handled Bid - period found')
+                logger.debug('handled Bid - period found')
                 bidPair = ((self._list_args['Bids_Usage'])[bidId])[period] 
                 if bidId in bidPair:
                     bidPair[bidId] += quantity
@@ -160,19 +167,19 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
                     bidPair[bidId] = quantity
                 self.handlePurchaseCompetitorBids( bidPair, bidCompetitors)
             else:
-                logging.debug('handled Bid - period not found')
+                logger.debug('handled Bid - period not found')
                 bidPair = {}
                 bidPair[bidId] = quantity
                 self.handlePurchaseCompetitorBids( bidPair, bidCompetitors)
                 ((self._list_args['Bids_Usage'])[bidId])[period] = bidPair
         else:
-            logging.debug('handled Bid - Bid not found in bid usage')
+            logger.debug('handled Bid - Bid not found in bid usage')
             bidPair = {}
             bidPair[bidId] = quantity
             (self._list_args['Bids_Usage'])[bidId] = {}
-            logging.debug('handled Bid - Bid not found in bid usage')
+            logger.debug('handled Bid - Bid not found in bid usage')
             self.handlePurchaseCompetitorBids( bidPair, bidCompetitors)
-            logging.debug('handled Bid - Bid not found in bid usage')
+            logger.debug('handled Bid - Bid not found in bid usage')
             ((self._list_args['Bids_Usage'])[bidId])[period] = bidPair    
 
     '''
@@ -180,11 +187,11 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     once the offering period is open.
     '''
     def handleReceivePurchases(self,period, purchaseXmlNode):
-        logging.debug('Initiating Receive Purchases')
+        logger.debug('Initiating Receive Purchases')
         bids = purchaseXmlNode.getElementsByTagName("Bid")
         for bid in bids:
             self.handleBid(period, bid)
-        logging.debug('Ending Receive Purchases')    
+        logger.debug('Ending Receive Purchases')    
         #print  self._list_args['Bids_Usage']  
     
 
@@ -194,39 +201,46 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     '''
     def handleCompetitorBids(self, period, competitorsXmlNode):
         bids = competitorsXmlNode.getElementsByTagName("Bid")
-        if (self._list_args['Type'] == Agent.PRESENTER_TYPE):
-            logging.info('Handle competitor bids')
-            self._list_args['Current_Bids'] = {}  
-            logging.info('clear Handle competitor bids')
-            
-        logging.info('clear 2 Handle competitor bids')
-        for bid in bids:
-            logging.debug('We are inside the bid loop')
-            competitor_bid = Bid()
-            competitor_bid.setFromXmlNode(bid)
-            if (competitor_bid.getProvider() != self._list_args['Id']):
-                if (competitor_bid.getId() in self._list_args['Related_Bids']):
-                    # The bid must be replaced as the provider update it.
-                    (self._list_args['Related_Bids'])[competitor_bid.getId()] = competitor_bid
-                else:
-                    (self._list_args['Related_Bids'])[competitor_bid.getId()] = competitor_bid
-                    logging.debug('Inserting competitor bid:' + competitor_bid.getId())
+        try:
+            if (self._list_args['Type'] == Agent.PRESENTER_TYPE):
+                logger.info('Handle competitor bids')
+                self._list_args['Current_Bids'] = {}  
+                logger.info('clear Handle competitor bids')
                 
-                # Inserts on exchanged bids
-                if (self._list_args['Type'] == Agent.PRESENTER_TYPE):
-                    (self._list_args['Current_Bids'])[competitor_bid.getId()] = competitor_bid
-            
-        if (self._list_args['Type'] == Agent.PRESENTER_TYPE):
-            logging.info('End Handle competitor bids - num exchanged:' + 
-                      str(len(self._list_args['Current_Bids'])))
-        logging.info('clear 3 Handle competitor bids')
-        logging.debug('Ending handled bid competitors for agent is:' + self._list_args['Id'])
+            logger.info('clear 2 Handle competitor bids')
+            for bid in bids:
+                logger.debug('We are inside the bid loop')
+                competitor_bid = Bid()
+                competitor_bid.setFromXmlNode(bid)                
+                if (competitor_bid.getProvider() != self._list_args['strId']):
+                    if (competitor_bid.getService() == (self._list_args['serviceId'])):                        
+                        if (competitor_bid.getId() in self._list_args['Related_Bids']):
+                            # The bid must be replaced as the provider update it.
+                            oldCompetitorBid = (self._list_args['Related_Bids'])[competitor_bid.getId()]
+                            competitor_bid.setCreationPeriod(oldCompetitorBid.getCreationPeriod())  
+                            (self._list_args['Related_Bids'])[competitor_bid.getId()] = competitor_bid
+                        else:
+                            if (competitor_bid.isActive() == True):
+                                competitor_bid.setCreationPeriod(period)
+                            (self._list_args['Related_Bids'])[competitor_bid.getId()] = competitor_bid
+                            #logger.debug('Inserting competitor bid:' + competitor_bid.__str__())
+                        
+                        # Inserts on exchanged bids
+                        if (self._list_args['Type'] == Agent.PRESENTER_TYPE):
+                            (self._list_args['Current_Bids'])[competitor_bid.getId()] = competitor_bid
+                                    
+            if (self._list_args['Type'] == Agent.PRESENTER_TYPE):
+                logger.info('End Handle competitor bids - num exchanged:' + str(len(self._list_args['Current_Bids'])))
+            logger.info('clear 3 Handle competitor bids')
+            logger.debug('Ending handled bid competitors for agent is:' + str(self._list_args['Id']))
+        except Exception as e:
+            raise FoundationException(str(e))
     
     '''
     This method receives the offer information from competitors
     '''
     def receive_bid_information(self, message):
-        logging.debug('Initiating Receive bid information')
+        logger.debug('Initiating Receive bid information')
         if ((self._list_args['Type'] == Agent.PROVIDER_ISP) or (self._list_args['Type'] == Agent.PROVIDER_BACKHAUL) or (self._list_args['Type'] == Agent.PRESENTER_TYPE)):
             period = int(message.getParameter("Period"))
             document = self.removeIlegalCharacters(message.getBody())
@@ -235,7 +249,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
                 competitorsXmlNodes = dom.getElementsByTagName("New_Bids")
                 for competitorsXmlNode in competitorsXmlNodes:
                     self.handleCompetitorBids(period, competitorsXmlNode)
-                logging.debug('Competitor bids Loaded')
+                logger.debug('Competitor bids Loaded')
             except Exception as e: 
                 raise FoundationException(str(e))
 
@@ -244,7 +258,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     offer we receive its neigborhood offers.
     '''
     def receive_purchase_feedback(self, message):
-        logging.debug('Initiating Receive Purchase feedback')
+        logger.debug('Initiating Receive Purchase feedback')
         if ((self._list_args['Type'] == Agent.PROVIDER_ISP) or (self._list_args['Type'] == Agent.PROVIDER_BACKHAUL) or (self._list_args['Type'] == Agent.PRESENTER_TYPE)):
             period = int(message.getParameter("Period"))
             self._list_args['Current_Period'] = period
@@ -256,14 +270,14 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
                 purchaseXmlNodes = dom.getElementsByTagName("Receive_Purchases")        
                 for purchaseXmlNode in purchaseXmlNodes:
                     self.handleReceivePurchases(period, purchaseXmlNode)
-                logging.debug('Purchase statistics Loaded')
                 # After receiving the purchase information the provider can 
                 # start to create new bids.
                 if ((self._list_args['Type'] == Agent.PROVIDER_ISP) or (self._list_args['Type'] == Agent.PROVIDER_BACKHAUL)):
                     self._list_args['State'] = AgentServerHandler.BID_PERMITED    
                 if self._list_args['Type'] == Agent.PRESENTER_TYPE:
-                    logging.info('Receive Purchase feedback - Period: %s', 
+                    logger.info('Receive Purchase feedback - Period: %s', 
                              str(self._list_args['Current_Period'] ))        
+                logger.debug('Purchase statistics Loaded')
             except Exception as e: 
                 raise FoundationException(str(e))
         
@@ -273,11 +287,11 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     '''
     def disconnect_process(self):
         self._list_args['State'] = AgentServerHandler.TERMINATE
-        logging.debug('Terminate processing, the state is now in: %s', 
+        logger.debug('Terminate processing, the state is now in: %s', 
                      str(self._list_args['State']) )
 
     def process_getUnitaryCost(self, message):
-        logging.debug('Initiating process GetUnitaryCost')
+        logger.debug('Initiating process GetUnitaryCost')
         bid = None
         if ((self._list_args['Type'] == Agent.PROVIDER_ISP) or (self._list_args['Type'] == Agent.PROVIDER_BACKHAUL)):
             
@@ -303,7 +317,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
             message.setParameter("Status_Code", "330")
             messageResponse.setParameter("Status_Description", "The agent is not a provider")
         self.send(message.__str__())
-        logging.debug('Ending process GetUnitaryCost')
+        logger.debug('Ending process GetUnitaryCost')
 
     '''
     This method returns the message parameters.
@@ -361,7 +375,7 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
         elif (message.getMethod() == Message.ACTIVATE_PRESENTER):
              self.activate(message)
         else:
-            logging.error('Message for parent %s with request method not handled: %s',
+            logger.error('Message for parent %s with request method not handled: %s',
                   self._list_args['Id'], message.getStringMethod() )
 
             
@@ -371,16 +385,18 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
     '''
     def handle_read(self):
         # Reads data from the socket until a complete message is received
-        string_key = repr(self._addr_orig) + repr(self._sock_orig)
-        message = None
-        data = self.recv(1024)
-        self._strings_received[string_key] += data
-        message = self.getMessage(string_key)
-        while (message is not None):
-            logging.debug('Message for parent %s message: %s',
-                               self._list_args['Id'], message.__str__() )    
-            self.do_processing(message)
+        try:
+            string_key = repr(self._addr_orig) + repr(self._sock_orig)
+            message = None
+            data = self.recv(1024)
+            self._strings_received[string_key] += data
             message = self.getMessage(string_key)
+            while (message is not None):
+                logger.debug('Message for parent %s message: %s',self._list_args['Id'], message.__str__() )    
+                self.do_processing(message)
+                message = self.getMessage(string_key)
+        except Exception as e:
+            raise FoundationException("Error in reading the socket for agent:" + str(self._list_args['Id']) + 'read the data:' + data)
 
 '''
 The AgentServer class initializes the socket communication and 
@@ -389,6 +405,7 @@ handles the incoming connections.
 class AgentServer(asyncore.dispatcher):
 
     def __init__(self, list_args):
+        logger.debug('starting AgentServer Id: %s address:%s port:%s', list_args['Id'], list_args['Address'], list_args['Port'])
         asyncore.dispatcher.__init__(self)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
@@ -396,6 +413,7 @@ class AgentServer(asyncore.dispatcher):
         self.listen(4)
         self._list_args = list_args
         self._strings_received = {}
+        logger.debug('starting AgentServer Id: %s address:%s port:%s', list_args['Id'], list_args['Address'], list_args['Port'])
 
     '''
     This method handles the acceptance of incoming socket connection.
@@ -403,11 +421,13 @@ class AgentServer(asyncore.dispatcher):
     def handle_accept(self):
         pair = self.accept()
         if pair is not None:
+            logger.debug('handle Accept Id: %s address:%s port:%s', self._list_args['Id'], self._list_args['Address'], self._list_args['Port'])
             sock, addr = pair
-            logging.debug('Incoming connection from %s', repr(addr))
+            logger.debug('Incoming connection from %s', repr(addr))
             string_pair = repr(addr) + repr(sock)
             self._strings_received[string_pair] = ''
             handler = AgentServerHandler( addr, sock, self._list_args, self._strings_received)
+            logger.debug('Ending handle Accept Id: %s address:%s port:%s', self._list_args['Id'], self._list_args['Address'], self._list_args['Port'])
 
 '''
 The class AgentListener defines the methods for listening the port.
@@ -419,7 +439,7 @@ class AgentListener(threading.Thread):
         threading.Thread.__init__(self, group=group, target=target, name=name,
                                   verbose=verbose)
         self._stop = threading.Event()
-        logging.debug('initiating with %s and %s', args, kwargs)
+        logger.debug('initiating with %s and %s', list_args, kwargs)
         self._server = AgentServer(list_args)
         return
     
@@ -453,12 +473,12 @@ class Agent(Process):
     PROVIDER_BACKHAUL = "provider_backhaul"
     PRESENTER_TYPE = "presenter"
 
-    def __init__(self, strID, Id, agent_type, serviceId, agent_seed):
+    def __init__(self, strID, Id, agent_type, serviceId, agent_seed, sellingAddress, buyingAddress, capacityControl):
         Process.__init__(self)
         # state means: 0 can not create bids, 
         #              1 the process can create and ask for bids.
         #              2 disconnect
-        logging.debug('Init agent %s', strID) 
+        logger.debug('Init agent %s', strID) 
         self._used_variables = {}
         self._list_vars = {}
         self._list_vars['Id'] = Id
@@ -466,6 +486,8 @@ class Agent(Process):
         self._list_vars['Type'] = agent_type
         self._list_vars['Address'] = agent_properties.addr_agent
         self._list_vars['Current_Period'] = 0  
+        self._list_vars['serviceId'] = serviceId
+        self._list_vars['capacityControl'] = capacityControl
         randomGenerator = random.Random()
         randomGenerator.seed(agent_seed)
         self._list_vars['Random'] = randomGenerator
@@ -494,10 +516,10 @@ class Agent(Process):
             self._list_vars['Port'] = port
             self._list_vars['State'] = AgentServerHandler.IDLE 
             self._list_vars['Current_Bids'] = {}
-        logging.info('Agent created with arguments %s', self._list_vars) 
+        logger.info('Agent created with arguments %s', self._list_vars) 
         try:
             # Connect to servers.            
-            self.connect_servers(agent_type, strID)
+            self.connect_servers(agent_type, strID, sellingAddress, buyingAddress, capacityControl)
             # Request the definition of the service
             connect = Message("")
             connect.setMethod(Message.GET_SERVICES)
@@ -507,8 +529,8 @@ class Agent(Process):
                 self._service = self.handleGetService(response.getBody())
                 self._services = {}
                 self._services[serviceId] = self.handleGetService(response.getBody())
-                logging.debug('service:' + self._service.__str__())
-                logging.debug('init consumer- finish service retrieve')
+                logger.debug('service:' + self._service.__str__())
+                logger.debug('init consumer- finish service retrieve')
         
         except FoundationException as e:
             raise FoundationException(e.__str__())
@@ -516,15 +538,21 @@ class Agent(Process):
     ''' 
     This function connects the agent to servers ( clock server and markets places)
     '''
-    def connect_servers(self, agent_type, strID):
+    def connect_servers(self, agent_type, strID, sellingAddress, buyingAddress, capacityControl):
+        logger.debug('Starting connect servers agent %s', strID) 
         if (agent_type == Agent.PROVIDER_ISP):
             port = agent_properties.mkt_place_listening_port
-            address = agent_properties.addr_mktplace_isp
+            address = sellingAddress
             # This will be the channel to put bids.                
             self._channelMarketPlace = Channel_Marketplace(address, port)
-            address = agent_properties.addr_mktplace_backhaul
+            address = buyingAddress
             # This will be the channel to buy resources.
             self._channelMarketPlaceBuy = Channel_Marketplace(address, port)
+        elif (agent_type == Agent.PROVIDER_BACKHAUL):
+            port = agent_properties.mkt_place_listening_port
+            address = sellingAddress
+            # This will be the channel to put bids.                
+            self._channelMarketPlace = Channel_Marketplace(address, port)
         else:
             port = agent_properties.mkt_place_listening_port
             address = agent_properties.addr_mktplace_isp                
@@ -545,20 +573,21 @@ class Agent(Process):
             if (response2.isMessageStatusOk()):
                 response3 = (self._channelMarketPlaceBuy).sendMessage(connect)
                 if (response3.isMessageStatusOk() ):
-                    logging.debug('We could connect to servers')
+                    logger.debug('We could connect to servers')
                 else:
-                    logging.error('Provider ISP: It could not connect to the market place to Buy')
+                    logger.error('Provider ISP: It could not connect to the market place to Buy')
                     raise FoundationException("Provider ISP: It could not connect to the market place to Buy")
             else:
-                logging.error('Provider ISP: It could not connect to market place to sell')
+                logger.error('Provider ISP: It could not connect to market place to sell')
                 raise FoundationException("Provider ISP: It could not connect to market place to sell")
         else:
             response2 = (self._channelMarketPlace).sendMessage(connect)
             if ( response2.isMessageStatusOk() ):
-                logging.debug('We could connect to both servers')
+                logger.debug('We could connect to both servers')
             else:
-                logging.error('The agent could not connect to market place')
+                logger.error('The agent could not connect to market place')
                 raise FoundationException("Agent: It could not connect to market place")
+        logger.debug('Ending connect servers agent %s', strID) 
         
 
     '''
@@ -566,25 +595,32 @@ class Agent(Process):
     the demand server or the marketplace server.
     '''
     def start_listening(self):
+        logger.debug('Starting listening Id: %s', self._list_vars['Id']) 
         self._server = AgentListener(self._list_vars)
         self._server.start()
         port = self._list_vars['Port']
-        logging.debug('Announcing port %s to servers', str(port))
+        logger.debug('Announcing port %s to servers', str(port))
         port_message = Message("")
         port_message.setMethod(Message.SEND_PORT)
-        port_message.setParameter("Port", str(port))
-        logging.debug('Announcing type %s to servers', self._list_vars['Type'])
+        port_message.setParameter("Port", str(port))            
+        logger.debug('Announcing type %s to servers', self._list_vars['Type'])
         if ((self._list_vars['Type'] == Agent.PROVIDER_ISP) or (self._list_vars['Type'] == Agent.PROVIDER_BACKHAUL)):
             port_message.setParameter("Type", "provider")
+            capacityType = self._list_vars['capacityControl']
+            if capacityType == 'B':
+                port_message.setParameter("CapacityType","bid")
+            else:
+                port_message.setParameter("CapacityType","bulk")
         else:
             port_message.setParameter("Type", self._list_vars['Type'])
         response3 = (self._channelClockServer).sendMessage(port_message)
         response4 = (self._channelMarketPlace).sendMessage(port_message)
         if (response3.isMessageStatusOk() 
             and response4.isMessageStatusOk() ):
-            logging.info('Servers connected')
+            logger.info('Servers connected')
         else:
-            logging.error('One of the servers could not establish the connection')
+            logger.error('One of the servers could not establish the connection')
+        logger.debug('Ending listening Id: %s', self._list_vars['Id'])
 
 
     '''
@@ -605,7 +641,7 @@ class Agent(Process):
     server has sent more than one message.
     '''
     def handleGetService(self, document):
-        logging.debug('Starting get service handler')
+        logger.debug('Starting get service handler Id:%s', self._list_vars['Id'])
         document = self.removeIlegalCharacters(document)
         try:
             dom = xml.dom.minidom.parseString(document)
@@ -616,10 +652,11 @@ class Agent(Process):
                 service = Service()
                 for servicexml in servicesXml:
                     service.setFromXmlNode(servicexml)
-                logging.debug('Ending get service handler')
+                logger.debug('Ending get service handler')
                 return service
         except Exception as e:
             raise FoundationException(str(e))
+        logger.debug('Ending get service handler Id:%s', self._list_vars['Id'])
     
 
     '''
@@ -627,6 +664,7 @@ class Agent(Process):
     characters and get the service statement.
     '''
     def handleGetServices(self, document):
+        logger.debug('Starting get service Id:%s', self._list_vars['Id'])
         document = self.removeIlegalCharacters(document)
         try:
             dom = xml.dom.minidom.parseString(document)
@@ -639,12 +677,13 @@ class Agent(Process):
             return services
         except Exception as e: 
             raise FoundationException(str(e))
-
+        logger.debug('Ending get service Id:%s', self._list_vars['Id'])
 
     '''
     This method returns the available services.
     '''
     def getServices(self):
+        logger.debug('Starting get services Id:%s', self._list_vars['Id'])
         messageAsk = Message('')
         messageAsk.setMethod(Message.GET_SERVICES)
         messageResult = self._channelClockServer.sendMessage(messageAsk)
@@ -652,42 +691,43 @@ class Agent(Process):
             return self.handleGetServices(messageResult.getBody())
         else:
             raise FoundationException('Services not received! Communication failed')
+        logger.debug('Ending get services Id:%s', self._list_vars['Id'])
 
     '''
     This method handles the best offers on the Pareto Front.
     '''
     def handleBestBids(self, docum):
-        logging.debug('Starting handleBestBids')
+        logger.debug('Starting handleBestBids')
         fronts = docum.getElementsByTagName("Front")
         val_return = self.handleFronts(fronts)
-        logging.debug('Ending handleBestBids')
+        logger.debug('Ending handleBestBids')
         return val_return
 
     '''
     This method handles the Pareto Fronts.
     '''
     def handleFronts(self, fronts):
-        logging.debug('Starting handleFronts')
+        logger.debug('Starting handleFronts')
         dic_return = {}
         for front in fronts:
             parNbrElement = front.getElementsByTagName("Pareto_Number")[0]
             parNbr = int((parNbrElement.childNodes[0]).data)
             dic_return[parNbr] = self.handleFront(front)
-        logging.debug('Ending handleFronts')
+        logger.debug('Ending handleFronts')
         return dic_return
 
     '''
     This method handles the Pareto Front of offerings.
     '''
     def handleFront(self, front):
-        logging.debug('Starting handleFront')
+        logger.debug('Starting handleFront')
         val_return = []
         bidXmLNodes = front.getElementsByTagName("Bid")
         for bidXmlNode in bidXmLNodes:
             bid = Bid()
             bid.setFromXmlNode(bidXmlNode)
             val_return.append(bid)
-        logging.debug('Ending handleFront' + str(len(val_return)))
+        logger.debug('Ending handleFront' + str(len(val_return)))
         return val_return
          
     '''

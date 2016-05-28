@@ -21,22 +21,24 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 
+
+
 def load_classes(list_classes):
     currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     sys.path.append(currentdir)
     agents_directory = currentdir
-    black_list = ['ProviderExecution', 'ProviderAgentException','ProviderExecutionTest']
+    black_list = ['ProviderExecution', 'ProviderAgentException','ProviderExecutionTest','ProviderEdgeTest']
     for filename in os.listdir (agents_directory):
         	# Ignore subfolders
         	if os.path.isdir (os.path.join(agents_directory, filename)):
         	    continue
         	else:
         	    if re.match(r"Provider.*?\.py$", filename):
-        		classname = re.sub(r".py", r"", filename)
-        		if (classname not in black_list):
-        		    module = __import__(classname)
-        		    targetClass = getattr(module, classname)
-        		    list_classes[classname] = targetClass   
+            		classname = re.sub(r".py", r"", filename)
+            		if (classname not in black_list):
+            		    module = __import__(classname)
+            		    targetClass = getattr(module, classname)
+            		    list_classes[classname] = targetClass   
     logging.debug('Load Providers Classes initialized')
 
 
@@ -62,8 +64,8 @@ def getSeed(seed, year, month, day, hour, minute, second, microsecond):
     return dtime
 
 def create(list_classes, typ, providerName, providerId, serviceId, providerSeed, marketPositon, 
-	    adaptationFactor, monopolistPosition, debug, 
-	    resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod):
+	    adaptationFactor, monopolistPosition, debug, resources, numberOffers, 
+        numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl):
     print 'In create provider - Class requested:' + str(typ)
     print list_classes
     if typ in list_classes:
@@ -71,7 +73,7 @@ def create(list_classes, typ, providerName, providerId, serviceId, providerSeed,
         	return targetClass(providerName, providerId, serviceId, providerSeed, 
         			   marketPositon, adaptationFactor, monopolistPosition, 
         			   debug, resources, numberOffers, numAccumPeriods, 
-        			   numAncestors, startFromPeriod)
+        			   numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
     else:
         err = 'Class' + typ + 'not found to be loaded'
         raise ProviderException(err)
@@ -105,7 +107,8 @@ if __name__ == '__main__':
     sql = "SELECT id, name, market_position, adaptation_factor \
                   , monopolist_position, service_id, num_ancestors, debug \
 		  , seed, year, month, day, hour, minute, second \
-		  , microsecond, class_name, start_from_period \
+		  , microsecond, class_name, start_from_period, buying_marketplace_address \
+          , selling_marketplace_address, capacity_controlled_at \
 	     FROM simulation_provider \
 	    WHERE status = 'A'"
 
@@ -138,6 +141,9 @@ if __name__ == '__main__':
             microsecond = row[15]
             class_name = row[16]
             startFromPeriod = row[17]
+            buyingAddress = row[18]
+            sellingAddress = row[19]
+            capacityControl = row[20]
             providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
             # Brings resources definition
             cursor2 = db.cursor()
@@ -153,12 +159,13 @@ if __name__ == '__main__':
             provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
         			      providerSeed, marketPositon, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod)
+        			      numAccumPeriods, numAncestors, startFromPeriod, 
+                       sellingAddress, buyingAddress, capacityControl)
             providers.append(provider)
             i = i + 1
 	    # start the providers
         for w in providers:
-            w.run()
+            w.start()
 	
     except FoundationException as e:
         print e.__str__()

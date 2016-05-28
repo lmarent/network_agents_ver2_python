@@ -65,6 +65,7 @@ class Channel_Marketplace(object):
         while (messageResults == None):
             self._streamStaged = self._streamStaged + self._s_mkt.recv(1024)
             messageResults = self.getMessage()
+        print messageResults.__str__()
         return messageResults
 
     '''

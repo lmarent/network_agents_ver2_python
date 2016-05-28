@@ -16,12 +16,14 @@ class Bid(object):
     INACTIVE = 0
 
     def __init__(self):
-        	self._decision_variables = {}
-        	self._status = Bid.ACTIVE
-        	self._unitaryCost = 0
-        	self._unitaryProfit = 0
-        	self._parent = None # Bids that origin this bid.
-        	self._creation_period = 0
+        self._decision_variables = {}
+        self._status = Bid.ACTIVE
+        self._unitaryCost = 0
+        self._unitaryProfit = 0
+        self._parent = None # Bids that origin this bid.
+        self._creation_period = 0
+        self._providerBid = None # bid that generates this bid.
+        self._capacity = 0
 
     '''
     This method receives the offer Id, service provider Id, and 
@@ -51,7 +53,7 @@ class Bid(object):
     This method returns the decision variable.
     '''
     def getDecisionVariable(self, decisionVariableId): 
-        	logging.debug('stating getDecisionVariable - Parameters:' + decisionVariableId)
+        	#logging.debug('stating getDecisionVariable - Parameters:' + decisionVariableId)
         	if decisionVariableId in self._decision_variables:			
         	    return self._decision_variables[decisionVariableId]
         	else:
@@ -132,6 +134,12 @@ class Bid(object):
             self._status = Bid.INACTIVE
         else:
             self._status = Bid.ACTIVE        	    
+
+        parentBidElement = bidXmlNode.getElementsByTagName("ParentBid")[0]
+        parentBidId = self.getText(parentBidElement.childNodes)
+        parentBid = Bid()
+        parentBid.setId(parentBidId)
+        self.insertParentBid(parentBid)
         
         variableXmlNodes = bidXmlNode.getElementsByTagName("Decision_Variable")
         for variableXmlNode in variableXmlNodes:
@@ -167,7 +175,7 @@ class Bid(object):
         val_return = val_return + 'Service:' + self._service + '\n'
         val_return = val_return + 'Status:' + self.getStatusStr() + '\n'
         for decisionVariable in self._decision_variables:
-            val_return = val_return + decisionVariable + str(self._decision_variables[decisionVariable]) + '\n'	    
+            val_return = val_return + 'desc_var:' + decisionVariable + ' value:'+ str(self._decision_variables[decisionVariable]) + '\n'	    
         return val_return
 
 	'''
@@ -178,7 +186,13 @@ class Bid(object):
             return "inactive"
         else:
             return "active"
-
+    
+    def isActive(self):
+        if self._status == Bid.INACTIVE:
+            return False
+        else:
+            return True
+    
 	'''
 	This method creates the offer message to be sent to the 
 	marketplace.
@@ -190,6 +204,13 @@ class Bid(object):
         messageBid.setParameter('Provider', self._provider)
         messageBid.setParameter('Service', self._service)
         messageBid.setParameter('Status', self.getStatusStr())
+        messageBid.setParameter('UnitaryProfit', str(self.getUnitaryProfit() ))
+        messageBid.setParameter('UnitaryCost', str(self.getUnitaryCost() ))
+        messageBid.setParameter('Capacity', str(self.getCapacity() ))
+        if (self._parent != None):
+            messageBid.setParameter('ParentBid', self._parent.getId())
+        else:
+            messageBid.setParameter('ParentBid', ' ')
         for decisionVariable in self._decision_variables:
             messageBid.setParameter(decisionVariable, str(self._decision_variables[decisionVariable]))
         return messageBid
@@ -230,3 +251,23 @@ class Bid(object):
     def insertParentBid(self, bid):
         self._parent = bid
 
+    '''
+    This method establishes the provider bid (object).
+    '''
+    def setProviderBid(self, providerBid):
+        self._providerBid = providerBid
+
+    '''
+    This method establishes the capacity for this bid (object).
+    '''
+    def setCapacity(self, capacity):            
+        self._capacity = capacity
+    
+    def getCapacity(self):
+        return self._capacity
+    
+    '''
+    This method returns the associated bid of the provider that helps to create this bid.
+    '''
+    def getProviderBid(self):
+        return self._providerBid

@@ -116,6 +116,12 @@ class Provider(models.Model):
 	(ACTIVE, 'Active'),
         (INACTIVE, 'Inactive'),
     )
+    BULK = 'G'
+    BID_BY_BID = 'B'
+    PROV_CAPC_CHOICES = ( 
+    (BULK, 'Bulk Controlled'),
+		(BID_BY_BID, 'Bid Controlled'),
+	)
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=60)
     market_position =  models.FloatField(default=0,
@@ -183,7 +189,11 @@ class Provider(models.Model):
 			      validators=[MinValueValidator(1), 
 					  MaxValueValidator(9999) ]
 			       )
-
+    buying_marketplace_address = models.CharField(max_length=45)
+    selling_marketplace_address = models.CharField(max_length=45)
+    capacity_controlled_at = models.CharField(max_length=1, 
+								choices=PROV_CAPC_CHOICES, 
+									default=BULK)
     
     def __unicode__(self):  # Python 3: def __str__(self):
 	return self.name

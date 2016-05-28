@@ -1,5 +1,5 @@
 '''
-This file defines the agent properties.
+This file defines the agent_properties.
 '''
 # ClockServer listening port and Marketplace listening port are
 # defined below.
@@ -19,10 +19,12 @@ addr_mktplace_backhaul = '192.168.2.13'
 addr_clock_server = '192.168.2.12'
 addr_agent = '192.168.2.13'
 
-threshold = 0.5
-neighbor_radius = 0.03
-initial_number_bids = 1
+threshold = 100000
+own_neighbor_radius = 0.05
+others_neighbor_radius = 100 # almost every bid is in the neighbor.
+initial_number_bids = 5
 num_periods_market_share = 3
+intervals_per_cycle = 2
 
 #directory results
 result_directory = 'results/'

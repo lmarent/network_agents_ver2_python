@@ -147,7 +147,8 @@ class ProviderForm(ModelForm):
 	fields = ['name', 'service', 'market_position', 'adaptation_factor', 
 		  'status', 'monopolist_position', 'num_ancestors', 'start_from_period',
 		  'debug', 'class_name', 'seed', 'year', 'month', 'day', 'hour', 
-		  'minute', 'second', 'microsecond' ]
+		  'minute', 'second', 'microsecond', 'buying_marketplace_address',
+		  'selling_marketplace_address', 'capacity_controlled_at' ]
     
     def formfield_for_choice_field(self, available_choices):
         currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
