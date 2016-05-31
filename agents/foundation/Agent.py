@@ -615,12 +615,16 @@ class Agent(Process):
             port_message.setParameter("Type", self._list_vars['Type'])
         response3 = (self._channelClockServer).sendMessage(port_message)
         response4 = (self._channelMarketPlace).sendMessage(port_message)
+        logger.debug('response from the market place: %s', response4.__str__())
         if (response3.isMessageStatusOk() 
             and response4.isMessageStatusOk() ):
-            logger.info('Servers connected')
+            periodStr = response4.getParameter("Period")
+            self._list_vars['Current_Period'] = int(periodStr)
+            logger.info('Servers connected ' + str(periodStr))
         else:
             logger.error('One of the servers could not establish the connection')
         logger.debug('Ending listening Id: %s', self._list_vars['Id'])
+        return int(periodStr)
 
 
     '''

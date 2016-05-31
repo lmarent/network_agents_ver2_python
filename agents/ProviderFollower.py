@@ -129,12 +129,11 @@ class ProviderFollower(Provider):
                     logger.debug('Number of created bids: %s for provider innovator: %s', str(len(staged_bids)), self._list_vars['strId']) 
                 else:
                     # By assumption providers at this point have the bid usage updated.
-                    summarizedUsage = self.sumarizeBidUsage() 
                     self.replaceDominatedBids(staged_bids) 
-                    if (self.canAdoptStrongPosition(fileResult)):
-                        self.moveBetterProfits(summarizedUsage, staged_bids, fileResult)
+                    if (self.canAdoptStrongPosition(currentPeriod, fileResult)):
+                        self.moveBetterProfits(currentPeriod, radius,  staged_bids, fileResult)
                     else:
-                        self.moveForMarketShare(summarizedUsage, staged_bids, fileResult)
+                        self.moveForMarketShare(radius, staged_bids, fileResult)
                 self.eliminateNeighborhoodBid(staged_bids, fileResult)
                 self.registerLog(fileResult, 'The Final Number of Staged offers is:' + str(len(staged_bids)) ) 
                 self.sendBids(staged_bids, fileResult) #Pending the status of the bid.

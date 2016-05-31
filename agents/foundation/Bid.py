@@ -207,6 +207,7 @@ class Bid(object):
         messageBid.setParameter('UnitaryProfit', str(self.getUnitaryProfit() ))
         messageBid.setParameter('UnitaryCost', str(self.getUnitaryCost() ))
         messageBid.setParameter('Capacity', str(self.getCapacity() ))
+        messageBid.setParameter('CreationPeriod', str(self.getCreationPeriod() ))
         if (self._parent != None):
             messageBid.setParameter('ParentBid', self._parent.getId())
         else:

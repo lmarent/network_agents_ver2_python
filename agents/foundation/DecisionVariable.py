@@ -88,6 +88,7 @@ class DecisionVariable(object):
 	elif (purpose == "sensitivity"):
 	    return DecisionVariable.PDST_SENSITIVITY
     
+
     def getModeling(self):
 	'''
 	This method returns the decision variable modeling type.

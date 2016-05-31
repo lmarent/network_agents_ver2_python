@@ -10,6 +10,7 @@ from Provider import Provider
 from foundation.Bid import Bid
 import MySQLdb
 import xml.dom.minidom
+import foundation.agent_properties
 import math
 
 
@@ -94,7 +95,7 @@ class ProviderEdge(Provider):
     and checks if it was succesfully received. 
     '''
     def purchase(self, serviceId, bid, quantity, fileResult):
-        self.registerLog(fileResult, 'Agent:' + str(self.getProviderId()) + ' - Period:' + str(self.getCurrentPeriod()) + ' - bidId:' + bid.getId() + ' -qty to purchase:' + str(quantity))
+        self.registerLog(fileResult, 'Period:' + str(self.getCurrentPeriod()) + ' - bidId:' + bid.getId() + ' -qty to purchase:' + str(quantity))
         messagePurchase = Message('')
         messagePurchase.setMethod(Message.RECEIVE_PURCHASE)
         uuidId = uuid.uuid1()	# make a UUID based on the host ID and current time
@@ -111,7 +112,7 @@ class ProviderEdge(Provider):
         # Check if message was succesfully received by the marketplace
         if messageResult.isMessageStatusOk():
             quantity = float(messageResult.getParameter("Quantity_Purchased"))
-            logger.debug('Agent: %s - Period: %s - bidId:%s -qty:%s', str(self.getProviderId()), str(self.getCurrentPeriod()), bid.getId(), str(quantity))            
+            self.registerLog(fileResult,'Period:' + str(self.getCurrentPeriod()) + '- bidId:' + bid.getId() + 'qty_purchased:' + str(quantity))
             return quantity
         else:
             logger.error('Agent: %s - Period: %s - Purchase not received! Communication failed - Message: %s', 
@@ -124,11 +125,12 @@ class ProviderEdge(Provider):
     '''
     Purchase an specific quantity, return the total quantity purchased
     '''
-    def purchaseResource(self, front, serviceId, unitaryCost, quantityReq, quality, evaluatedBids, disutilities_sorted, fileResult):
+    def purchaseResource(self, front, serviceId, bidPrice, quantityReq, quality, evaluatedBids, disutilities_sorted, fileResult):
+        self.registerLog(fileResult, 'starting purchaseResource - bidPrice:' + str(bidPrice) )
         remainingPurchasedQuantity = quantityReq * quality
         qtyTotPurchase = 0
         for disutility in disutilities_sorted:
-            if (disutility < unitaryCost): 
+            if (disutility < bidPrice): 
                 lenght = len(evaluatedBids[disutility])
                 while ((lenght > 0) and (remainingPurchasedQuantity > 0)):
                     index_rand = (self._list_vars['Random']).randrange(0, lenght)
@@ -145,7 +147,7 @@ class ProviderEdge(Provider):
                     logger.debug('purchaseResource provId:%s qtyPurchased:%s remaining:%s', self._list_vars['strId'], str(quantityReq), str(remainingPurchasedQuantity))
                     return (qtyTotPurchase / quality )
         
-        logger.debug('purchaseResource provId:%s qtyPurchased:%s remaining:%s', self._list_vars['strId'], str(quantityReq), str(remainingPurchasedQuantity))
+        self.registerLog(fileResult, 'purchaseResource qtyPurchased:' + str(quantityReq)  + 'remaining:' + str(remainingPurchasedQuantity) )
         return quantityReq - ( remainingPurchasedQuantity / quality )
         
 	'''
@@ -168,17 +170,16 @@ class ProviderEdge(Provider):
                 totPercentage = totPercentage + percentage
                 
         disutil = cost / totPercentage
-        self.registerLog(fileResult, 'Disutulity -bidId: ' + bid.getId() + 'disutil:' + str(disutil))
+        self.registerLog(fileResult, 'Disutulity -bidId: ' + bid.getId() + 'cost:' + str(cost) + 'percentage:' + str(totPercentage) + 'disutil:' + str(disutil))
         return disutil, totPercentage
 
        
     '''
     Evaluate the bids than comes from the server.
     '''
-    def evaluateFrontBids(self, resourceId, serviceId, quantityReq, quality, front, bidList, fileResult):
-        resources = self._used_variables['resources']
+    def evaluateFrontBids(self, resourceId, serviceId, quantityReq, bidPrice, quality, front, bidList, fileResult):
+        self.registerLog(fileResult, 'Period: ' + str(self.getCurrentPeriod()) + '- Front:' + str(front) + '- Nbr Bids:'+ str(len(bidList)) )
         # Sorts the offerings  based on the customer's needs 
-        self.registerLog(fileResult, 'Period: ' + str(self.getCurrentPeriod()) + '  - Front:' + str(front) + ' - Nbr Bids:'+ str(len(bidList)) )
         evaluatedBids = {}
         for bid in bidList:
             disutility, totPercentage = self.getDisutility(resourceId, serviceId, bid, fileResult)
@@ -189,9 +190,8 @@ class ProviderEdge(Provider):
         # Purchase based on the disutility order.
         disutilities_sorted = sorted(evaluatedBids)
         self.registerLog(fileResult, 'disutilities:' + str(len(disutilities_sorted)) )
-        # This value represents the cost of a unit of minimum quality.
-        unitaryCost = float((resources[resourceId])['Cost'])
-        purchased = self.purchaseResource(front, serviceId, unitaryCost, quantityReq, quality, evaluatedBids, disutilities_sorted, fileResult)
+        purchased = self.purchaseResource(front, serviceId, bidPrice, quantityReq, quality, evaluatedBids, disutilities_sorted, fileResult)
+        self.registerLog(fileResult, 'Ending evaluateFrontBids qtyPurchased:' + str(purchased)) 
         return purchased
 
     '''
@@ -220,16 +220,16 @@ class ProviderEdge(Provider):
     Execute purchases for an specific services that is required for a resource.
     return quantities purchased.
     '''
-    def execServicePurchase(self, resourceId, serviceId, quantityReq, quality, fileResult):
+    def execServicePurchase(self, resourceId, serviceId, quantityReq, bidPrice, quality, fileResult):
         dic_return = self.AskBackhaulBids(serviceId)
-        logger.debug('Agent: %s - Period: %s - Number of fronts: %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), str(len(dic_return)))
+        self.registerLog(fileResult, '- Period:' + str(self._list_vars['Current_Period']) + '- Number of fronts:' + str(len(dic_return))  )
         # Sorts the offerings  based on the customer's needs 
         qtyToPurchase = quantityReq
         if (len(dic_return) > 0):
             keys_sorted = sorted(dic_return,reverse=True)
             for front in keys_sorted:
                 bidList = dic_return[front]
-                purchased = self.evaluateFrontBids(resourceId, serviceId, qtyToPurchase, quality, front, bidList, fileResult)
+                purchased = self.evaluateFrontBids(resourceId, serviceId, qtyToPurchase, bidPrice, quality, front, bidList, fileResult)
                 qtyToPurchase = qtyToPurchase - purchased
                 if (qtyToPurchase == 0 ):
                     return quantityReq
@@ -241,8 +241,8 @@ class ProviderEdge(Provider):
     '''
     Execute resource purchases for an specific resource.
     '''
-    def execResourcePurchase(self, resourceId, quantity, quality, availQuantity, fileResult):
-        logger.debug('Start - exec execResourcePurchase %s - quantity:%s quality:%s - availQty:%s', resourceId, str(quantity), str(quality), str(availQuantity))
+    def execResourcePurchase(self, resourceId, quantity, bidPrice, quality, availQuantity, fileResult):
+        self.registerLog(fileResult, 'Start - exec execResourcePurchase resource:' + str(resourceId) + '- quantity:' + str(quantity) + 'bidPrice:' + str(bidPrice) + 'quality:' + str(quality) + '- availQty:'+  str(availQuantity))
         # The provider has part of the quantities by himself.        
         # The rest of the quantities should be bought.
         quantityReq = quantity - (availQuantity / quality)
@@ -250,24 +250,30 @@ class ProviderEdge(Provider):
         # We assume here a service by every resource.
         services = (self._list_vars['Resource_Service'])[resourceId]
         for serviceId in services:
-            qtyPurchased = self.execServicePurchase(resourceId, serviceId, quantityReq, quality, fileResult)
+            qtyPurchased = self.execServicePurchase(resourceId, serviceId, quantityReq, bidPrice, quality, fileResult)
             self.registerLog(fileResult, 'Ending execResourcePurchase resourceId:' + resourceId  + 'qtyPurchased:' + str(qtyPurchased) )
             return qtyPurchased
         # If it arrives here, it means that nothing could be bought.
         return 0
 
-    def purchaseResourceForBid(self, bid, forecast, resources, availability, fileResult):
+    def purchaseResourceForBid(self, bid, forecast, bidPrice, resources, availability, fileResult):
+        self.registerLog(fileResult, 'starting purchaseResourceForBid - Bid:' + bid.getId() + 'bidPrice:' + str(bidPrice) )
+        bidCapacity = forecast
         for resourceId in resources:
-            qtyTotal = 0            
+            qtyTotal = 0
             availQty = self.getAvailableCapacity(resourceId)
             quality = resources[resourceId]
             if ((forecast * quality ) > availQty):
-                qtyPurchased = self.execResourcePurchase(resourceId, forecast, quality, availQty, fileResult)
+                qtyPurchased = self.execResourcePurchase(resourceId, forecast, bidPrice, quality, availQty, fileResult)
                 qtyTotal = qtyTotal + (qtyPurchased * quality ) + availQty
+                # The capacity of the bid is given by the resource with the minimal capacity
+                bidCapacity = min( bidCapacity, qtyPurchased + (availQty / quality) )
                 self.registerLog(fileResult, 'bidId' + bid.getId() + 'qtyPurchased:' + str(qtyPurchased) )
                 self.updateAvailability(resourceId, 0)
             else:
                 qtyTotal = qtyTotal + (forecast * quality) 
+                # The capacity of the bid is given by the resource with the minimal capacity
+                bidCapacity = min( bidCapacity, forecast )
                 self.updateAvailability(resourceId, availQty - (forecast * quality))
                 self.registerLog(fileResult, 'bidId' + bid.getId() + 'qtyDiscAvail:' + str(forecast * quality) )
             
@@ -275,23 +281,27 @@ class ProviderEdge(Provider):
                 availability[resourceId] = availability[resourceId] + qtyTotal
             else:
                 availability[resourceId] = qtyTotal
-        return qtyTotal
+        self.registerLog(fileResult, 'ending purchaseResourceForBid -qtyForBid:' + str(qtyTotal) + 'bidCapacity:' + str(bidCapacity))
+        return bidCapacity
                 
     '''
     Create the forecast for the staged bids.
     '''
     def purchaseBids(self, staged_bids, availability, fileResult):
-        logger.debug('Start - create forecast')
+        self.registerLog(fileResult, 'Starting purchaseBids' )
         for bidId in staged_bids:            
             action = (staged_bids[bidId])['Action']
             if (action == Bid.ACTIVE):
                 bid = (staged_bids[bidId])['Object']
                 forecast = (staged_bids[bidId])['Forecast']
-                self.registerLog(fileResult, 'bidId' + bid.getId() + ' forecast:' + str(forecast) )
+                bidPrice = self.getBidPrice(bid)
+                self.registerLog(fileResult, 'bidId' + bid.getId() + ' forecast:' + str(forecast) + 'profit:' + str(bid.getUnitaryProfit()) + 'cost:' + str(bid.getUnitaryCost()) + 'price:' + str(bidPrice))
                 resources = self.calculateBidResources(bid)
                 if (forecast > 0):
-                    self.purchaseResourceForBid(bid, forecast, resources, availability, fileResult)
-        logger.debug('Ending - create forecast')
+                    bidCapacity = self.purchaseResourceForBid(bid, forecast, bidPrice, resources, availability, fileResult)
+                    bid.setCapacity(bidCapacity)
+                    (staged_bids[bidId])['Object'] = bid
+        self.registerLog(fileResult, 'Ending purchaseBids' )
     
     def setInitialBids(self, fileResult):
         '''
@@ -306,20 +316,19 @@ class ProviderEdge(Provider):
         if (resourceId in self._used_variables['resources']):
             ((self._used_variables['resources'])[resourceId])['Capacity'] = newAvailability
         
-    def updateCurrentBids(self, currentPeriod, staged_bids, fileResult):
+    def updateCurrentBids(self, currentPeriod, radius, staged_bids, fileResult):
         '''
         Update bids for customers given te previous history.
         '''
         # By assumption providers at this point have the bid usage updated.
-        summarizedUsage = self.sumarizeBidUsage() 
-        self.replaceDominatedBids(currentPeriod, staged_bids, fileResult)
+        self.replaceDominatedBids(currentPeriod, radius, staged_bids, fileResult)
         adoptStrong = self.canAdoptStrongPosition(currentPeriod, fileResult) 
         # This type of provider does not adopt this strategy as their capacity is variable.        
         adoptStrong = False 
         if (adoptStrong == True):
-            self.moveBetterProfits(currentPeriod, summarizedUsage, staged_bids, fileResult)
+            self.moveBetterProfits(currentPeriod, radius,  staged_bids, fileResult)
         else:
-            self.moveForMarketShare(currentPeriod, summarizedUsage, staged_bids, fileResult)        
+            self.moveForMarketShare(currentPeriod, radius, staged_bids, fileResult)        
 
     def sendCapacityEdgeProvider(self, availability):
         '''
@@ -340,11 +349,11 @@ class ProviderEdge(Provider):
                 raise ProviderException('Capacity not received')
         logger.debug("Ends send capacity")
     
-    def includeActiveBidsNotStaged(self,currentPeriod, staged_bids, fileResult):
+    def includeActiveBidsNotStaged(self,currentPeriod, radius,  staged_bids, fileResult):
         for bidId in self._list_vars['Bids']:
             if bidId not in staged_bids.keys():
                 bid = (self._list_vars['Bids'])[bidId]
-                marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, bid, bid, Provider.MARKET_SHARE_ORIENTED, fileResult)
+                marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, bid, bid, Provider.MARKET_SHARE_ORIENTED, fileResult)
                 staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
         self.registerLog(fileResult, 'include active bids not stated end number of bids:' + str(len(staged_bids)) )
 
@@ -379,30 +388,37 @@ class ProviderEdge(Provider):
 		    self._list_vars['strId'], str(self._list_vars['Current_Period'])  )          
         staged_bids = {}
         availability = {}
-        if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
-            fileResult = open(self._list_vars['strId'] + '.log',"a")
-            self.registerLog(fileResult, 'executing algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(self.getCurrentPeriod()) )
-            self.restartAvailableCapacity()
-             # Sends the request to the market place to find the best offerings             
-             # This executes offers for the provider
-            currentPeriod = self.getCurrentPeriod()                 
-            if (len(self._list_vars['Bids']) == 0):
-                 staged_bids = self.setInitialBids(fileResult)
-                 self.registerLog(fileResult, 'The Number of initial Staged offers is:' + str(len(staged_bids)) ) 
-            else:
-                self.updateCurrentBids(currentPeriod, staged_bids, fileResult)
-                self.registerLog(fileResult, 'The Number of updated Staged offers is:' + str(len(staged_bids)) ) 
-            self.eliminateNeighborhoodBid(staged_bids, fileResult)
-            self.registerLog(fileResult, 'The Final Number of Staged offers is:' + str(len(staged_bids)) ) 
-            self.sendBids(staged_bids, fileResult) #Pending the status of the bid.
-            # include active bids not staged. 
-            initial_staged_bids = staged_bids
-            self.includeActiveBidsNotStaged(currentPeriod, staged_bids, fileResult)
-            self.purchaseBids(staged_bids, availability, fileResult)
-            self.purgeBids(initial_staged_bids, fileResult)
-            self.sendCapacityEdgeProvider(availability)
+        try:
+            if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
+                fileResult = open(self._list_vars['strId'] + '.log',"a")
+                self.registerLog(fileResult, 'executing algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(self.getCurrentPeriod()) )
+                self.restartAvailableCapacity()
+                 # Sends the request to the market place to find the best offerings             
+                 # This executes offers for the provider
+                currentPeriod = self.getCurrentPeriod()
+                radius = foundation.agent_properties.own_neighbor_radius
+                if (len(self._list_vars['Bids']) == 0):
+                     staged_bids = self.setInitialBids(fileResult)
+                     self.registerLog(fileResult, 'The Number of initial Staged offers is:' + str(len(staged_bids)) ) 
+                else:
+                    self.updateCurrentBids(currentPeriod, staged_bids, fileResult)
+                    self.registerLog(fileResult, 'The Number of updated Staged offers is:' + str(len(staged_bids)) ) 
+                self.eliminateNeighborhoodBid(staged_bids, fileResult)
+                self.registerLog(fileResult, 'The Final Number of Staged offers is:' + str(len(staged_bids)) ) 
+                self.sendBids(staged_bids, fileResult) #Pending the status of the bid.
+                # include active bids not staged. 
+                initial_staged_bids = staged_bids
+                self.includeActiveBidsNotStaged(currentPeriod, radius, staged_bids, fileResult)
+                self.purchaseBids(staged_bids, availability, fileResult)
+                self.purgeBids(initial_staged_bids, fileResult)
+                self.sendCapacityEdgeProvider(availability)
+
+        except ProviderException as e:
+            self.registerLog(fileResult, e.message)
+        except Exception as e:
+            self.registerLog(fileResult, e.message)
             
-            fileResult.close()
+        fileResult.close()
         self._list_vars['State'] = AgentServerHandler.IDLE
 		
 		

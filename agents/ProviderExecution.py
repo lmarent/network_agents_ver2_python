@@ -166,6 +166,7 @@ if __name__ == '__main__':
 	    # start the providers
         for w in providers:
             w.start()
+        
 	
     except FoundationException as e:
         print e.__str__()

@@ -11,11 +11,11 @@ import foundation.agent_properties
 import copy
 import logging
 import math
-import operator
 import time
 import uuid
 import MySQLdb
 from time import gmtime, strftime
+from operator import itemgetter
 
 
 logger = logging.getLogger('provider_application')
@@ -66,65 +66,99 @@ class Provider(Agent):
             raise ProviderException(e.__str__())
     
     '''
-    Get the Id     
+    Get the Id - tested:OK    
     '''
     def getProviderId(self):
         return self._list_vars['strId']
     
     '''
-    Get the Service Id offering the provider
+    Get the Service Id offering the provider - tested:OK
     '''
     def getServiceId(self):
         return (self._service).getId()
     
     '''
-    Get the Current Period
+    Get the Current Period - tested:OK
     '''
     def getCurrentPeriod(self):
         return self._list_vars['Current_Period']
     
     '''
-    Get the Number of Ancestor to have into account.
+    Get the Number of Ancestor to have into account. - tested:OK
     '''
     def getNumAncestors(self):
         return self._used_variables['numAncestors']
     
+    '''
+    Register a log in the file for the provider - tested:OK
+    '''
     def registerLog(self, fileResult, message):
         timeNow = strftime("%Y-%m-%d %H:%M:%S", gmtime())
         if (self._used_variables['debug'] == True):
             fileResult.write(timeNow + ':' + message + '\n')
+
+    '''
+    Get the maxium period register for a purchase - Not Tested
+    '''    
+    def getDBMaxPeriod(self):
+        db1 = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+        cursor = db1.cursor() 
+        sql = 'select max(a.period) from Network_Simulation.simulation_bid_purchases a, \
+                Network_Simulation.simulation_generalparameters b \
+                where a.execution_count = b.execution_count'
+
+        cursor.execute(sql)
+        results = cursor.fetchall()
+        period = 0
+        for row in results:
+            period = row[0]
+        db1.close()
+        return period
+
     
     ''' 
     Get the bids related to a bid. ( those that are in the neigborhood)
+    Only get those bids with creation period within the range [currentPeriod - numPeriods, currentPeriod]
+    Tested: Ok
     '''    
     def getRelatedBids(self, bid, currentPeriod, numPeriods, radius, fileResult):
         ret_relatedBids = {}
         for bidId in self._list_vars['Related_Bids']:
             bidCompetitor = (self._list_vars['Related_Bids'])[bidId]
             self.registerLog(fileResult, 'competitorBidId:' + bidId + 'creationPeriod:' + str(bidCompetitor.getCreationPeriod()) )
-            if (bidCompetitor.getCreationPeriod() <= (currentPeriod - numPeriods)):
+            if (bidCompetitor.getCreationPeriod()>= (currentPeriod - numPeriods)) and (bidCompetitor.getCreationPeriod() <= (currentPeriod)):
                 if (self.areNeighborhoodBids(radius, bid, bidCompetitor)):
                     ret_relatedBids[bidId] = bidCompetitor
         return ret_relatedBids
     
     '''
-    Get the adaptation factor of this provider
+    Get the adaptation factor of this provider - tested:OK
     '''
     def getAdaptationFactor(self):
         return self._used_variables['adaptationFactor']
 
     '''
-    Get the market position of this provider
+    Get the market position of this provider - tested:OK
     '''
     def getMarketPosition(self):
         return self._used_variables['marketPosition']
 
     '''
-    Get the monopoly position of this provider
+    Get the monopoly position of this provider - tested:OK
     '''
     def getMonopolistPosition(self):
         return self._used_variables['monopolistPosition']
 
+    '''
+    Get price of a particular bid.
+    '''
+    def getBidPrice(self, bid):
+        bidPrice = 0
+        for decisionVariable in (self._service)._decision_variables:
+            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                bidPrice =  bid.getDecisionVariable(decisionVariable)
+        return bidPrice
+        
     def calculateIntervalsPrice(self, market_position, min_value, max_value):
         '''
         Compute the price interval where the offering will be placed.
@@ -330,9 +364,8 @@ class Provider(Agent):
         simulation environment (demand server) with its position 
         in the market. The argument position serve to understand 
         if the provider at the beginning is oriented towards low 
-        price (0) or high quality (1). 
+        price (0) or high quality (1).  - tested:OK
         '''
-        logger.debug('Starting - initial bid generation')
         output = {}
         #initialize the k points
         for i in range(0,k):
@@ -388,9 +421,8 @@ class Provider(Agent):
 
     def createInitialBids(self,k, output, fileResult):
         '''
-        Create the inital bids in the market for this provider.
+        Create the inital bids in the market for this provider. - tested:OK
         '''    
-        logger.debug('Starting - Create Initial Bids')
         #Creates the offerings with the information in the dictionary
         staged_bids = {}
         for i in range(0,k):
@@ -408,13 +440,13 @@ class Provider(Agent):
             logger.debug('The cost of bid is: ' + str(bid.getUnitaryCost()))
             if priceBid >= unitaryBidCost:
                 staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0}
-        logger.debug('Ending - createInitialBids')
         return staged_bids
 
     def sendBid(self, bid, fileResult):
         '''
-        Send a specific bid to the server
+        Send a specific bid to the server - tested:OK
         '''
+        self.registerLog(fileResult, "sending bid:" + bid.getId() + 'Status:' + bid.getStatusStr() + 'Capacity:' + str(bid.getCapacity()) )
         message = bid.to_message()
         messageResult = self._channelMarketPlace.sendMessage(message)
         if messageResult.isMessageStatusOk():
@@ -422,11 +454,12 @@ class Provider(Agent):
         else:
             self.registerLog(fileResult, 'Bid not received! Communication failed Bid:' + bid.getId())
             raise ProviderException('Bid not received! Communication failed')
+        self.registerLog(fileResult, "ending sending bid:" + bid.getId())        
                 
                 
     def sendBids(self, staged_bids, fileResult):
         '''
-        With sendBids method, provider sends offers to the Marketplace
+        With sendBids method, provider sends offers to the Marketplace - tested:OK
         '''
         self.registerLog(fileResult, 'Starting sendBids - number to send:' + str(len(staged_bids)))
         for bidId in staged_bids:
@@ -434,6 +467,7 @@ class Provider(Agent):
             action = (staged_bids[bidId])['Action']
             bid.setStatus(action)
             self.sendBid(bid, fileResult)
+        
         self.registerLog(fileResult, 'Ending sendBids')
         
     
@@ -446,24 +480,31 @@ class Provider(Agent):
         Precondition: Only bids with changes go in the staged_bids dictionary
         '''
         self.registerLog(fileResult, 'Starting purgeBids')
-    
+        # counter initialization
+        activeBids = 0
+        inactiveBids = 0
         for bidId in staged_bids:
             bid = (staged_bids[bidId])['Object']
             action = (staged_bids[bidId])['Action']
             if (action == Bid.INACTIVE):
+                inactiveBids = inactiveBids + 1
                 bid = (self._list_vars['Bids']).pop(bidId, None)
                 if (bid != None):
                     (self._list_vars['Inactive_Bids'])[bidId] = bid
             if (action == Bid.ACTIVE):
                 (self._list_vars['Bids'])[bidId] = bid
+                activeBids = activeBids + 1
         
         # Register in the log active bids.
         for bidId in self._list_vars['Bids']:
             self.registerLog(fileResult, 'bid:' + bidId)
-        self.registerLog(fileResult, 'Ending purgeBids')
+        self.registerLog(fileResult, 'Ending purgeBids numActive:' + str(activeBids) + ':nbrInactive:' + str(inactiveBids))
     
         logger.debug('Ending - purge Bids - Number of bids:' + str(len(self._list_vars['Bids'])))
 
+    '''
+    Return True if the distance between both bids is less tha radius - tested:OK
+    '''
     def areNeighborhoodBids(self, radius, bid1, bid2):
         val_return = False        
         distance = self.distance(bid1,bid2)
@@ -473,25 +514,19 @@ class Provider(Agent):
         return val_return
         
 
-    def isANonValueAddedBid(self, newBid, staged_bids, fileResult):
+    def isANonValueAddedBid(self, radius, newBid, staged_bids, fileResult):
         '''
         Determine whether the newbid is a non value added with respecto to
-        bids in the staged_bids dictionary.
+        bids in the staged_bids dictionary. - tested:OK
         '''
         val_return = False
         for bidId in staged_bids:
             bid = (staged_bids[bidId])['Object']
             action = (staged_bids[bidId])['Action']
             if (action == Bid.ACTIVE):
-                distance = self.distance(newBid,bid)
-                radius = foundation.agent_properties.own_neighbor_radius * len(newBid._decision_variables)
-                if distance <= radius:
-                    #self.registerLog(fileResult, ' distance:' + str(distance) + 'radius:' + str(radius) + 'newBid:' + newBid.__str__() + '\n' + 'comparingBid:' + bid.__str__())
-                    val_return = True
-                    break            
+                neighbor = self.areNeighborhoodBids(radius, newBid, bid) 
                 dominated = self.isDominated(newBid, bid)
-                if (dominated == True):
-                    #self.registerLog(fileResult, ' isDominated' + str(dominated))
+                if (dominated == True) or (neighbor == True):
                     val_return = True
                     break
         self.registerLog(fileResult, 'Ending - isANeighborBid - output:' + str(val_return))
@@ -503,7 +538,7 @@ class Provider(Agent):
         '''    
         # Compare the distance againts bids that will not be changed
         to_delete = {}
-        self.registerLog(fileResult, 'Starting - killNeighborhoodBid - output:' + str(len(staged_bids)))
+        self.registerLog(fileResult, 'Starting - eliminateNeighborhoodBid - output:' + str(len(staged_bids)))
         for bidId in staged_bids:
             bid = (staged_bids[bidId])['Object']
             action = (staged_bids[bidId])['Action']
@@ -519,31 +554,8 @@ class Provider(Agent):
                             break
         for bidId in to_delete:
             del staged_bids[bidId]
-        self.registerLog(fileResult, 'Ending - killNeighborhoodBid  - output:' + str(len(staged_bids)))
-        
-    def sumarizeBidUsage(self):
-        '''
-        This method gets a list of usage of offers. It returns the offers
-        that has been bought by the consumers at certain period, and 
-        the offers that hasn't been bought.
-        '''
-        output = {}
-        for bidId in self._list_vars['Bids']:
-            output[bidId] = {}
-            # Verifies if the bid has usage or not
-            if bidId in self._list_vars['Bids_Usage'].keys():
-                bidData = (self._list_vars['Bids_Usage'])[bidId]
-                for period in bidData:
-                    periodData = bidData[period]
-                    for bidIdUsage in periodData:
-                        output[bidId].setdefault(bidIdUsage, 0)
-                        (output[bidId])[bidIdUsage] += periodData[bidIdUsage]
-            else:
-                # This bid was never used.
-                output[bidId] = {bidId : 0}
-        logger.debug('Ending Summarize Bid Usage agent' + self._list_vars['strId'] + '\n' )
-        return output
-    
+        self.registerLog(fileResult, 'Ending - eliminateNeighborhoodBid  - output:' + str(len(staged_bids)))
+            
     def isDominated(self, bid, competitorBid):    
         '''
         This method establishes if a bid is dominated by a competitor bid or not. 
@@ -573,7 +585,7 @@ class Provider(Agent):
         
 
     '''
-    Copy the bid and returns a new bid with the same decision variables.
+    Copy the bid and returns a new bid with the same decision variables. - tested:OK
     '''    
     def copyBid(self, providerBid):
         newBid = Bid()
@@ -586,7 +598,11 @@ class Provider(Agent):
         
         return newBid    
 
-    def getDBBidMarketShare(self, bidId,  current_period, num_periods):
+    '''
+    - tested:OK    
+    '''
+    def getDBBidMarketShare(self, bidId,  current_period, num_periods, fileResult):
+        self.registerLog(fileResult, 'Starting getDBBidMarketShare' + 'bidId:' + bidId + 'CurrentPeriod:' + str(current_period) + 'num_periods:' + str(num_periods))
         db1 = MySQLdb.connect("localhost","root","password","Network_Simulation" )
         cursor = db1.cursor() 
         sql = 'select a.period, a.quantity from \
@@ -604,12 +620,13 @@ class Provider(Agent):
             bidDemand[int(row[0])] = float(row[1])
             totQuantity = totQuantity + float(row[1])
         db1.close()
+        self.registerLog(fileResult, 'Ending getDBBidMarketShare' + 'bidId:' + bidId + 'totQuantity:' + str(totQuantity))
         return bidDemand, totQuantity
     
     ''' 
-    Get the Ancestor Market Share from a parent Bid, results are put in bidDemand and totQuantity
+    Get the Ancestor Market Share from a parent Bid, results are put in bidDemand and totQuantity - tested Ok
     '''    
-    def getDBBidAncestorsMarketShare(self, bid, currentPeriod, numPeriods):
+    def getDBBidAncestorsMarketShare(self, bid, currentPeriod, numPeriods, fileResult):
         bidDemand = {}
         totQuantity = 0
         nbrAncestors = 0
@@ -618,7 +635,7 @@ class Provider(Agent):
             while ((bidParent != None) and (nbrAncestors <= numPeriods )):
                 if bidParent != None:
                     period = currentPeriod - nbrAncestors
-                    bidDemandTmp, totQuantityTmp = self.getDBBidMarketShare(bidParent.getId(), period, 1 )
+                    bidDemandTmp, totQuantityTmp = self.getDBBidMarketShare(bidParent.getId(), period, 1, fileResult )
                     bidDemand[period] = totQuantityTmp
                     totQuantity = totQuantity + totQuantityTmp
 
@@ -629,10 +646,12 @@ class Provider(Agent):
         return bidDemand, totQuantity
     
     '''
-    Brings the purchases of the bids in the specified period including the bid requested.
+    Brings the purchases for those bid arounf the bid given including the bid requested. 
+    Periods included are [current_period - (num_period-1), current_period]
+    Tested Ok
     '''    
     def getDBMarketShareZone(self, bid, related_bids, current_period, num_periods, fileResult, infoType=PURCHASE):
-        self.registerLog(fileResult, 'Initializating getDBMarketShareZone - Id:' + bid.getId())        
+        self.registerLog(fileResult, 'Initializating getDBMarketShareZone - Id:' + bid.getId() + 'Period:' + str(current_period) + 'Num_periods:' + str(num_periods))
         db1 = MySQLdb.connect("localhost","root","password","Network_Simulation" )
         cursor = db1.cursor() 
         
@@ -684,12 +703,13 @@ class Provider(Agent):
             if (len(bidDemand2) > 0):
                 marketZoneDemand[providerBidId] = bidDemand2
         db1.close()
+        self.registerLog(fileResult, 'Ending getDBMarketShareZone - Id:' + bid.getId() +  'totQuantity:' + str(totQuantity) + 'numRelated:' + str(numRelated) )
         return marketZoneDemand, totQuantity, numRelated
 
 
 
     '''
-    Brings the profits associated with the bids for the specified period including the bid requested.
+    Brings the profits associated with the bids for the specified period including the bid requested. Tested Ok
     '''    
     def getDBProfitZone(self, bid, related_bids, current_period, fileResult):
         self.registerLog(fileResult, 'Initializating getDBProfitZone - Id:' + bid.getId())
@@ -764,8 +784,8 @@ class Provider(Agent):
                         newBid.setUnitaryCost(unitaryBidCost)
                         priceBid = newBid.getDecisionVariable((self._service).getPriceDecisionVariable())
                         if priceBid >= unitaryBidCost:
-                            related_bids = self.getRelatedBids(bid, currentPeriod , self.getNumAncestors(), radius, fileResult)
-                            marketZoneDemand, totQuantity, numRelated = self.getDBMarketShareZone(bid, related_bids, currentPeriod , 1, fileResult)
+                            related_bids = self.getRelatedBids(bid, currentPeriod -1, 0, radius, fileResult)
+                            marketZoneDemand, totQuantity, numRelated = self.getDBMarketShareZone(bid, related_bids, currentPeriod -1, 1, fileResult)
                             staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 'MarketShare' : marketZoneDemand, 'Forecast' : totQuantity / (numRelated + 1)} 
                         break
         except Exception as e:
@@ -774,7 +794,7 @@ class Provider(Agent):
     
     def getBidById(self, bidId):
         '''
-        The method getBidId gets the offering by identification number.
+        The method getBidId gets the offering by identification number. - Tested Ok.
         '''
         logger.debug('Getting own bid:' + bidId)
         return (self._list_vars['Bids'])[bidId]
@@ -806,7 +826,7 @@ class Provider(Agent):
     def generateDirectionBetweenTwoBids(self, bid1, bid2, fileResult):
         '''
         This method establishes the direction (the positive or negative) 
-        value in the decision variable cartesian space to goes from bid 1 to bid 2.
+        value in the decision variable cartesian space to goes from bid 1 to bid 2. Tested Ok
         '''
         #self.registerLog(fileResult, 'generateDirectionBetweenTwoBids:' + bid1.__str__())
         #self.registerLog(fileResult, 'generateDirectionBetweenTwoBids:' + bid2.__str__())
@@ -817,16 +837,24 @@ class Provider(Agent):
             step = ( bid2.getDecisionVariable(decisionVariable) - bid1.getDecisionVariable(decisionVariable) ) 
             step = step * self._list_vars['Random'].uniform(min_value, max_value)
             
-            if (((self._service)._decision_variables[decisionVariable]).getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
                 if (bid2.getDecisionVariable(decisionVariable) > bid1.getDecisionVariable(decisionVariable)):
                     direction = 1
                 else:
                     direction = -1
-            else:
-                if (bid2.getDecisionVariable(decisionVariable) < bid1.getDecisionVariable(decisionVariable)):
-                    direction = -1
+            else:            
+                if (((self._service)._decision_variables[decisionVariable]).getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+                    if (bid2.getDecisionVariable(decisionVariable) > bid1.getDecisionVariable(decisionVariable)):
+                        direction = 1
+                    else:
+                        direction = -1
                 else:
-                    direction = 1
+                    if (bid2.getDecisionVariable(decisionVariable) < bid1.getDecisionVariable(decisionVariable)):
+                        direction = -1
+                    else:
+                        direction = 1
+
+
             output[decisionVariable] = {'Direction' : direction, 'Step' : step }
         #self.registerLog(fileResult, 'generateDirectionBetweenTwoBids output :' + str(output))
         return output
@@ -857,37 +885,37 @@ class Provider(Agent):
         logger.debug("Ending followCompetitorsBid")
         return output
     
-    def improveBidForProfits(self, fileResult, reverse):
+    def improveBidForProfits(self, service, fileResult, reverse):
         ''' 
         The bid does not have any competitor registered, so in case that has zero users
-        we take a direction of increasing decision variable objectives for profits.
+        we take a direction of increasing decision variable objectives for profits. - Tested Ok
         '''
         self.registerLog(fileResult, 'improveBidForProfits - Reverse:' + str(reverse)) 
         output = {}
-        for decisionVariable in (self._service)._decision_variables:
-            min_value = (self._service.getDecisionVariable(decisionVariable)).getMinValue()
-            max_value = (self._service.getDecisionVariable(decisionVariable)).getMaxValue()
+        for decisionVariable in service._decision_variables:
+            min_value = (service.getDecisionVariable(decisionVariable)).getMinValue()
+            max_value = (service.getDecisionVariable(decisionVariable)).getMaxValue()
             maximum_step = (max_value - min_value) * self._used_variables['adaptationFactor']
             # Since we want to determine the step size, we have to do invert the
             # meaning of market position. 
             market_position = 1 - self._used_variables['marketPosition']
             # Gets the objetive to persuit.
-            if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+            if (service._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
                 optimum = 1 # Maximize
             else:
                 optimum = 2 # Minimize
             
             # Gets the modeling objetive of the decision variable
-            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+            if (service._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
                 min_val_adj, max_val_adj = self.calculateIntervalsPrice(market_position, 0, maximum_step)
                 direction = 1 * reverse
                 step = self._list_vars['Random'].uniform(min_val_adj, max_val_adj) * reverse
             else:
                 min_val_adj, max_val_adj = self.calculateIntervalsQuality(market_position, 0, maximum_step, optimum)
-                if (optimum == 1):
+                if (optimum == 1): # Maximize
                     direction = -1 * reverse
                     step = self._list_vars['Random'].uniform(min_val_adj, max_val_adj) * -1 * reverse
-                else:
+                else: # Minimize
                     step = ( self._list_vars['Random'].uniform(min_val_adj, max_val_adj) ) * reverse
                     direction = 1 * reverse         
             output[decisionVariable] = {'Direction' : direction, 'Step': step}
@@ -1009,54 +1037,68 @@ class Provider(Agent):
             # We understand this situtaion as a niche provider.
                 output = self.maintainBidForCompetence(fileResult)
             else:
-                output = self.improveBidForProfits(fileResult, -1)
+                output = self.improveBidForProfits(self._service, fileResult, -1)
     
         self.registerLog(fileResult, 'Ending generateOwnDirection:' + str(output)) 
         return output
 
-    def evaluateDirectionalDerivate(self, currentPeriod, bid, summarizedUsage, fileResult):
+    def evaluateDirectionalDerivate(self, currentPeriod, radius, bid, fileResult):
         '''
         This method evaluates if there is a direction to replace the 
         offer in order to improve the number of customers.
         If the current offer has no competitors, the method looks to 
         improve its market share by increasing its decision variables.
         '''
-        logger.debug("Initializing evaluateDirectionalDerivate")
-        competitiveBids = summarizedUsage[bid.getId()]
-        ownMarketShare = competitiveBids[bid.getId()]
+        self.registerLog(fileResult,"Initializing evaluateDirectionalDerivate")
         
-        # The tuple that corresponds to the offer must be eliminated. 
-        competitiveBids.pop(bid.getId(), None)
-        competitiveBidsSorted = sorted(competitiveBids.iteritems(), key=operator.itemgetter(1), reverse=True)
-        hasCompetitorBids = False
-        numSplits = 0
+        # Variable initialization
         direction = []
-        self.registerLog(fileResult, 'evaluateDirectionalDerivate:' + bid.getId()) 
-        for competitiveBid in competitiveBidsSorted:
-            # competitiveBid has a tuple, the first element is the id of the bid, 
-            # the second element is the market share.
-            marketShare = competitiveBid[1]
-            if (marketShare > 0): # Only tries to compare agains bids that have market
-                hasCompetitorBids = True
-                if (marketShare >= ownMarketShare):
-                    # Exists a direction that can increase the number of customers.
-                    direction.append(self.followCompetitorsBid(bid.getId(), competitiveBid[0], fileResult))
-                    numSplits = numSplits + 1
-                else:
-                    # There are no offerings better than current offer
-                    direction.append(self.avoidCompetitorBid(bid.getId(), competitiveBid[0], fileResult))
-                    numSplits = numSplits + 1
-                if (numSplits == 5 ):
-                    break
-        if (hasCompetitorBids == False): 
-            direction.append(self.generateOwnDirection(currentPeriod, bid.getId(), ownMarketShare, fileResult))
+        ownMarketShare = 0
+        if bid.getId() in (self._list_vars['Bids']).keys():
+            relatedBids = self.getRelatedBids( bid, currentPeriod -1, 0, radius, fileResult)
+                    
+            bidDemandOwn, ownMarketShare = self.getDBBidMarketShare(bid.getId(),currentPeriod -1, 1, fileResult)
             
-        logger.debug("Ending evaluateDirectionalDerivate")
+            # bring the market share of every related bid.
+            competitiveBids = []
+            for competitorBidId in relatedBids:
+                bidDemandTmp, marketShare = self.getDBBidMarketShare(competitorBidId,currentPeriod -1, 1, fileResult)
+                competitiveBids.append((competitorBidId,marketShare))
+            # The tuple that corresponds to the offer must be eliminated. 
+            competitiveBids.sort( key=lambda tup:tup[1], reverse=True)
+            hasCompetitorBids = False
+            numSplits = 0
+            self.registerLog(fileResult, 'evaluateDirectionalDerivate:' + bid.getId()) 
+            for competitiveBid in competitiveBids:
+                # competitiveBid has a tuple, the first element is the id of the bid, 
+                # the second element is the market share.
+                marketShare = competitiveBid[1]
+                if (marketShare > 0): # Only tries to compare agains bids that have market
+                    hasCompetitorBids = True
+                    if (marketShare >= ownMarketShare):
+                        # Exists a direction that can increase the number of customers.
+                        direction.append(self.followCompetitorsBid(bid.getId(), competitiveBid[0], fileResult))
+                        numSplits = numSplits + 1
+                    else:
+                        # There are no offerings better than current offer
+                        direction.append(self.avoidCompetitorBid(bid.getId(), competitiveBid[0], fileResult))
+                        numSplits = numSplits + 1
+                    if (numSplits == 5 ):
+                        break    
+            
+            if (hasCompetitorBids == False): 
+                direction.append(self.generateOwnDirection(currentPeriod, bid.getId(), ownMarketShare, fileResult))
+
+        else:
+            # This does not create a new direction.             
+            self.registerLog(fileResult, 'Bid has not register in the current bids:' + bid.getId())
+                        
+        self.registerLog(fileResult, 'Ending evaluateDirectionalDerivate - Nbr directions:' + str(len(direction)))
         return direction
 
     def distance(self, bid1, bid2):
         '''
-        Method to calculate the distance from a bid to another.
+        Method to calculate the distance from a bid to another. Tested Ok.
         '''
         distance = 0
         for decisionVariable in (self._service)._decision_variables:
@@ -1071,45 +1113,6 @@ class Provider(Agent):
                 distance_value = 0
             distance = distance + ((distance_value)** 2)
         return math.sqrt(distance)
-
-    def getPeriodMarketShare(self, bid, fileResult, requested_period):
-        '''
-        This Method calculates the market share for an offerin the requested period.
-        '''
-        marketShare = 0
-        bidId = bid.getId()
-        if bidId in self._list_vars['Bids_Usage'].keys():
-            bidData = (self._list_vars['Bids_Usage'])[bidId]
-            for period in bidData:
-                if (period == requested_period):
-                    periodData = bidData[period]
-                    if bidId in periodData:
-                        marketShare += periodData[bidId]
-        
-        self.registerLog(fileResult, 'getPeriodMarketShare:' + bid.getId() +  'Period: ' + str(requested_period) + ' Value:' + str(marketShare)) 
-        return marketShare
-
-
-    def getMarketShare(self, currentPeriod, bid, fileResult):
-        '''
-        This Method calculates the market share for an offer, the market share
-        is defined as the quantity of the bid in the last periods defined by 
-        numPeriodsMarketShare
-        '''
-        marketShare = 0
-        period_init = ( currentPeriod - self._used_variables['numPeriodsMarketShare'] )
-        bidId = bid.getId()
-        if bidId in self._list_vars['Bids_Usage'].keys():
-            bidData = (self._list_vars['Bids_Usage'])[bidId]
-            for period in bidData:
-                if (( period >= period_init) 
-                  and ( period <= currentPeriod) ):
-                    periodData = bidData[period]
-                    if bidId in periodData:
-                        marketShare += periodData[bidId]
-        
-        self.registerLog(fileResult, 'getMarketShare:' + bid.getId() + ' Value:' + str(marketShare)) 
-        return marketShare
 
     def moveBidOnDirection(self, bid, directionMove ):
         # Create a new bid
@@ -1145,7 +1148,7 @@ class Provider(Agent):
         return newBid, bidPrice, send
     
     '''
-    Completes the costs of the bid, profit and period
+    Completes the costs of the bid, profit and period - Tested Ok
     '''    
     def completeNewBidInformation(self, bid, bidPrice, fileResult ):
         unitaryBidCost = self.calculateBidUnitaryCost(bid)
@@ -1176,15 +1179,16 @@ class Provider(Agent):
         
     '''
     Calculates the forecast for a bid according with the orientation for the bid.
+    Tested: Ok
     '''    
-    def calculateMovedBidForecast(self, currentPeriod, bid, newBid, orientation, fileResult):
+    def calculateMovedBidForecast(self, currentPeriod, radius, bid, newBid, orientation, fileResult):
         self.registerLog(fileResult, 'starting calculateMovedBidForecast ' + str(orientation))
         marketZoneDemand = {}        
         forecast = 0
         alpha = 0.6
         if (orientation == Provider.PROFIT_ORIENTED):
-            bidDemand, bidQuantity = self.getDBBidMarketShare(bid.getId(), currentPeriod, 1)        
-            bidDemand2, bidQuantity2 = self.getDBBidAncestorsMarketShare( bid, currentPeriod, self.getNumAncestors() )
+            bidDemand, bidQuantity = self.getDBBidMarketShare(bid.getId(), currentPeriod - 1 , 1, fileResult)        
+            bidDemand2, bidQuantity2 = self.getDBBidAncestorsMarketShare( bid, currentPeriod - 1, self.getNumAncestors(), fileResult )
             bidDemand3, bidQuantity3 = self.consolidateDemand(bidDemand, bidQuantity, bidDemand2, bidQuantity2)
             keys = bidDemand3.keys()
             keys.sort()
@@ -1193,16 +1197,19 @@ class Provider(Agent):
             marketZoneDemand[bid.getId()] = bidDemand3
                 
         if (orientation == Provider.MARKET_SHARE_ORIENTED):
-            competitorBids = self.getRelatedBids(bid, currentPeriod, 0, fileResult)
+            competitorBids = self.getRelatedBids(bid, currentPeriod - 1 , 0, radius, fileResult)
             for compBidId in competitorBids:
                 self.registerLog(fileResult, 'Competitor BidId:'+ compBidId)
                 
-            marketZoneDemand, totQuantity, numRelated = self.getDBMarketShareZone(bid, competitorBids, currentPeriod, 1, fileResult)
-            forecast = totQuantity / (numRelated + 1)
+            marketZoneDemand, totQuantity, numRelated = self.getDBMarketShareZone(bid, competitorBids, currentPeriod - 1, 1, fileResult)
+            marketZoneBacklog, totQtyBacklog, numRelatedBacklog = self.getDBMarketShareZone(bid, competitorBids, currentPeriod -1, 1, fileResult, Provider.BACKLOG)
+            totQtyBacklog = totQtyBacklog *0.1
+            forecast = (totQuantity + totQtyBacklog) / (numRelated + 1)
+            
         self.registerLog(fileResult, 'ending calculateMovedBidForecast - forecast:' + str(forecast))
         return marketZoneDemand, forecast
 
-    def moveBid(self, currentPeriod, bid, moveDirections, marketShare, staged_bids, orientation, fileResult):
+    def moveBid(self, currentPeriod, radius, bid, moveDirections, marketShare, staged_bids, orientation, fileResult):
         '''
         If there is a better position to improve the current offer,
         this method will move the offer to the better position in unit
@@ -1218,9 +1225,9 @@ class Provider(Agent):
                 self.registerLog(fileResult,'Period:' + str(currentPeriod) + ' Bid moved:' + bid.getId() + ' Bid created:' + newBid.getId() + ' Bid Price:' + str(bidPrice))
                 unitaryBidCost = self.completeNewBidInformation(newBid, bidPrice, fileResult)
                 if bidPrice >= unitaryBidCost:
-                    if (self.isANonValueAddedBid( newBid, staged_bids, fileResult) == False):
+                    if (self.isANonValueAddedBid( radius, newBid, staged_bids, fileResult) == False):
                         newBid.insertParentBid(bid)
-                        marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, bid, newBid, orientation, fileResult)
+                        marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, bid, newBid, orientation, fileResult)
                         self.registerLog(fileResult, 'New bid created - ready to be send:' +  newBid.getId() + 'Forecast:' + str(forecast))
                         staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
             else:
@@ -1228,11 +1235,10 @@ class Provider(Agent):
         
         # In any case inactive the current bid, if it has purchases copy it.
         if (marketShare > 0): 
-            if (self._list_vars['Type'] != Agent.PROVIDER_ISP):
-                copyB = self.copyBid(bid)
-                copyB = self.insertParentBid(bid)
-                marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, bid, copyB, orientation, fileResult)
-                staged_bids[newBid.getId()] = {'Object': copyB, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
+            copyB = self.copyBid(bid)
+            copyB.insertParentBid(bid)
+            marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, bid, copyB, orientation, fileResult)
+            staged_bids[copyB.getId()] = {'Object': copyB, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
             
         staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.INACTIVE, 'MarketShare' : {}, 'Forecast': 0 }
         logger.debug("Ending moveBid")
@@ -1295,10 +1301,10 @@ class Provider(Agent):
 
     def movingAverage(self, progression):
         '''
-        Calculates the moving average from a progression of bids.
+        Calculates the moving average from a progression of bids. Tested: Ok
         '''
         alpha = 0.6
-        if (len(progression) > 0):
+        if (len(progression) > 1):
             dictio = progression.pop()
             St = dictio.get('delta_profit')
             while (len(progression) > 0):
@@ -1306,29 +1312,36 @@ class Provider(Agent):
                 St = (dictio.get('delta_profit') * (alpha)) + (( 1 - alpha)* St)
             return St
         else:
+            if len(progression) == 1:
+                dictio = progression.pop()
+                St = dictio.get('delta_profit')
+                return St
             return 0
 
     '''
-    Calculate deltas for every offer. For the last element delta profit is 0
+    Calculate deltas for every offer. For the last element delta profit is 0 - Tested Ok.
     '''
     def calculateDeltaProfitProgression(self, progression):
-        i = 0
-        while (i < (len(progression) - 1)):
-            (progression[i])['delta_profit'] = ( (progression[i]).get('profit') - (progression[i + 1]).get('profit'))
-            i = i + 1
+        if len(progression) > 1:        
+            i = 0
+            while (i < (len(progression) - 1)):
+                (progression[i])['delta_profit'] = ( (progression[i]).get('profit') - (progression[i + 1]).get('profit'))
+                i = i + 1
+        else:
+            if len (progression) == 1:
+                (progression[0])['delta_profit'] = (progression[0]).get('profit') 
         
 
     def continueDirectionImprovingProfits(self, currentPeriod, bid, fileResult):
         ''' 
         This function determine if the bid is following a path of increasing profits
-        The way that it does is comparing the profits with their parents.
+        The way that it does is comparing the profits with their parents. Tested Ok.
         '''
         val_return = False
         progression = []
         nbr_ancestors = 0
         self.registerLog(fileResult, 'continueDirectionImprovingProfits' + bid.__str__()) 
         if (bid._parent == None):
-            self.registerLog(fileResult, 'continueDirectionImprovingProfits' + 'No parent')
             result_progression = copy.copy(progression)
             val_return =  True
         else:
@@ -1336,57 +1349,49 @@ class Provider(Agent):
             while ((bidParent != None) and (nbr_ancestors <= self._used_variables['numAncestors'])):
                 # Verifies whether the bid has been active for more than one period.
                 self.registerLog(fileResult, 'Parent BidId:' + bidParent.getId() + 'Creation Period:' + str(bidParent.getCreationPeriod()) + 'market share period:'+ str(currentPeriod - nbr_ancestors)) 
-                if (bidParent.getCreationPeriod() >= currentPeriod - nbr_ancestors):
+                # The equal is when the bid should have quanitities.
+                if (bidParent.getCreationPeriod() > currentPeriod - (nbr_ancestors + 1)):
                     bidParent = bidParent._parent
                 if bidParent != None:
-                    marketShare = self.getPeriodMarketShare(bidParent, fileResult, currentPeriod - nbr_ancestors )
+                    bidDemandTmp, marketShare = self.getDBBidMarketShare(bidParent.getId(), currentPeriod - (nbr_ancestors + 1) , 1, fileResult )
                     profits = marketShare * bidParent.getUnitaryProfit()
                     progression.append({'bid' :bidParent, 'profit' : profits, 'delta_profit' : 0 })
                     nbr_ancestors = nbr_ancestors + 1
                 
             # Calculate deltas for every offer.
             # For the last element delta profit is 0
-            i = 0
-            while (i < (len(progression) - 1)):
-                (progression[i])['delta_profit'] = ( (progression[i]).get('profit') - 
-                                     (progression[i + 1]).get('profit') 
-                                    )
-                i = i + 1
+            self.calculateDeltaProfitProgression(progression)
             
-            self.registerLog(fileResult, 'bidId:' + bid.getId() + 'Data:' + str(progression))
             result_progression = copy.copy(progression)
             estimated_profit = self.movingAverage(progression)
-            self.registerLog(fileResult, 'estimated profits:' + str(estimated_profit))
+            self.registerLog(fileResult,  'bidId:' + bid.getId() + 'Data:' + str(progression) + ' estimated profits:' +  str(estimated_profit))
             if ( estimated_profit >= 0 ):
                 val_return = True
             else:
                 val_return = False
         return val_return, result_progression    
-    
+        
     def sortByLastMarketShare(self, currentPeriod, fileResult):
         '''
-        Sort bids by market share.
+        Sort bids by market share. Tested Ok.
         '''
         dict_result = {}
         for bidId in self._list_vars['Bids']:
-            bid = (self._list_vars['Bids'])[bidId]
-            marketShare = self.getPeriodMarketShare(bid, fileResult, currentPeriod)
+            bidDemandTmp, marketShare = self.getDBBidMarketShare(bidId,  currentPeriod - 1, 1, fileResult)
             dict_result[bidId] = marketShare
+            
         dict_result_sorted_by_value = OrderedDict(sorted(dict_result.items(), 
                               key=lambda x: x[1], 
                               reverse=True))
         return dict_result_sorted_by_value
 
-    def moveBetterProfits(self, currentPeriod, summarizedUsage, staged_bids, fileResult):
+    def moveBetterProfits(self, currentPeriod, radius, staged_bids, fileResult):
         '''
         Determine the new offer based on current position, in this case
         these bids have no competitors.
         '''
-        logger.debug('Starting moveBetterProfits')
+        self.registerLog(fileResult, 'Starting obtainBetterProfits Nbr staged_bids:' + str(len(staged_bids)))
         sortedActiveBids = self.sortByLastMarketShare(currentPeriod, fileResult)
-        # To register in log all bids and their marketshare        
-        for bidId in sortedActiveBids:
-            self.registerLog(fileResult, 'bidId' + bidId + 'marketShare:' + str(sortedActiveBids[bidId]))
             
         for bidId in sortedActiveBids:
             if bidId not in staged_bids:
@@ -1394,7 +1399,7 @@ class Provider(Agent):
                 moveDirections= []
                 can_continue, progression = self.continueDirectionImprovingProfits(currentPeriod, bid, fileResult)
                 if can_continue == True:
-                    moveDirections.append(self.improveBidForProfits(fileResult, 1))
+                    moveDirections.append(self.improveBidForProfits(self._service, fileResult, 1))
                 else:
                     self.registerLog(fileResult, 'it cannot continue direction of improvement:' + str(len(progression)))
                     towards = -1
@@ -1402,24 +1407,24 @@ class Provider(Agent):
                         direction = self.calculateProgressionDirection(progression, towards, fileResult)
                         moveDirections.append(direction)
                     else:
-                        moveDirections.append(self.improveBidForProfits(fileResult, -1))
+                        moveDirections.append(self.improveBidForProfits(self._service, fileResult, -1))
                 marketShare = 0 # With this value we inactivate the current bid.
-                self.moveBid(currentPeriod, bid, moveDirections, marketShare, staged_bids, Provider.PROFIT_ORIENTED, fileResult)
+                self.moveBid(currentPeriod, radius, bid, moveDirections, marketShare, staged_bids, Provider.PROFIT_ORIENTED, fileResult)
         self.registerLog(fileResult, 'Finish obtainBetterProfits Nbr staged_bids:' + str(len(staged_bids)))
     
-    def moveForMarketShare(self, currentPeriod, summarizedUsage, staged_bids, fileResult):
+    def moveForMarketShare(self, currentPeriod, radius, staged_bids, fileResult):
         '''
         Determine the new offer based on current position, in this case
         these bids have competitors and we want to improve the market share.
         '''
-        logger.debug('Starting moveForMarketShare: %s', self._list_vars['strId'])
+        self.registerLog(fileResult, 'Starting moveForMarketShare: ' + str(self._list_vars['strId']))
         sortedActiveBids = self.sortByLastMarketShare(currentPeriod, fileResult)
         for bidId in sortedActiveBids:
             if bidId not in staged_bids:
                 bid = (self._list_vars['Bids'])[bidId]
-                moveDirections = self.evaluateDirectionalDerivate(currentPeriod, bid, summarizedUsage, fileResult)
-                marketShare = self.getMarketShare(currentPeriod, bid, fileResult) 
-                self.moveBid(currentPeriod, bid, moveDirections, marketShare, staged_bids, Provider.MARKET_SHARE_ORIENTED, fileResult)
+                moveDirections = self.evaluateDirectionalDerivate(currentPeriod, radius, bid, fileResult)
+                bidDemand, marketShare = self.getDBBidMarketShare( bid.getId(), currentPeriod-1, self._used_variables['numPeriodsMarketShare'], fileResult) 
+                self.moveBid(currentPeriod, radius, bid, moveDirections, marketShare, staged_bids, Provider.MARKET_SHARE_ORIENTED, fileResult)
         self.registerLog(fileResult, 'Finish moveForMarketShare Nbr staged_bids:' + str(len(staged_bids)))
                  
     def exec_algorithm(self):
@@ -1429,11 +1434,44 @@ class Provider(Agent):
         If this is the case, it will place the offer at the best position
         possible.
         '''
-        logger.debug('The state for agent %s is %s', self._list_vars['strId'], str(self._list_vars['State']))
-        fileResult = open(self._list_vars['strId'] + '.log',"a")
-        self.registerLog(fileResult, 'executing algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(self.getCurrentPeriod()) )
         if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
+            fileResult = open(self._list_vars['strId'] + '.log',"a")
+            self.registerLog(fileResult, 'executing algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(self.getCurrentPeriod()) )
+             
+            #This code can be used to test connection with servers.               
+#            price = 16
+#            quality = 0.4
+#            newBid = Bid()
+#            uuidId = uuid.uuid1()	# make a UUID based on the host ID and current time
+#            idStr = str(uuidId)
+#            newBid.setValues(idStr, self.getProviderId(),  self.getServiceId())
+#            newBid.setDecisionVariable("4", price)  #Price
+#            newBid.setDecisionVariable("3", quality)     # Delay
+#            newBid.setId('Bid' + str(self.getCurrentPeriod()))
+#            newBid.setStatus(Bid.ACTIVE)
+#            newBid.setCreationPeriod(self.getCurrentPeriod())
+#            self.sendBid(newBid, fileResult)
+#
+#            if self.getCurrentPeriod() > 0:
+#                price = 16
+#                quality = 0.4
+#                oldBid = Bid()
+#                uuidId = uuid.uuid1()	# make a UUID based on the host ID and current time
+#                idStr = str(uuidId)
+#                oldBid.setValues(idStr, self.getProviderId(),  self.getServiceId())
+#                oldBid.setDecisionVariable("4", price)  #Price
+#                oldBid.setDecisionVariable("3", quality)     # Delay
+#                oldBid.setId('Bid' + str(self.getCurrentPeriod() -1 ))
+#                oldBid.setStatus(Bid.INACTIVE)
+#                oldBid.setCreationPeriod(self.getCurrentPeriod()-1)
+#                self.sendBid(oldBid, fileResult)
+#                self.registerLog(fileResult, ' - Period: ' +  str(self.getCurrentPeriod()) + 'Bid:' + newBid.getId() )
+            
+            
             currentPeriod = self.getCurrentPeriod()
+            period = self.getDBMaxPeriod()            
+            self.registerLog(fileResult, 'Period in the Agent:' + str(currentPeriod) + ' - Period in the database: ' + str(period))
+            
             radius = foundation.agent_properties.own_neighbor_radius
             logger.info('Bidding for agent %s in the period %s', self.getProviderId(), str(currentPeriod))
             logger.debug('Number of bids: %s for provider: %s', len(self._list_vars['Bids']), self.getProviderId())
@@ -1445,12 +1483,11 @@ class Provider(Agent):
                 staged_bids = self.initializeBids(marketPosition, initialNumberBids, fileResult) 
             else:
                 # By assumption providers at this point have the bid usage updated.
-                summarizedUsage = self.sumarizeBidUsage() 
                 self.replaceDominatedBids(currentPeriod, radius, staged_bids, fileResult) 
                 if (self.canAdoptStrongPosition(currentPeriod, fileResult)):
-                    self.moveBetterProfits(currentPeriod, summarizedUsage, staged_bids, fileResult)
+                    self.moveBetterProfits(currentPeriod, radius, staged_bids, fileResult)
                 else:
-                    self.moveForMarketShare(currentPeriod, summarizedUsage, staged_bids, fileResult)
+                    self.moveForMarketShare(currentPeriod, radius, staged_bids, fileResult)
             
             self.eliminateNeighborhoodBid(staged_bids, fileResult)
             self.registerLog(fileResult, 'The Final Number of Staged offers is:' + str(len(staged_bids)) ) 
@@ -1493,8 +1530,9 @@ class Provider(Agent):
     to the marketplace and the simulation environment (demand server).
     '''
     def run(self):
-        print 'start agent' + str(self._list_vars['State'])
-        self.start_listening()
+        period = self.start_listening()
+        self._list_vars['Current_Period'] = period
+        logger.debug('Current period for agent %s is :%s', self._list_vars['strId'], str(self._list_vars['Current_Period']))
         self.initialize()
         try:
             if (self._used_variables['debug'] == True):
@@ -1507,7 +1545,6 @@ class Provider(Agent):
             while (self._list_vars['State'] != AgentServerHandler.TERMINATE):
                 if self._list_vars['State'] == AgentServerHandler.BID_PERMITED:
                     self.exec_algorithm()
-                    print 'Go out from exec_algorithm, state:' + str(self._list_vars['State'])
                 time.sleep(0.1)
             logger.debug('Shuting down the agent %s', self._list_vars['strId'])
         except ProviderException as e:
