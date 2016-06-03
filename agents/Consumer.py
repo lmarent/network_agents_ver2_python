@@ -31,44 +31,50 @@ class Consumer(Agent):
         	    logger.debug('Agent: %s - Consumer Created', self._list_vars['strId'])
         except FoundationException as e:
             raise ProviderException(e.__str__())
-	        	
+
     ''' 
-    The Purchase method assigns all the parameters and consumer ID
-	to the message to be send to the Marketplace.
-	In the end, the function sends the message to the marketplace
-	and checks if it was succesfully received. 
+    Create the purchase message without indicating bid and quantity.
     '''
-    def purchase(self, bid, quantity):
+    def createPurchaseMessage(self):
         messagePurchase = Message('')
         messagePurchase.setMethod(Message.RECEIVE_PURCHASE)
         uuidId = uuid.uuid1()	# make a UUID based on the host ID and current time
         idStr = str(uuidId)
         messagePurchase.setParameter('Id', idStr)
         messagePurchase.setParameter('Service', self._service.getId())        
-        messagePurchase.setParameter('Bid', bid.getId())        
-        messagePurchase.setParameter('Quantity', str(quantity))
+        
+        return messagePurchase
+     	
+    ''' 
+    The Purchase method assigns all the parameters and consumer ID
+	to the message to be send to the Marketplace.
+	In the end, the function sends the message to the marketplace
+	and checks if it was succesfully received. 
+    '''
+    def purchase(self, messagePurchase, bid, quantity):
+        
+        # Copy basic data from the purchase message given as parameter.        
+        message = Message('')
+        message.setMethod(Message.RECEIVE_PURCHASE)
+        message.setParameter('Id', messagePurchase.getParameter('Id'))
+        message.setParameter('Service', messagePurchase.getParameter('Service'))
+        
+        # Set the rest of the data from the bid and quantity given as parameters.        
+        message.setParameter('Bid', bid.getId())        
+        message.setParameter('Quantity', str(quantity))
         for decisionVariable in (self._service)._decision_variables:
         	    value = ((self._service)._decision_variables[decisionVariable]).getSample(DecisionVariable.PDST_VALUE)
-        	    messagePurchase.setParameter(decisionVariable, str(value))
-        messageResult = self._channelMarketPlace.sendMessage(messagePurchase)
+        	    message.setParameter(decisionVariable, str(value))
+
+        messageResult = self._channelMarketPlace.sendMessage(message)
+
         # Check if message was succesfully received by the marketplace
         if messageResult.isMessageStatusOk():
             quantity = float(messageResult.getParameter("Quantity_Purchased"))
-            if quantity > 0:
-                logger.debug( 'Agent: %s - Period: %s - Purchase: %s Vendor: %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), idStr, bid.getProvider())
-                return True
-            else: 
-            		logger.debug( 'Agent: %s - Period: %s - Not purchase - Vendor: %s Message: %s', 
-            				self._list_vars['strId'], str(self._list_vars['Current_Period']), 
-            				bid.getProvider(), messageResult.__str__())
-            		return False
+            return quantity
         else:
-        	    logger.error('Agent: %s - Period: %s - Purchase not received! Communication failed - Message: %s', 
-        			  self._list_vars['strId'], str(self._list_vars['Current_Period']), messageResult.__str__())
-        			  
-        	    logger.error('Agent: %s - Period: %s - Purchase not received! Communication failed', 
-        			  self._list_vars['strId'], str(self._list_vars['Current_Period']))
-                    raise ProviderException('Purchase not received! Communication failed')
+            logger.error('Agent: %s - Period: %s - Purchase not received! Communication failed - Message: %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), messageResult.__str__())
+            raise ProviderException('Purchase not received! Communication failed')
 	    
     def initialize(self):
 	''' 
@@ -129,6 +135,7 @@ class Consumer(Agent):
             purchased = False
             # Sorts the offerings  based on the customer's needs 
             keys_sorted = sorted(dic_return,reverse=True)
+            purchaseMessage = self.createPurchaseMessage()
             for front in keys_sorted:
                 bidList = dic_return[front]
                 logger.debug('Agent: %s - Period: %s - Front: %s - Nbr Bids: %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), str(front), str(len(bidList)))
@@ -147,25 +154,25 @@ class Consumer(Agent):
                     logger.debug('Agent: %s - Period: %s - Front: %s  disutility: %s Nbr Bids: %s Threshold %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), str(front), str(disutility), str(len(evaluatedBids[disutility]) ), str(Threshold) )
                     if (disutility < Threshold): 
                         lenght = len(evaluatedBids[disutility])
-                        while (lenght > 0):
+                        while (lenght > 0) and (quantity > 0) :
                             index_rand = (self._list_vars['Random']).randrange(0, lenght)
                             logger.debug('Agent: %s - Period: %s - Index: %d \n', self._list_vars['strId'], str(self._list_vars['Current_Period']),index_rand)
                             bid = evaluatedBids[disutility].pop(index_rand)
-                            if (self.purchase(bid, quantity)):
-                                purchased = True
+                            qtyPurchased = self.purchase(purchaseMessage, bid, quantity)
+                            if (qtyPurchased >= quantity):
+                                quantity = 0
                                 break
                             else:
-                                logger.debug('Agent: %s - Period: %s - Could not purchase: %s', self._list_vars['strId'],  str(self._list_vars['Current_Period']),bid.getId())
-                                pass
+                                quantity = quantity - qtyPurchased
                             lenght = len(evaluatedBids[disutility])
-                        if (purchased == True):
+                        if (quantity == 0):
                             break
                     else:
                         logger.debug('Agent: %s - Period: %s - It is not going to buy', self._list_vars['strId'], str(self._list_vars['Current_Period']) ) 
                         break
-                if (purchased == True):
+                if (quantity == 0):
                     break
-            if (purchased == True):
+            if (quantity == 0):
                 logger.debug('Agent: %s - Period: %s - Puchase the bid: %s with quantity: %s in period: %d', self._list_vars['strId'], str(self._list_vars['Current_Period']),bid.getId(), str(quantity), self._list_vars['Current_Period'])
         else:
             logger.debug(' Agent: %s - Period: %s - could not puchase', self._list_vars['strId'], str(self._list_vars['Current_Period']))

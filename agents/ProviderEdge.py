@@ -86,6 +86,19 @@ class ProviderEdge(Provider):
             resource_services[resourceId] = res_services
         self._list_vars['Resource_Service'] = resource_services
         db1.close()
+
+    ''' 
+    Create the purchase message without indicating bid and quantity.
+    '''
+    def createPurchaseMessage(self, serviceId):
+        messagePurchase = Message('')
+        messagePurchase.setMethod(Message.RECEIVE_PURCHASE)
+        uuidId = uuid.uuid1()	# make a UUID based on the host ID and current time
+        idStr = str(uuidId)
+        messagePurchase.setParameter('Id', idStr)
+        messagePurchase.setParameter('Service', serviceId)
+        return messagePurchase
+
 	        	
     ''' 
     The Purchase method assigns all the parameters and access provider ID
@@ -94,38 +107,37 @@ class ProviderEdge(Provider):
     In the end, the function sends the message to the marketplace
     and checks if it was succesfully received. 
     '''
-    def purchase(self, serviceId, bid, quantity, fileResult):
+    def purchase(self, messagePurchase, serviceId, bid, quantity, fileResult):
         self.registerLog(fileResult, 'Period:' + str(self.getCurrentPeriod()) + ' - bidId:' + bid.getId() + ' -qty to purchase:' + str(quantity))
-        messagePurchase = Message('')
-        messagePurchase.setMethod(Message.RECEIVE_PURCHASE)
-        uuidId = uuid.uuid1()	# make a UUID based on the host ID and current time
-        idStr = str(uuidId)
-        messagePurchase.setParameter('Id', idStr)
-        messagePurchase.setParameter('Service', serviceId)
-        messagePurchase.setParameter('Bid', bid.getId())        
-        messagePurchase.setParameter('Quantity', str(quantity))
+
+        # Copy basic data from the purchase message given as parameter.
+        message = Message('')
+        message.setMethod(Message.RECEIVE_PURCHASE)
+        message.setParameter('Id', messagePurchase.getParameter('Id'))
+        message.setParameter('Service', messagePurchase.getParameter('Service'))
+        
+        # set the rest of the data from the bid and quantity given as parameters.
+        message.setParameter('Bid', bid.getId())        
+        message.setParameter('Quantity', str(quantity))
         service = self._services[serviceId]
         for decisionVariable in service._decision_variables:
             value = float(bid.getDecisionVariable(decisionVariable))
-            messagePurchase.setParameter(decisionVariable, str(value))
-        messageResult = self._channelMarketPlaceBuy.sendMessage(messagePurchase)
+            message.setParameter(decisionVariable, str(value))
+        messageResult = self._channelMarketPlaceBuy.sendMessage(message)
         # Check if message was succesfully received by the marketplace
         if messageResult.isMessageStatusOk():
             quantity = float(messageResult.getParameter("Quantity_Purchased"))
             self.registerLog(fileResult,'Period:' + str(self.getCurrentPeriod()) + '- bidId:' + bid.getId() + 'qty_purchased:' + str(quantity))
             return quantity
         else:
-            logger.error('Agent: %s - Period: %s - Purchase not received! Communication failed - Message: %s', 
-                             self._list_vars['strId'], str(self._list_vars['Current_Period']), messageResult.__str__())
-            logger.error('Agent: %s - Period: %s - Purchase not received! Communication failed', 
-                         self._list_vars['strId'], str(self._list_vars['Current_Period']))
+            self.registerLog(fileResult, 'Period: ' + str(self.getCurrentPeriod()) + '- Purchase not received! Communication failed - Message:' + messageResult.__str__())
             raise ProviderException('Purchase not received! Communication failed')
 	        
     
     '''
     Purchase an specific quantity, return the total quantity purchased
     '''
-    def purchaseResource(self, front, serviceId, bidPrice, quantityReq, quality, evaluatedBids, disutilities_sorted, fileResult):
+    def purchaseResource(self, front, serviceId, bidPrice, quantityReq, quality, messagePurchase, evaluatedBids, disutilities_sorted, fileResult):
         self.registerLog(fileResult, 'starting purchaseResource - bidPrice:' + str(bidPrice) )
         remainingPurchasedQuantity = quantityReq * quality
         qtyTotPurchase = 0
@@ -139,7 +151,7 @@ class ProviderEdge(Provider):
                     bid = dictUtil['Object']
                     overPercentage = dictUtil['OverPercentage']
                     qtyToPurchase = math.ceil(remainingPurchasedQuantity / overPercentage)
-                    qtyPurchased = self.purchase(serviceId, bid, qtyToPurchase, fileResult)
+                    qtyPurchased = self.purchase(messagePurchase, serviceId, bid, qtyToPurchase, fileResult)
                     qtyTotPurchase = qtyTotPurchase + qtyPurchased  * overPercentage
                     remainingPurchasedQuantity = remainingPurchasedQuantity - ( qtyPurchased  * overPercentage )
                     lenght = len(evaluatedBids[disutility])
@@ -177,7 +189,7 @@ class ProviderEdge(Provider):
     '''
     Evaluate the bids than comes from the server.
     '''
-    def evaluateFrontBids(self, resourceId, serviceId, quantityReq, bidPrice, quality, front, bidList, fileResult):
+    def evaluateFrontBids(self, resourceId, serviceId, quantityReq, bidPrice, quality, messagePurchase, front, bidList, fileResult):
         self.registerLog(fileResult, 'Period: ' + str(self.getCurrentPeriod()) + '- Front:' + str(front) + '- Nbr Bids:'+ str(len(bidList)) )
         # Sorts the offerings  based on the customer's needs 
         evaluatedBids = {}
@@ -190,7 +202,7 @@ class ProviderEdge(Provider):
         # Purchase based on the disutility order.
         disutilities_sorted = sorted(evaluatedBids)
         self.registerLog(fileResult, 'disutilities:' + str(len(disutilities_sorted)) )
-        purchased = self.purchaseResource(front, serviceId, bidPrice, quantityReq, quality, evaluatedBids, disutilities_sorted, fileResult)
+        purchased = self.purchaseResource(front, serviceId, bidPrice, quantityReq, quality, messagePurchase, evaluatedBids, disutilities_sorted, fileResult)
         self.registerLog(fileResult, 'Ending evaluateFrontBids qtyPurchased:' + str(purchased)) 
         return purchased
 
@@ -225,11 +237,12 @@ class ProviderEdge(Provider):
         self.registerLog(fileResult, '- Period:' + str(self._list_vars['Current_Period']) + '- Number of fronts:' + str(len(dic_return))  )
         # Sorts the offerings  based on the customer's needs 
         qtyToPurchase = quantityReq
+        messagePurchase = self.createPurchaseMessage(serviceId)
         if (len(dic_return) > 0):
             keys_sorted = sorted(dic_return,reverse=True)
             for front in keys_sorted:
                 bidList = dic_return[front]
-                purchased = self.evaluateFrontBids(resourceId, serviceId, qtyToPurchase, bidPrice, quality, front, bidList, fileResult)
+                purchased = self.evaluateFrontBids(resourceId, serviceId, qtyToPurchase, bidPrice, quality, messagePurchase, front, bidList, fileResult)
                 qtyToPurchase = qtyToPurchase - purchased
                 if (qtyToPurchase == 0 ):
                     return quantityReq

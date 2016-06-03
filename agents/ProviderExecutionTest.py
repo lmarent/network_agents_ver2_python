@@ -15,7 +15,8 @@ from foundation.Bid import Bid
 import uuid
 from foundation.Agent import AgentServerHandler
 from foundation.Agent import Agent
-
+import random
+from Consumer import Consumer
 
 
 
@@ -103,8 +104,7 @@ def create(list_classes, typ, providerName, providerId, serviceId, providerSeed,
 	    adaptationFactor, monopolistPosition, debug, 
 	    resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod,
         sellingAddress, buyingAddress, capacityControl ):
-    print 'In create provider - Class requested:' + str(typ)
-    print list_classes
+
     if typ in list_classes:
         	targetClass = list_classes[typ]
         	return targetClass(providerName, providerId, serviceId, providerSeed, 
@@ -158,6 +158,69 @@ def insertDBBidPurchase(cursor, period, serviceId, executionCount, bid, quantity
     args = (period, serviceId, bid.getId(), quantity, executionCount )
     cursor.execute(sql, args )
 
+
+def activateCustomer():
+    # Open database connection
+    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+
+    # prepare a cursor object using cursor() method
+    cursor = db.cursor()
+
+    # Brings the general parameters from the database
+    bidPeriods, numberOffers, numAccumPeriods = getGeneralConfigurationParameters(cursor)
+
+    # Prepare SQL query to SELECT customers from the database.
+    sql = "select a.number_execute, b.service_id, a.seed, a.year, a.month, a.day, \
+		  a.hour, a.minute, a.second, a.microsecond \
+	   from simulation_consumer a, simulation_consumerservice b \
+	  where a.id = b.consumer_id \
+	    and b.execute = 1 \
+	    LIMIT 1"
+     
+    try:
+        # Execute the SQL command
+        cursor.execute(sql)
+        # Fetch all the rows in a list of lists.
+        results = cursor.fetchall()
+        num_consumers = 0
+        i = 1
+        for row in results:
+            serviceId = str(row[1])
+            seed = row[2]
+            year = row[3]
+            month = row[4]
+            day = row[5]
+            hour = row[6]
+            minute = row[7]
+            second = row[8]
+            microsecond = row[9]
+            seed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            # Start consumers
+            logger.info('Creating %d consumers' % num_consumers)
+            logger.info('seed:' + str(seed))
+            # Creating aleatory numbers for the customers.
+            consumers = []
+            customer_seed = random.randint(0, 1000 * num_consumers)
+            logger.info('customer seed:'+ str(customer_seed))
+            consumer = Consumer("agent" + str(i), i, serviceId, customer_seed)
+            consumers.append(consumer)
+            num_consumers = num_consumers + 1
+            break
+
+        if num_consumers > 0:
+            return consumers[0]
+        else:
+            return None
+
+    except ProviderException as e:
+        print e.__str__()
+    except Exception as e:
+        print e.__str__()
+
+    finally:
+        # disconnect from server
+        db.close()
+    
 
 def test_marketplace_capacity_management():
     list_classes = {}
@@ -252,9 +315,10 @@ def test_marketplace_capacity_management():
         			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
             providers.append(provider)
 
+
             i = i + 1
 
-            capacityControl = 'G' # Bulk Capacity.
+            capacityControl = 'B' # Capacity by Bid.
             class_name = 'ProviderEdge'
             providerId = i
             providerName = 'Provider' + str(providerId)
@@ -313,24 +377,28 @@ def test_marketplace_capacity_management():
         provider1.sendBid(bid, fileResult1)
         
         # Buy with minimum quality 3 units - Response 3 units purchased, provider2 acts as the customer.
-        fileResult2 = open(provider1.getProviderId() + '.log',"a")        
-        quantity = provider2.purchase(serviceId, bid, 3, fileResult2)
+        fileResult2 = open(provider2.getProviderId() + '.log',"a")        
+        messagePurchase1 = provider2.createPurchaseMessage(serviceId)
+        quantity = provider2.purchase(messagePurchase1, serviceId, bid, 3, fileResult2)
                              
         if (quantity != 3):
             raise FoundationException("error in the purchase function")
             
         # Buy with minimum quality 4 units - Response 4 units purchased
-        quantity = provider2.purchase(serviceId, bid, 4, fileResult2)
+        messagePurchase2 = provider2.createPurchaseMessage(serviceId)
+        quantity = provider2.purchase(messagePurchase2, serviceId, bid, 4, fileResult2)
         if (quantity != 4):
             raise FoundationException("error in the purchase function")
 
         # Buy with minimum quality 2 units - Response 2 units purchased
-        quantity = provider2.purchase(serviceId, bid, 2, fileResult2)
+        messagePurchase3 = provider2.createPurchaseMessage(serviceId)
+        quantity = provider2.purchase(messagePurchase3, serviceId, bid, 2, fileResult2)
         if (quantity != 2):
             raise FoundationException("error in the purchase function")
 
         # Buy with minimum quality 2 units - Response 0 units purchased
-        quantity = provider2.purchase(serviceId, bid, 2, fileResult2)
+        messagePurchase4 = provider2.createPurchaseMessage(serviceId)
+        quantity = provider2.purchase(messagePurchase4, serviceId, bid, 2, fileResult2)
         if (quantity != 0):
             raise FoundationException("error in the purchase function")
 
@@ -343,7 +411,7 @@ def test_marketplace_capacity_management():
         fileResult3 = open(provider3.getProviderId() + '.log',"a")
         currentPeriod = provider3.getCurrentPeriod()
         
-        # creates bids with the minimal quality.                
+        # Creates bids with the minimal quality.                
         quality = 0
         price = 10
         bid2 = createBidWithCapacity(provider3.getProviderId(), serviceId, quality, price, 10)
@@ -354,31 +422,117 @@ def test_marketplace_capacity_management():
         provider3.sendBid(bid3, fileResult3)
         
         # Buy with minimum quality 5 units - Response 5 units purchased
-        quantity = provider2.purchase(serviceId, bid2, 5, fileResult2)
+        messagePurchase5 = provider2.createPurchaseMessage(serviceId)
+        quantity = provider2.purchase(messagePurchase5, serviceId, bid2, 5, fileResult2)
         if (quantity != 5):
             raise FoundationException("error in the purchase function")
             
         # Buy with minimum quality 4 units - Response 5 units purchased
-        quantity = provider2.purchase(serviceId, bid2, 6, fileResult2)
+        messagePurchase6 = provider2.createPurchaseMessage(serviceId)
+        quantity = provider2.purchase(messagePurchase6, serviceId, bid2, 6, fileResult2)
         if (quantity != 5):
             raise FoundationException("error in the purchase function")
 
         # Buy with minimum quality 2 units - Response 2 units purchased
-        quantity = provider2.purchase(serviceId, bid3, 2, fileResult2)
+        messagePurchase7 = provider2.createPurchaseMessage(serviceId)
+        quantity = provider2.purchase(messagePurchase7, serviceId, bid3, 2, fileResult2)
         if (quantity != 2):
             raise FoundationException("error in the purchase function")
 
         # Buy with minimum quality 2 units - Response 2 units purchased
-        quantity = provider2.purchase(serviceId, bid3, 2, fileResult2)
+        messagePurchase8 = provider2.createPurchaseMessage(serviceId)
+        quantity = provider2.purchase(messagePurchase8, serviceId, bid3, 2, fileResult2)
         if (quantity != 2):
             raise FoundationException("error in the purchase function")
 
         # Buy with minimum quality 2 units - Response 1 units purchased
-        quantity = provider2.purchase(serviceId, bid3, 5, fileResult2)
+        messagePurchase9 = provider2.createPurchaseMessage(serviceId)
+        quantity = provider2.purchase(messagePurchase9, serviceId, bid3, 5, fileResult2)
         if (quantity != 1):
             raise FoundationException("error in the purchase function")
         
+        # -----------------------------------        
+        # This code test the backlog update for bids in the market place for 
+        # bulk capacity control providers.
+        # -----------------------------------
+        
+        # create four bids for provider 1 - bulk capacity test.
+        quality = 1
+        price = 11
+        bid_2 = createBidBackhaul(provider1.getProviderId(), serviceId, quality, price)
+        bid_2.setCreationPeriod(1)
+        provider1.sendBid(bid_2, fileResult1)
+
+        quality = 2
+        price = 13
+        bid_3 = createBidBackhaul(provider1.getProviderId(), serviceId, quality, price)
+        bid_3.setCreationPeriod(1)
+        provider1.sendBid(bid_3, fileResult1)
+
+        quality = 2
+        price = 13
+        bid_4 = createBidBackhaul(provider1.getProviderId(), serviceId, quality, price)
+        bid_4.setCreationPeriod(1)
+        provider1.sendBid(bid_4, fileResult1)
+
+        quality = 2
+        price = 13
+        bid_5 = createBidBackhaul(provider1.getProviderId(), serviceId, quality, price)
+        bid_5.setCreationPeriod(1)
+        provider1.sendBid(bid_5, fileResult1)
+
+        #--------------------------------------------
+        # create a purchase for bid2, backlog should go to this bid. 
+        #--------------------------------------------
+        messagePurchase10 = provider2.createPurchaseMessage(serviceId)
+        quantity = provider2.purchase(messagePurchase10, serviceId, bid_2, 150, fileResult2)
+                             
+        if (quantity != 0):
+            raise FoundationException("error in the purchase function")
+        
+        quantity = provider2.purchase(messagePurchase10, serviceId, bid_2, 3, fileResult2)
+        
+        # -----------------------------------        
+        # This code test the backlog update for bids in the market place for 
+        # bid capacity control providers.
+        # -----------------------------------
+        
+        customer = activateCustomer()
+        if customer != None:
+            customer.initialize()
+            delay = 0.14 
+            price = 20
+            bidIsp_1 = createBid(provider2.getProviderId(), serviceIdISP, delay, price)
+            bidIsp_1.setCapacity(5)
+            provider2.sendBid(bidIsp_1, fileResult2)
+            
+            delay = 0.15
+            price = 19
+            bidIsp_2 = createBid(provider2.getProviderId(), serviceIdISP, delay, price)
+            bidIsp_2.setCapacity(5)
+            provider2.sendBid(bidIsp_2, fileResult2)
+            
+            delay =  0.16
+            price = 18
+            bidIsp_3 = createBid(provider2.getProviderId(), serviceIdISP, delay, price)
+            bidIsp_3.setCapacity(5)
+            provider2.sendBid(bidIsp_3, fileResult2)
+            
+            delay = 0.17
+            price = 17
+            bidIsp_4 = createBid(provider2.getProviderId(), serviceIdISP, delay, price)
+            bidIsp_4.setCapacity(5)
+            provider2.sendBid(bidIsp_4, fileResult2)
+            
+            messagePurchase11 = customer.createPurchaseMessage()
+            quantity = 8
+            quantityPur = customer.purchase( messagePurchase11, bidIsp_1, quantity)
+            quantityPur = quantityPur + customer.purchase( messagePurchase11, bidIsp_2, quantity - quantityPur)
+            quantityPur = quantityPur + customer.purchase( messagePurchase11, bidIsp_3, quantity - quantityPur)
+            quantityPur = quantityPur + customer.purchase( messagePurchase11, bidIsp_4, quantity - quantityPur)
+            
         pass
+    
     except FoundationException as e:
         print e.__str__()
     except ProviderException as e:
@@ -386,8 +540,10 @@ def test_marketplace_capacity_management():
     except Exception as e:
         print e.__str__()
     finally:
-        	# disconnect from server
-        	db.close()
+        # disconnect from server
+        db.close()
+        fileResult1.close()
+        fileResult2.close()
 
 def test_provider_general_methods():
 
@@ -900,8 +1056,9 @@ def test_provider_database_classes():
     except Exception as e:
         print e.__str__()
     finally:
-        	# disconnect from server
-        	db.close()
+        # disconnect from server
+        db.close()
+        fileResult2.close()
 
 
 
@@ -2297,9 +2454,9 @@ def test_integrated_classes():
 
 if __name__ == '__main__':
     #test_integrated_classes()
-    #test_marketplace_capacity_management()
+    test_marketplace_capacity_management()
     #test_provider_general_methods()
-    test_provider_database_classes()
+    #test_provider_database_classes()
     #test_provider_edge_monopoly_classes()
     #test_provider_edge_monopoly_current_bids()
     

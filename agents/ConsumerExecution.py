@@ -49,7 +49,7 @@ if __name__ == '__main__':
     # Brings the general parameters from the database
     bidPeriods, numberOffers, numAccumPeriods = getGeneralConfigurationParameters(cursor)
 
-    # Prepare SQL query to SELECT providers from the database.
+    # Prepare SQL query to SELECT customers from the database.
     sql = "select a.number_execute, b.service_id, a.seed, a.year, a.month, a.day, \
 		  a.hour, a.minute, a.second, a.microsecond \
 	   from simulation_consumer a, simulation_consumerservice b \
