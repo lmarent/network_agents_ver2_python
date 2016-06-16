@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.forms import ModelForm
 from django import forms
 from django.forms.models import inlineformset_factory
+from simulation.models import CostFunction
+from simulation.models import ContinuousCostFunction
 from simulation.models import Service
 from simulation.models import Resource
 from simulation.models import DecisionVariable
@@ -23,6 +25,7 @@ from simulation.models import ExecutionGroup
 from simulation.models import ExecutionConfiguration
 from simulation.models import ExecutionConfigurationProviders
 from simulation.models import GeneralParameters
+from simulation.models import Service_Relationship
 
 
 import importlib
@@ -40,8 +43,13 @@ class DecisionVariableInline(admin.TabularInline):
     extra = 0
 
 admin.site.register(Unit)
+admin.site.register(Service_Relationship)
 admin.site.register(Resource)
 admin.site.register(DecisionVariable)
+
+class ContinuousCostFunctionInLine(admin.TabularInline):
+    model = ContinuousCostFunction
+    extra = 0
 
 class DiscreteProbabilityDistributionInLine(admin.TabularInline):
     model = DiscreteProbabilityDistribution
@@ -129,12 +137,55 @@ class ProbabilityForm(ModelForm):
 	print available_choices
         self.fields['class_name'] = forms.ChoiceField(choices=available_choices)
 
+
+class CostFunctionForm(ModelForm):
+    class Meta:
+        model = CostFunction
+	fields = ['name', 'range_function', 'class_name']
+    
+    def formfield_for_choice_field(self, available_choices):
+        currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+	sys.path.append(currentdir)
+	file_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+	dir_path = file_path.split('/')
+	dir_path.pop()		# remove ./simulation from the list
+	dir_path.pop()		# remove ./simulation_site from the list
+	costfunction_directory = '/'.join(dir_path)
+	costfunction_directory += '/agents/costfunctions'
+	
+	black_list = ['__init__','CostFunction', 'CostFunctionFactory']
+	
+	for filename in os.listdir (costfunction_directory):
+	    # Ignore subfolders
+            if os.path.isdir (os.path.join(costfunction_directory, filename)):
+                continue
+            else:
+                if re.match(r".*?\.py$", filename):
+                    classname = re.sub(r".py", r"", filename)
+		    if (classname not in black_list):
+			available_choices.append((classname, classname))
+
+    def __init__(self, *args, **kwargs):
+        super(CostFunctionForm, self).__init__(*args, **kwargs)
+	available_choices = []
+        self.formfield_for_choice_field(available_choices)
+        self.fields['class_name'] = forms.ChoiceField(choices=available_choices)
+
+
+
 class ProbabilityAdmin(admin.ModelAdmin):
     form = ProbabilityForm
     inlines = [DiscreteProbabilityDistributionInLine, 
 	       ContinuousProbabilityDistributionInLine ]
     
 admin.site.register(ProbabilityDistribution, ProbabilityAdmin)
+
+class CostFunctionAdmin(admin.ModelAdmin):
+    form = CostFunctionForm
+    inlines = [ContinuousCostFunctionInLine ]
+
+admin.site.register(CostFunction, CostFunctionAdmin)
+    
 
 class ProviderResourceInline(admin.TabularInline):
     model = Provider_Resource
@@ -148,7 +199,7 @@ class ProviderForm(ModelForm):
 		  'status', 'monopolist_position', 'num_ancestors', 'start_from_period',
 		  'debug', 'class_name', 'seed', 'year', 'month', 'day', 'hour', 
 		  'minute', 'second', 'microsecond', 'buying_marketplace_address',
-		  'selling_marketplace_address', 'capacity_controlled_at' ]
+		  'selling_marketplace_address', 'capacity_controlled_at', 'purchase_service' ]
     
     def formfield_for_choice_field(self, available_choices):
         currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))

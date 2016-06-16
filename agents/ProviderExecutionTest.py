@@ -17,6 +17,9 @@ from foundation.Agent import AgentServerHandler
 from foundation.Agent import Agent
 import random
 from Consumer import Consumer
+from costfunctions.CostFunctionFactory import CostFunctionFactory
+from foundation.DecisionVariable import DecisionVariable
+
 
 
 
@@ -220,8 +223,161 @@ def activateCustomer():
     finally:
         # disconnect from server
         db.close()
-    
 
+
+def test_cost_functions():
+
+    list_classes = {}
+    # Load Provider classes
+    load_classes(list_classes)
+    
+    # Open database connection
+    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    
+    db.autocommit(1)    
+    
+    # prepare a cursor object using cursor() method
+    cursor = db.cursor()
+
+    # Brings the general parameters from the database
+    bidPeriods, numberOffers, numAccumPeriods = getGeneralConfigurationParameters(cursor)
+    
+    # Verifies if they were configured, otherwise brings them from the agent properties.
+    if (numberOffers == 0):
+        numberOffers = foundation.agent_properties.initial_number_bids
+    
+    if (numAccumPeriods == 0):
+        numAccumPeriods = foundation.agent_properties.num_periods_market_share
+
+    # Prepare SQL query to SELECT providers from the database.
+    sql = "SELECT id, name, market_position, adaptation_factor \
+                  , monopolist_position, service_id, num_ancestors, debug \
+		  , seed, year, month, day, hour, minute, second \
+		  , microsecond, class_name, start_from_period, buying_marketplace_address \
+          , selling_marketplace_address, capacity_controlled_at \
+	     FROM simulation_provider \
+	    WHERE status = 'A' AND id = 1"
+
+    try:
+        providers = []
+        # Execute the SQL command
+        cursor.execute(sql)
+        # Fetch all the rows in a list of lists.
+        results = cursor.fetchall()
+
+        serviceIdBackhaul = '2'
+        adaptationFactor = 0
+        monopolistPosition = 0
+        marketPosition = 0
+
+        i = 1
+        for row in results:
+            providerId = row[0]
+            providerName = row[1]
+            marketPosition = row[2] 
+            adaptationFactor = row[3] 
+            monopolistPosition = row[4] 
+            numAncestors = row[6]
+            if (row[7] == 1):
+                debug = True
+            else:
+                debug = False
+            seed = row[8]
+            year = row[9]
+            month = row[10]
+            day = row[11]
+            hour = row[12]
+            minute = row[13]
+            second = row[14]
+            microsecond = row[15]
+            class_name = row[16]
+            startFromPeriod = row[17]
+            buyingAddress = row[18]
+            sellingAddress = row[19]            
+            capacityControl = 'G' # Bulk Capacity.
+            providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            # Brings resources definition
+            cursor2 = db.cursor()
+            sql_resources = "SELECT resource_id, capacity, cost \
+        			       FROM simulation_provider_resource \
+        			      WHERE provider_id = '%d'" % (providerId)
+            cursor2.execute(sql_resources)
+            resourceRows = cursor2.fetchall()
+            resources = {}
+            for resourceRow in resourceRows:
+                resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
+            
+            capacityControl = 'G' # Bulk Capacity.
+            class_name = 'Provider'
+            sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
+            buyingAddress = ' '
+            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdBackhaul, 
+        			      providerSeed, marketPosition, adaptationFactor, 
+        			      monopolistPosition, debug, resources, numberOffers, 
+        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+            providers.append(provider)
+            break
+        
+        # The following code test the cost functions execution.
+        factory = CostFunctionFactory.Instance()
+        linealCost = factory.create('LinealCost')
+        NaturalLogarithmCost = factory.create('NaturalLogarithmCost')
+        QuadraticCost = factory.create('QuadraticCost')
+        
+        linealCost.setParameter('intercept', 2)
+        linealCost.setParameter('slope', 3)
+        value = linealCost.getEvaluation(3)
+        if (value != 11.0):
+            raise FoundationException("error in the evaluation of lineal cost object")
+
+        NaturalLogarithmCost.setParameter('a', 2)
+        NaturalLogarithmCost.setParameter('b', 3)
+        value = NaturalLogarithmCost.getEvaluation(3)
+        value = round(value,4)
+        if (value != 5.7726):
+            raise FoundationException("error in the evaluation of NaturalLogarithmCost object")
+
+        QuadraticCost.setParameter('a', 2)
+        QuadraticCost.setParameter('b', 3)
+        QuadraticCost.setParameter('c', 4)
+        value = QuadraticCost.getEvaluation(3)
+        if (value != 31.0):
+            raise FoundationException("error in the evaluation of QuadraticCost object")
+        
+        
+        # start the providers
+        provider1 = providers[0]  # backhaul provider - Bulk capacity.
+        provider1.connect()
+        
+        # This code test that test the integration functions between clock server and agent.
+        # The code assume that service serviceIdBackhaul has as quality variable bandwidth quality
+        # as that variable has as cost function a lineal cost function.
+        provider1.getServiceFromServer(serviceIdBackhaul)
+        
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                decisionVar = (provider1._service)._decision_variables[decisionVariable]
+                if (decisionVar.getCostFunction() != None):
+                    costFun = decisionVar.getCostFunction()
+                    costFun2  = factory.create(costFun.getName())
+                    if (costFun.getParameters() != costFun2.getParameters()):
+                        raise FoundationException("error in the the cost function integration")
+                    
+                                            
+        pass
+    
+    except FoundationException as e:
+        print e.__str__()
+    except ProviderException as e:
+        print e.__str__()
+    except Exception as e:
+        print e.__str__()
+    finally:
+        # disconnect from server
+        db.close()
+            
+
+    
 def test_marketplace_capacity_management():
     list_classes = {}
     # Load Provider classes
@@ -2454,7 +2610,8 @@ def test_integrated_classes():
 
 if __name__ == '__main__':
     #test_integrated_classes()
-    test_marketplace_capacity_management()
+    test_cost_functions()
+    #test_marketplace_capacity_management()
     #test_provider_general_methods()
     #test_provider_database_classes()
     #test_provider_edge_monopoly_classes()

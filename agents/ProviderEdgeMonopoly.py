@@ -50,88 +50,6 @@ class ProviderEdgeMonopoly(ProviderEdge):
         except FoundationException as e:
             raise ProviderException(e.__str__())
 
-
-	''' 
-	The initialize function is responsible for initializing the 
-	edge provider agent and get the decision variables from the simulation
-	environment (demand server). 
-	'''
-    def initialize(self):
-        logger.debug('Agent: %s - Initilizing provider', self._list_vars['strId'])
-        for decisionVariable in (self._service)._decision_variables:
-            ((self._service)._decision_variables[decisionVariable]).executeSample(self._list_vars['Random'])
-        #Bring services required to fulfill resources.
-        # Open database connection
-        db1 = MySQLdb.connect("localhost","root","password","Network_Simulation" )
-
-        # prepare a cursor object using cursor() method
-        cursor = db1.cursor()
-        resource_services = {}
-        resources = self._used_variables['resources']
-        prov_id = int(self._list_vars['Id'])
-        self._servicesRelat = {}
-        for resourceId in resources:
-            # Prepare SQL query to SELECT providers from the database.
-            sql = "select b.resource_id, c.id, c.name  \
-                    from simulation_provider a, simulation_provider_resource b, simulation_service c \
-                    where a.id = %s and a.id = b.id and b.resource_id = %s and c.id = b.service_id"
-                                
-            iResourceId = int(resourceId)
-            cursor.execute(sql, (prov_id, iResourceId))
-            results = cursor.fetchall()
-            res_services = []
-            for row in results:
-                serviceId = str(row[1])
-                res_services.append(str(serviceId))
-                if (str(serviceId) not in (self._services).keys()):
-                    connect = Message("")
-                    connect.setMethod(Message.GET_SERVICES)
-                    connect.setParameter("Service", serviceId)
-                    response = (self._channelClockServer).sendMessage(connect)
-                    if (response.isMessageStatusOk() ):
-                        self._services[serviceId] = self.handleGetService(response.getBody())
-            resource_services[resourceId] = res_services
-
-            # Bring the service's decision variables relationships
-            sql2 = "select a.id_service_to, a.id_decision_variable_to from simulation_provider b, \
-                     simulation_provider_resource c,  simulation_service_relationship a \
-                      where b.id = %s and b.service_id = %s and b.id = c.id and b.service_id = a.id_service_from \
-                        and c.service_id = a.id_service_to and c.resource_id = %s and a.id_decision_variable_from = %s"
-            
-            serviceIdOwn = (self._service).getId()        
-            for decisionVariable in (self._service)._decision_variables:
-                cursor.execute(sql2, (prov_id, serviceIdOwn, iResourceId,decisionVariable))
-                results2 = cursor.fetchall()
-                ret_tuple = None
-                for row in results2:
-                    serviceTo = str(row[0])
-                    variableTo = str(row[1])
-                    ret_tuple = (serviceTo, decisionVariable, variableTo)
-                    break
-                if (ret_tuple != None):
-                    # Insert direct relation from -> to                    
-                    if serviceIdOwn in self._servicesRelat.keys():
-                        (self._servicesRelat[serviceIdOwn]).append(ret_tuple)
-                    else:
-                        self._servicesRelat[serviceIdOwn] = []
-                        (self._servicesRelat[serviceIdOwn]).append(ret_tuple)
-
-                    # Insert direct relation from -> to
-                    if ret_tuple[0] in self._servicesRelat.keys():
-                        ret_tuple2 = (serviceIdOwn, ret_tuple[2], ret_tuple[1])
-                        (self._servicesRelat[ret_tuple[0]]).append(ret_tuple2)
-                    else:
-                        self._servicesRelat[ret_tuple[0]] = []
-                        ret_tuple2 = (serviceIdOwn, ret_tuple[2], ret_tuple[1])
-                        (self._servicesRelat[ret_tuple[0]]).append(ret_tuple2)
-                    
-
-        self._list_vars['Resource_Service'] = resource_services
-
-                    
-        db1.close()
-
-
     def getNumberServices(self):
         return len(self._services)
     
@@ -262,15 +180,6 @@ class ProviderEdgeMonopoly(ProviderEdge):
                 
         self.registerLog(fileResult, 'movePrice:' + str(output)) 
         return output
-
-    def getRelatedDecisionVariable(self, serviceFrom, serviceTo, decisionVariableIdFrom):
-        if serviceFrom.getId() in self._servicesRelat.keys():
-            for tmp_tuple in self._servicesRelat[serviceFrom.getId()]:
-                if ((tmp_tuple[0] == serviceTo.getId()) and (tmp_tuple[1] == decisionVariableIdFrom)):
-                    return tmp_tuple[2]
-            raise FoundationException("service to or decision variable from not found in relationships")
-        else:
-            raise FoundationException("Own Service not found in service relationships")
 
     def convertToOwnBid(self, serviceOwn, serviceProvider,  bid):
         '''

@@ -39,7 +39,8 @@ class Provider(Agent):
     def __init__(self, strID, Id, serviceId, providerSeed, marketPosition, 
                  adaptationFactor, monopolistPosition, debug, resources, 
                  numberOffers, numAccumPeriods, numAncestors, startFromPeriod, 
-                 sellingAddress, buyingAddress, capacityControl, providerType=Agent.PROVIDER_BACKHAUL):
+                 sellingAddress, buyingAddress, capacityControl, purchase_service,
+                 providerType=Agent.PROVIDER_BACKHAUL):
         try:
             logger.info('Initializing the provider:' + strID + 'Id:' + str(Id) 
                   + 'Service Id:' + serviceId
@@ -154,8 +155,9 @@ class Provider(Agent):
     '''
     def getBidPrice(self, bid):
         bidPrice = 0
-        for decisionVariable in (self._service)._decision_variables:
-            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+        service = self._services[bid.getService()]
+        for decisionVariable in service._decision_variables:
+            if (service._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
                 bidPrice =  bid.getDecisionVariable(decisionVariable)
         return bidPrice
         
@@ -238,94 +240,7 @@ class Provider(Agent):
             
         logger.debug('Ending calculateIntervals Quality- outputs' + str(min_val_adj) + ':' + str(max_val_adj))
         return min_val_adj, max_val_adj
-
-    def calculateBidUnitaryCost(self, bid):
-        '''
-        Calculates the bid unitary cost as a function of their decision variables
-        '''    
-        logger.debug('Starting - calculateBidUnitaryCost' + '\n' + bid.__str__())
-        totalUnitaryCost = 0
-        totalPercentage = 0
-        resources = self._used_variables['resources']
-        for decisionVariable in (self._service)._decision_variables:
-            minValue = ((self._service)._decision_variables[decisionVariable]).getMinValue()
-            maxValue = ((self._service)._decision_variables[decisionVariable]).getMaxValue()
-            resourceId = ((self._service)._decision_variables[decisionVariable]).getResource() 
-            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
-                    value = float(bid.getDecisionVariable(decisionVariable))
-                    if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
-                        if (minValue == 0):
-                            percentage = (value - minValue) / maxValue
-                        else:
-                            percentage = (value - minValue) / minValue
-                    else:
-                        if (maxValue == 0):
-                            percentage = (maxValue - value) / minValue
-                        else:
-                            percentage = (maxValue - value) / maxValue
-                            
-                    totalPercentage = totalPercentage + percentage
-                    if resourceId in resources:
-                        unitaryCost = float((resources[resourceId])['Cost'])
-                        totalUnitaryCost = totalUnitaryCost + (unitaryCost * ( 1 + totalPercentage) )
-        logger.debug('End - calculateBidUnitaryCost:' + str(totalUnitaryCost))
-        return totalUnitaryCost
-    
-    def calculateBidResources(self, bid):
-        '''
-        Calculates the bid resource consumption as a function of their decision variables
-        '''    
-        logger.debug('Starting - calculateBidResources')
-        percentage = 0
-        resources = self._used_variables['resources']
-        res_resources = {}
-        for decisionVariable in (self._service)._decision_variables:
-            minValue = ((self._service)._decision_variables[decisionVariable]).getMinValue()
-            maxValue = ((self._service)._decision_variables[decisionVariable]).getMaxValue()
-            resourceId = ((self._service)._decision_variables[decisionVariable]).getResource() 
-            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
-                    percentage = 0                    
-                    value = float(bid.getDecisionVariable(decisionVariable))
-                    if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
-                        if (minValue == 0):                        
-                            percentage = (value - minValue) / maxValue
-                        else:
-                            percentage = (value - minValue) / minValue
-                    else:
-                        if (maxValue == 0):
-                            percentage = (maxValue - value) / minValue
-                        else:
-                            percentage = (maxValue - value) / maxValue
-                    
-                    if resourceId in resources:
-                        if (resourceId in res_resources.keys()):
-                            res_resources[resourceId] = res_resources[resourceId] + (1 + percentage)
-                        else: 
-                            res_resources[resourceId] = (1 + percentage)
-        logger.debug('End - calculateBidResources:')
-        return res_resources
-    
-    def calculatePercentageOverResources(self, service, decisionVariableId, value):
-        logger.debug('Starting - calculatePercentageOverResources')
-        percentage = 1
-        if decisionVariableId in service._decision_variables.keys():
-            minValue = (service._decision_variables[decisionVariableId]).getMinValue()
-            maxValue = (service._decision_variables[decisionVariableId]).getMaxValue()
-            if ((service._decision_variables[decisionVariableId]).getModeling() == DecisionVariable.MODEL_QUALITY):
-                if ((service._decision_variables[decisionVariableId]).getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
-                    if (minValue == 0): 
-                        percentage = percentage + ((value - minValue) / ( maxValue - minValue ))
-                    else:
-                        percentage = percentage + ((value - minValue) / minValue)
-                else:
-                    if (maxValue == 0):
-                        percentage = percentage + ((maxValue - value) / ( maxValue - minValue ))
-                    else:
-                        percentage = percentage + ((maxValue - value) / maxValue)
-        logger.debug('Ending - calculatePercentageOverResources')
-        return percentage       
-        
-
+                
     def calculateBidUnitaryResourceRequirements(self, bid):
         '''
         Calculates the resource requirement in order to execute the 
@@ -339,7 +254,11 @@ class Provider(Agent):
             maxValue = ((self._service)._decision_variables[decisionVariable]).getMaxValue()
             resourceId = ((self._service)._decision_variables[decisionVariable]).getResource() 
             if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
-                value = float(bid.getDecisionVariable(decisionVariable))
+                # Bring the cost function associated to the decision variable.                
+                decisionVar = (self._service)._decision_variables[decisionVariable]
+                costFun = decisionVar.getCostFunction() # None if not defined.
+
+                value = float(bid.getQualityRequirement(decisionVariable))
                 if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
                     if (minValue == 0): 
                         percentage = ((value - minValue) / ( maxValue - minValue ))
@@ -352,11 +271,38 @@ class Provider(Agent):
                         percentage = ((maxValue - value) / maxValue)
             
                 if resourceId in resources:
-                    resourceConsumption.setdefault(resourceId, 1) 
-                    resourceConsumption[resourceId] += percentage
+                    costValue = 1
+                    if (costFun != None):
+                        costValue = costValue + costFun.getEvaluation(percentage)
+                    else:
+                        # linear relationship with 1 to 1 relationship.                        
+                        costValue + percentage
+                    
+                    resourceConsumption.setdefault(resourceId, 0) 
+                    resourceConsumption[resourceId] += costValue
         logger.debug('End - calculateBidUnitaryResourceRequirements:' + str(resourceConsumption) + '\n')
         return resourceConsumption  
 
+    def calculateBidUnitaryCost(self, bid):
+        '''
+        Calculates the bid unitary cost as a function of their decision variables
+        '''    
+        logger.debug('Starting - calculateBidUnitaryCost' + '\n' + bid.__str__())
+        totalUnitaryCost = 0
+        
+        # If the bid is purchased, then it start by bringing the cost of the bid.
+        providerBid = bid.getProviderBid()
+        if (providerBid != None):
+            totalUnitaryCost = providerBid.getBidPrice()
+            
+        resources = self._used_variables['resources']
+        resourceConsumption = self.calculateBidUnitaryResourceRequirements(bid)
+        for resource in resourceConsumption:
+            if resource in resources:
+                unitaryCost = float((resources[resource])['Cost'])
+                totalUnitaryCost = totalUnitaryCost + (unitaryCost * resourceConsumption[resource] )
+        logger.debug('End - calculateBidUnitaryCost:' + str(totalUnitaryCost))
+        return totalUnitaryCost
 
     def initializeBids(self, market_position, k, fileResult):
         '''

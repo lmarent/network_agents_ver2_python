@@ -10,6 +10,30 @@ class Resource(models.Model):
     def __unicode__(self):  # Python 3: def __str__(self):
         return self.name    
 
+class CostFunction(models.Model):
+    CONTINOUS = 'C'
+    DISCRETE = 'D'
+    RANGE_CHOICES = ( 
+	(CONTINOUS, 'Continous'),
+        (DISCRETE, 'Discrete'),
+    )
+
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=60)
+    class_name = models.CharField(max_length=60)
+    range_function = models.CharField(max_length=2, choices=RANGE_CHOICES, default=CONTINOUS)
+
+    def __unicode__(self):  # Python 3: def __str__(self):
+        return self.name
+
+
+class ContinuousCostFunction(models.Model):
+    id = models.AutoField(primary_key=True)
+    costfunction = models.ForeignKey('CostFunction')
+    parameter = models.CharField(max_length=60)
+    value = models.FloatField(default=0)
+    
+
 class ProbabilityDistribution(models.Model):
     CONTINOUS = 'C'
     DISCRETE = 'D'
@@ -51,8 +75,9 @@ class Unit(models.Model):
     
     def __unicode__(self):  # Python 3: def __str__(self):
         return self.name
-    
 
+
+   
 class DecisionVariable(models.Model):
     MAXIMIZE = 'M'
     MINIMIZE = 'L'
@@ -78,6 +103,7 @@ class DecisionVariable(models.Model):
     unit = models.ForeignKey('Unit')
     sensitivity_distribution = models.ForeignKey('ProbabilityDistribution', related_name='sensitivity')
     value_distribution = models.ForeignKey('ProbabilityDistribution', related_name='value')
+    cost_function = models.ForeignKey('CostFunction', related_name='cost')
     
     def __unicode__(self):  # Python 3: def __str__(self):
         return self.name
@@ -108,6 +134,35 @@ class Service_DecisionVariable(models.Model):
 	
     def __unicode__(self):  # Python 3: def __str__(self):
         return  str(self.id_decision_variable)
+
+
+class Service_Relationship(models.Model):
+    MAX_AGGREGATION = 'M'
+    MIN_AGGREGATION = 'N'
+    SUM_AGGREGATION = 'S'
+    NON_AGGREGATION = 'X'
+    
+    AGGREGATION_FUNC_CHOICES = (
+      (MAX_AGGREGATION, 'Max Aggregation'),
+      (MIN_AGGREGATION, 'Min Aggregation'),
+      (SUM_AGGREGATION, 'Sum Aggregation'),
+      (NON_AGGREGATION, 'Non Aggregation'),
+    ) 
+    
+    id = models.AutoField(primary_key=True)
+    service_from = models.ForeignKey(Service, related_name='service_from')
+    decision_variable_from = models.ForeignKey(DecisionVariable, related_name='decision_variable_from')
+    service_to = models.ForeignKey(Service, related_name='service_to')
+    decision_variable_to = models.ForeignKey(DecisionVariable, related_name='decision_variable_to')
+    aggregation = models.CharField(max_length=1, 
+									choices=AGGREGATION_FUNC_CHOICES, 
+										default=SUM_AGGREGATION)
+    
+    
+    
+    def __unicode__(self):  # Python 3: def __str__(self):
+        return '(' + self.service_from.name + ',' +self.decision_variable_from.name + ')' + ' TO ' + '(' + self.service_to.name + ',' + self.decision_variable_to.name + ')'
+
 
 class Provider(models.Model):
     ACTIVE = 'A'
@@ -194,6 +249,8 @@ class Provider(models.Model):
     capacity_controlled_at = models.CharField(max_length=1, 
 								choices=PROV_CAPC_CHOICES, 
 									default=BULK)
+    purchase_service = models.ForeignKey(Service, related_name='purchase_service', blank=True, null=True)
+
     
     def __unicode__(self):  # Python 3: def __str__(self):
 	return self.name

@@ -65,7 +65,7 @@ def getSeed(seed, year, month, day, hour, minute, second, microsecond):
 
 def create(list_classes, typ, providerName, providerId, serviceId, providerSeed, marketPositon, 
 	    adaptationFactor, monopolistPosition, debug, resources, numberOffers, 
-        numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl):
+        numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl, purchase_service):
     print 'In create provider - Class requested:' + str(typ)
     print list_classes
     if typ in list_classes:
@@ -73,7 +73,7 @@ def create(list_classes, typ, providerName, providerId, serviceId, providerSeed,
         	return targetClass(providerName, providerId, serviceId, providerSeed, 
         			   marketPositon, adaptationFactor, monopolistPosition, 
         			   debug, resources, numberOffers, numAccumPeriods, 
-        			   numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+        			   numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl, purchase_service)
     else:
         err = 'Class' + typ + 'not found to be loaded'
         raise ProviderException(err)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
                   , monopolist_position, service_id, num_ancestors, debug \
 		  , seed, year, month, day, hour, minute, second \
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
-          , selling_marketplace_address, capacity_controlled_at \
+          , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
 	    WHERE status = 'A'"
 
@@ -144,6 +144,7 @@ if __name__ == '__main__':
             buyingAddress = row[18]
             sellingAddress = row[19]
             capacityControl = row[20]
+            purchase_service = row[21]
             providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
             # Brings resources definition
             cursor2 = db.cursor()
@@ -160,7 +161,7 @@ if __name__ == '__main__':
         			      providerSeed, marketPositon, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
         			      numAccumPeriods, numAncestors, startFromPeriod, 
-                       sellingAddress, buyingAddress, capacityControl)
+                       sellingAddress, buyingAddress, capacityControl, purchase_service)
             providers.append(provider)
             i = i + 1
 	    # start the providers

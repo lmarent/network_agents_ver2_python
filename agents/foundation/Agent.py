@@ -473,7 +473,7 @@ class Agent(Process):
     PROVIDER_BACKHAUL = "provider_backhaul"
     PRESENTER_TYPE = "presenter"
 
-    def __init__(self, strID, Id, agent_type, serviceId, agent_seed, sellingAddress, buyingAddress, capacityControl):
+    def __init__(self, strID, Id, agent_type, serviceId, agent_seed, sellingAddress, buyingAddress, capacityControl, purchaseServiceId):
         Process.__init__(self)
         # state means: 0 can not create bids, 
         #              1 the process can create and ask for bids.
@@ -484,10 +484,14 @@ class Agent(Process):
         self._list_vars['Id'] = Id
         self._list_vars['strId'] = strID
         self._list_vars['Type'] = agent_type
+        self._list_vars['SellingAddres'] = sellingAddress
+        self._list_vars['BuyingAddres'] = buyingAddress
         self._list_vars['Address'] = agent_properties.addr_agent
         self._list_vars['Current_Period'] = 0  
         self._list_vars['serviceId'] = serviceId
         self._list_vars['capacityControl'] = capacityControl
+        self._list_vars['PurchaseServiceId'] = purchaseServiceId
+        self._services = {}
         randomGenerator = random.Random()
         randomGenerator.seed(agent_seed)
         self._list_vars['Random'] = randomGenerator
@@ -517,23 +521,38 @@ class Agent(Process):
             self._list_vars['State'] = AgentServerHandler.IDLE 
             self._list_vars['Current_Bids'] = {}
         logger.info('Agent created with arguments %s', self._list_vars) 
+
+    '''
+    This function connect the agent with all the servers
+    '''
+    def connect(self):
         try:
+            strID = self._list_vars['strId']
+            agent_type = self._list_vars['Type']
+            sellingAddress = self._list_vars['SellingAddres']
+            buyingAddress = self._list_vars['BuyingAddres']
+            capacityControl = self._list_vars['capacityControl']
+                        
             # Connect to servers.            
             self.connect_servers(agent_type, strID, sellingAddress, buyingAddress, capacityControl)
             # Request the definition of the service
-            connect = Message("")
-            connect.setMethod(Message.GET_SERVICES)
-            connect.setParameter("Service",serviceId)
-            response = (self._channelClockServer).sendMessage(connect)
-            if (response.isMessageStatusOk() ):
-                self._service = self.handleGetService(response.getBody())
-                self._services = {}
-                self._services[serviceId] = self.handleGetService(response.getBody())
-                logger.debug('service:' + self._service.__str__())
-                logger.debug('init consumer- finish service retrieve')
-        
         except FoundationException as e:
             raise FoundationException(e.__str__())
+    
+    def getServiceFromServer(self, serviceId):
+        try: 
+            if (str(serviceId) not in (self._services).keys()):            
+                connect = Message("")
+                connect.setMethod(Message.GET_SERVICES)
+                connect.setParameter("Service",serviceId)
+                response = (self._channelClockServer).sendMessage(connect)
+                if (response.isMessageStatusOk() ):
+                    self._services[serviceId] = self.handleGetService(response.getBody())
+                    logger.debug('service:' + self._service.__str__())
+                    logger.debug('init consumer- finish service retrieve')
+        except FoundationException as e:
+            raise FoundationException(e.__str__())
+        
 
     ''' 
     This function connects the agent to servers ( clock server and markets places)
@@ -596,6 +615,13 @@ class Agent(Process):
     '''
     def start_listening(self):
         logger.debug('Starting listening Id: %s', self._list_vars['Id']) 
+        self.connect()
+
+        # Bring the service for purchasing(customer) or selling(provider)
+        serviceId = self._list_vars['serviceId']
+        self.getServiceFromServer(serviceId)
+        self._service = self._services[serviceId]
+        
         self._server = AgentListener(self._list_vars)
         self._server.start()
         port = self._list_vars['Port']
@@ -647,6 +673,7 @@ class Agent(Process):
     def handleGetService(self, document):
         logger.debug('Starting get service handler Id:%s', self._list_vars['Id'])
         document = self.removeIlegalCharacters(document)
+        logger.debug('document:%s', document)
         try:
             dom = xml.dom.minidom.parseString(document)
             servicesXml = dom.getElementsByTagName("Service")

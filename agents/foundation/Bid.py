@@ -16,13 +16,19 @@ class Bid(object):
     INACTIVE = 0
 
     def __init__(self):
+        # These are the offered variables for customers.        
         self._decision_variables = {}
         self._status = Bid.ACTIVE
         self._unitaryCost = 0
         self._unitaryProfit = 0
         self._parent = None # Bids that origin this bid.
         self._creation_period = 0
-        self._providerBid = None # bid that generates this bid.
+        self._providerBid = None # bid that generates this bid.        
+        
+        # These are the specific requirements with respect to quality 
+        # that providers should cover with own resources, 
+        # if not defined are equal to those in specified in the decision variables.
+        self._qualityRequirements = {} 
         self._capacity = 0
 
     '''
@@ -272,3 +278,27 @@ class Bid(object):
     '''
     def getProviderBid(self):
         return self._providerBid
+        
+    '''
+    This method establihes a quality requirement for the bid.
+    '''
+    def setQualityRequirement(self, decisionVariable, value):
+        	if decisionVariable in self._qualityRequirements:
+        	    raise FoundationException("Decision variable is already included")
+        	else:   
+        	    self._qualityRequirements[decisionVariable] = value
+
+    '''
+    This method returns the decision variable.
+    '''
+    def getQualityRequirement(self, decisionVariableId):
+        #logging.debug('stating getDecisionVariable - Parameters:' + decisionVariableId)        
+        if decisionVariableId in self._qualityRequirements:
+            return self._qualityRequirements[decisionVariableId]
+        else:
+            if decisionVariableId in self._decision_variables:
+                return self._decision_variables[decisionVariableId]
+            else:
+                raise FoundationException("The Decision variable is not part of the offer")
+
+        	
