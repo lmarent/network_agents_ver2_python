@@ -36,9 +36,9 @@ class ProviderEdge(Provider):
     def __init__(self,  strID, Id, serviceId, accessProviderSeed, marketPosition, 
 				 adaptationFactor, monopolistPosition, debug, resources, 
 				 numberOffers, numAccumPeriods, numAncestors, startFromPeriod, 
-                 sellingAddress, buyingAddress, capacityControl):
+                 sellingAddress, buyingAddress, capacityControl, purchase_service):
         try:
-            super(ProviderEdge, self).__init__(strID, Id, serviceId, accessProviderSeed, marketPosition, adaptationFactor, monopolistPosition, debug, resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl, Agent.PROVIDER_ISP)
+            super(ProviderEdge, self).__init__(strID, Id, serviceId, accessProviderSeed, marketPosition, adaptationFactor, monopolistPosition, debug, resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl, purchase_service, Agent.PROVIDER_ISP)
             logger.debug('Agent: %s - Edge Provider Created', self._list_vars['strId'])
         except FoundationException as e:
             raise ProviderException(e.__str__())
@@ -48,6 +48,7 @@ class ProviderEdge(Provider):
 	The initialize function is responsible for initializing the 
 	edge provider agent and get the decision variables from the simulation
 	environment (demand server). 
+    Test: Implemented.
 	'''
     def initialize(self):
         logger.debug('Agent: %s - Initilizing provider', self._list_vars['strId'])
@@ -84,9 +85,9 @@ class ProviderEdge(Provider):
             resource_services[resourceId] = res_services
         self._list_vars['Resource_Service'] = resource_services
 
-
+        self._servicesRelat = {}
         # Bring the service's decision variables relationships
-        sql2 = "select a.service_to_id, a.decision_variable_to_id \
+        sql2 = "select a.service_to_id, a.decision_variable_to_id, a.aggregation \
                   from simulation_provider b, simulation_service_relationship a \
                     where b.id = %s and b.service_id = %s \
                     and b.service_id = a.service_from_id \
@@ -101,7 +102,8 @@ class ProviderEdge(Provider):
             for row in results2:
                 serviceTo = str(row[0])
                 variableTo = str(row[1])
-                ret_tuple = (serviceTo, decisionVariable, variableTo)
+                aggregation = str(row[2])
+                ret_tuple = (serviceTo, decisionVariable, variableTo, aggregation)
                 break
             if (ret_tuple != None):
                 # Insert direct relation from -> to                    
@@ -112,13 +114,16 @@ class ProviderEdge(Provider):
                     (self._servicesRelat[serviceIdOwn]).append(ret_tuple)
                 # Insert direct relation from -> to
                 if ret_tuple[0] in self._servicesRelat.keys():
-                    ret_tuple2 = (serviceIdOwn, ret_tuple[2], ret_tuple[1])
+                    ret_tuple2 = (serviceIdOwn, ret_tuple[2], ret_tuple[1], ret_tuple[3])
                     (self._servicesRelat[ret_tuple[0]]).append(ret_tuple2)
                 else:
                     self._servicesRelat[ret_tuple[0]] = []
-                    ret_tuple2 = (serviceIdOwn, ret_tuple[2], ret_tuple[1])
+                    ret_tuple2 = (serviceIdOwn, ret_tuple[2], ret_tuple[1], ret_tuple[3])
                     (self._servicesRelat[ret_tuple[0]]).append(ret_tuple2)
         db1.close()
+
+    def getPurchaseService(self):
+        return self._list_vars['PurchaseServiceId']
 
     ''' 
     Create the purchase message without indicating bid and quantity.
@@ -139,6 +144,8 @@ class ProviderEdge(Provider):
 	
     In the end, the function sends the message to the marketplace
     and checks if it was succesfully received. 
+    
+    Test: Implemented.
     '''
     def purchase(self, messagePurchase, serviceId, bid, quantity, fileResult):
         self.registerLog(fileResult, 'Period:' + str(self.getCurrentPeriod()) + ' - bidId:' + bid.getId() + ' -qty to purchase:' + str(quantity))
@@ -167,15 +174,16 @@ class ProviderEdge(Provider):
             self.registerLog(fileResult, 'Period: ' + str(self.getCurrentPeriod()) + '- Purchase not received! Communication failed - Message:' + messageResult.__str__())
             raise ProviderException('Purchase not received! Communication failed')
 	
-    '''
+    def replicateBids(self, ownBid, bidPrice, bidPurchasable, fileResult):
+        '''
         Duplicates bids as many bids from the provider are in the list, because 
         costs depend on the quality of the provider bid.
-    '''
-    def replicateBids(self, ownBid, bidPrice, bidPurchasable, fileResult):
+        Test: implemented.
+        '''
         newOwnBids = []    
         # creates a bid per provider bid.        
         for bidId in bidPurchasable:
-            newOwnBid = ownBid.copyBid()
+            newOwnBid = self.copyBid(ownBid)
             providerBid = (bidPurchasable[bidId])['Object']
             # Assign the quality request given the providerBid
             qualityRequest = (bidPurchasable[bidId])['QualityRequirements']
@@ -183,25 +191,25 @@ class ProviderEdge(Provider):
                 newOwnBid.setQualityRequirement(decisionVariableId, qualityRequest[decisionVariableId])
             # Assign the provider Bid.
             newOwnBid.setProviderBid(providerBid) 
-            totUnitaryCost = newOwnBid.calculateBidUnitaryCost()
+            totUnitaryCost = self.calculateBidUnitaryCost(newOwnBid)
             if (bidPrice >= totUnitaryCost):
                 newOwnBids.append( (bidPrice - totUnitaryCost, newOwnBid))
         return newOwnBids
         
-    '''
-    Evaluate the bids than comes from the server.
-    '''
-    def evaluateFrontBids(self, ownBid, providerServiceId, quantityReq, bidPrice, bidPurchasable, fileResult):
-        self.registerLog(fileResult, 'evaluateFrontBids - Period: ' + str(self.getCurrentPeriod()) + '- Nbr provider Bids:'+ str(len(bidPurchasable)) )
+    def purchaseBid(self, ownBid, providerServiceId, quantityReq, bidPrice, bidPurchasable, fileResult):
+        '''
+        Evaluate the bids than comes from the server.
+        Test: Implemented.
+        '''
+        self.registerLog(fileResult, 'purchaseBid - Period: ' + str(self.getCurrentPeriod()) + '- Nbr provider Bids:'+ str(len(bidPurchasable)) )
         messagePurchase = self.createPurchaseMessage(providerServiceId)
-        
         newOwnBids = self.replicateBids(ownBid, bidPrice, bidPurchasable, fileResult)
-            
-        utilities_sorted = sorted(newOwnBids, key=lambda tup: tup[0])
-        self.registerLog(fileResult, 'disutilities:' + str(len(utilities_sorted)) )
+        utilities_sorted = sorted(newOwnBids, key=lambda tup: tup[0], reverse=True )
         
         qtyToPurchase = quantityReq
-        for bidTuple in newOwnBids:    
+        totPurchased = 0
+        purchasedBids = []
+        for bidTuple in utilities_sorted:    
             # verifies that it is enoght capacity for this bid
             bid = bidTuple[1] 
             qtyBidToPurchase = qtyToPurchase
@@ -214,69 +222,51 @@ class ProviderEdge(Provider):
             # purchase the quantity
             if (qtyBidToPurchase > 0):
                 qtyPurchased = self.purchase(messagePurchase, providerServiceId, bid.getProviderBid(), qtyBidToPurchase, fileResult)
-                # decrease own resources based on values purchased.
-                for resourceId in resourceConsumption:
-                    qtyToDecrease = qtyPurchased * resourceConsumption[resourceId]
-                    self.updateAvailability(resourceId, qtyToDecrease)        
-                qtyToPurchase = qtyToPurchase - qtyPurchased
-        # calculates the max quantity available in own resources, so we buy an equivalent quantity from the provider.
-        endBidCapacity = 0
-        
-        
-        
-        self.registerLog(fileResult, 'Ending evaluateFrontBids qtyPurchased:' + str(purchased)) 
-        return purchased
-   
-    '''
-    Execute purchases for an specific services that is required for a resource.
-    return quantities purchased.
-    '''
-    def execServicePurchase(self, ownBid, serviceId, quantityReq, bidPrice, bidPurchasable, fileResult):
-        self.registerLog(fileResult, 'execServicePurchase - Period:' + str(self._list_vars['Current_Period']) + '- Number of provider bids:' + str(len(bidPurchasable))  )
-        # Sorts the offerings  based on the customer's needs 
-        qtyToPurchase = quantityReq
-        messagePurchase = self.createPurchaseMessage(serviceId)
-        purchased = self.evaluateFrontBids(ownBid, serviceId, qtyToPurchase, bidPrice, messagePurchase, front, bidList, fileResult)
-        qtyToPurchase = qtyToPurchase - purchased
-        if (qtyToPurchase == 0 ):
-            return quantityReq
+                if (qtyPurchased > 0):
+                    # decrease own resources based on values purchased.
+                    for resourceId in resourceConsumption:
+                        qtyToDecrease = qtyPurchased * resourceConsumption[resourceId]
+                        resourceAvail = self.getAvailableCapacity(resourceId)
+                        newAvail = resourceAvail - qtyToDecrease
+                        self.updateAvailability(resourceId, newAvail)
+                    #Totalize purchase quantities and stage the bid.
+                    qtyToPurchase = qtyToPurchase - qtyPurchased
+                    bid.setCapacity(qtyPurchased)
+                    totPurchased = totPurchased + qtyPurchased
+                    purchasedBids.append(bid)     
+        self.registerLog(fileResult, 'Ending purchaseBid qtyPurchased:' + str(totPurchased)) 
+        return totPurchased, purchasedBids
+           
+    def getRelatedDecisionVariable(self, serviceFromId, serviceToId, decisionVariableIdFrom):
+        '''
+        Get the relationships between decision variables for services.
+        Test: Implemented.
+        '''
+        if serviceFromId in self._servicesRelat.keys():
+            for tmp_tuple in self._servicesRelat[serviceFromId]:
+                if ((tmp_tuple[0] == serviceToId) and (tmp_tuple[1] == decisionVariableIdFrom)):
+                    return tmp_tuple[2], tmp_tuple[3]
+            raise FoundationException("service to" + serviceToId + " or decision variable from not found in relationships")
         else:
-            return 0
-        
-    def getRelatedDecisionVariable(self, serviceFrom, serviceTo, decisionVariableIdFrom):
-        if serviceFrom.getId() in self._servicesRelat.keys():
-            for tmp_tuple in self._servicesRelat[serviceFrom.getId()]:
-                if ((tmp_tuple[0] == serviceTo.getId()) and (tmp_tuple[1] == decisionVariableIdFrom)):
-                    return tmp_tuple[2]
-            raise FoundationException("service to or decision variable from not found in relationships")
-        else:
-            raise FoundationException("Own Service not found in service relationships")
+            raise FoundationException("Service from:" + serviceFromId + " not found in service relationships")
 
     def calculateRequiredQuality(self, bidQuality, minValue, maxValue, providerQuality, optObjetive, aggregationMode):
+        ''' 
+        Calculate the specific quality value given the provider quality, aggregationmode, and optimal objective
+        Test: Implemented.
+        '''
         qualityReq = 0        
         if (aggregationMode == 'M'): # MAX aggregation
-            if (optObjetive == DecisionVariable.OPT_MAXIMIZE):
-                if (providerQuality < bidQuality):
-                    qualityReq = -1
-                else:
-                    qualityReq = bidQuality
+            if (providerQuality < bidQuality):
+                qualityReq = bidQuality
             else:
-                if (providerQuality > bidQuality):
-                    qualityReq = -1
-                else:
-                    qualityReq = bidQuality
+                qualityReq = -1
             
         if (aggregationMode == 'N'): # MIN aggregation
-            if (optObjetive == DecisionVariable.OPT_MAXIMIZE):
-                if (providerQuality < bidQuality):
-                    qualityReq = -1
-                else:
-                    qualityReq = bidQuality
+            if (providerQuality < bidQuality):
+                qualityReq = -1
             else:
-                if (providerQuality > bidQuality):
-                    qualityReq = -1
-                else:
-                    qualityReq = bidQuality
+                qualityReq = bidQuality
 
         if (aggregationMode == 'S'): # SUM aggregation
             if (optObjetive == DecisionVariable.OPT_MAXIMIZE):
@@ -292,10 +282,11 @@ class ProviderEdge(Provider):
             
         return qualityReq
             
-    '''
-    verifies if a bid is or not purchasable given the quality requirements
-    '''
     def calculateOwnQualityForPurchasableBid(self, ownBid, providerBid, fileResult):
+        '''
+        Verifies if a bid is or not purchasable given the quality requirements
+        Test: implemented.
+        '''
         nonPurchasable = False
         qualityRequirements = {}
         for decisionVariable in (self._service)._decision_variables:
@@ -305,17 +296,22 @@ class ProviderEdge(Provider):
             if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
                 decisionVariableTo, aggregationMode = self.getRelatedDecisionVariable(ownBid.getService(), providerBid.getService(), decisionVariable)
                 bidQuality = ownBid.getDecisionVariable(decisionVariable)
-                providerQuality = providerBid.getDecisionVariable(decisionVariableTo)
-                qualityRequired = self.calculateRequiredQuality(bidQuality, minValue, maxValue, providerQuality, optObjetive, aggregationMode)
-                qualityRequirements[decisionVariable] = qualityRequired
-                if (qualityRequired < 0):
+                if (bidQuality >= minValue) and (bidQuality <= maxValue):
+                    providerQuality = providerBid.getDecisionVariable(decisionVariableTo)
+                    qualityRequired = self.calculateRequiredQuality(bidQuality, minValue, maxValue, providerQuality, optObjetive, aggregationMode)
+                    qualityRequirements[decisionVariable] = qualityRequired
+                    if (qualityRequired < 0):
+                        nonPurchasable = True
+                else:
+                    qualityRequirements[decisionVariable] = -1
                     nonPurchasable = True
         return qualityRequirements, nonPurchasable
                 
-    '''
-    Get bid purchasable for a bid from a list of bids.
-    '''
     def getPurchasedFront(self, ownBid, bidList, fileResult):
+        '''
+        Get bid purchasable for a bid from a list of bids.
+        Test: implemented.
+        '''
         self.registerLog(fileResult, 'getPurchasedFront - Period:' + str(self._list_vars['Current_Period']) + '- Number of bids:' + str(len(bidList)) )
         dict_return = {}
         for bid in bidList:
@@ -324,11 +320,12 @@ class ProviderEdge(Provider):
                 dict_return[bid.getId()] = {'Object' : bid, 'QualityRequirements' : qualityRequirements }
         return dict_return
     
-    ''' 
-    Get those bids from providers that can be purchased based on the requirements of my own bid.
-    The return is a dictionary based based on fronts.
-    '''
     def getPurchasableBid(self, ownBid, dic_bids, fileResult):        
+        ''' 
+        Get those bids from providers that can be purchased based on the requirements of my own bid.
+        The return is a dictionary based based on fronts.
+        Test: implemented.
+        '''
         self.registerLog(fileResult, 'getPurchasableBid - Period:' + str(self._list_vars['Current_Period']) + '- Number of fronts:' + str(len(dic_bids)) )
         totPurchasableBids = {}
         # Sorts the offerings  based on the customer's needs 
@@ -352,7 +349,6 @@ class ProviderEdge(Provider):
         messageAsk.setParameter('Service', serviceId)
         messageResult = self._channelMarketPlaceBuy.sendMessage(messageAsk)
         if messageResult.isMessageStatusOk():
-            #print 'Best bids' + messageResult.__str__()
             document = self.removeIlegalCharacters(messageResult.getBody())
             try:
                 dom = xml.dom.minidom.parseString(document)
@@ -362,12 +358,26 @@ class ProviderEdge(Provider):
         else:
             raise FoundationException("Best bids not received")
 
-    
-    '''
-    Create the forecast for the staged bids.
-    '''
-    def purchaseBids(self, staged_bids, availability, fileResult):
+
+    def swapPurchasedBids(self, purchasedBids, staged_bids, fileResult):
+        '''
+        swap the bid actually purchased
+        Test: implemented.
+        '''
+        self.registerLog(fileResult, 'Starting swapPurchasedBids' + 'bid to include:' + str(len(purchasedBids)) )
+            
+        for bid in purchasedBids:
+            if bid.getCapacity() > 0:
+                staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': bid.getCapacity() }
+        self.registerLog(fileResult, 'ending swapPurchasedBids' + str(len(staged_bids)))
+          
+    def purchaseBids(self, staged_bids, fileResult):
+        '''
+        Create the forecast for the staged bids.
+        Test: 
+        '''        
         self.registerLog(fileResult, 'Starting purchaseBids' )
+        staged_bids_result = {}
         purchaseServiceId = self.getPurchaseService()
         dic_return = self.AskBackhaulBids(purchaseServiceId)
         for bidId in staged_bids:            
@@ -376,13 +386,16 @@ class ProviderEdge(Provider):
                 bid = (staged_bids[bidId])['Object']
                 forecast = (staged_bids[bidId])['Forecast']
                 bidPrice = self.getBidPrice(bid)
-                bidPurchasable = self.getPurchasableBid(self, bid, dic_return, fileResult)
+                bidPurchasable = self.getPurchasableBid(bid, dic_return, fileResult)
                 self.registerLog(fileResult, 'bidId' + bid.getId() + ' forecast:' + str(forecast) + 'price:' + str(bidPrice))
                 if (forecast > 0) and (len(bidPurchasable) > 0):
-                    bidCapacity = self.purchaseBid(bid, forecast, bidPrice, bidPurchasable, fileResult)
-                    bid.setCapacity(bidCapacity)
-                    (staged_bids[bidId])['Object'] = bid
-        self.registerLog(fileResult, 'Ending purchaseBids' )
+                    totPurchased, purchasedBids = self.purchaseBid(bid, purchaseServiceId, forecast, bidPrice, bidPurchasable, fileResult)
+                    # if could not purchase anything, then it removes the bid from the staged bids.
+                    self.swapPurchasedBids(purchasedBids, staged_bids_result, fileResult)
+            else:
+                staged_bids_result[bidId] = staged_bids[bidId]
+        self.registerLog(fileResult, 'Ending purchaseBids' + 'bids included:' + str(len(staged_bids_result)) )
+        return staged_bids_result
     
     def setInitialBids(self, fileResult):
         '''
@@ -394,24 +407,9 @@ class ProviderEdge(Provider):
         return self.initializeBids(marketPosition, initialNumberBids, fileResult) 
     
     
-    def updateAvailability(self, resourceId, qtyDecrease):
-        '''
-        Update the availability of a resource in the quantity specified by qtyDecrease, if not 
-        enought decreases the quantity available
-        '''  
-        qtyAssigned = 0
+    def updateAvailability(self, resourceId, newAvailability):
         if (resourceId in self._used_variables['resources']):
-            actualQtyCapacity = ((self._used_variables['resources'])[resourceId])['Capacity']
-            if (actualQtyCapacity >= qtyDecrease):
-                actualQtyCapacity = actualQtyCapacity - qtyDecrease
-                qtyAssigned = qtyDecrease
-            else:
-                qtyDecrease = actualQtyCapacity
-                actualQtyCapacity = 0 
-            ((self._used_variables['resources'])[resourceId])['Capacity'] = actualQtyCapacity
-        return qtyAssigned
-                
-            
+            ((self._used_variables['resources'])[resourceId])['Capacity'] = newAvailability
         
     def updateCurrentBids(self, currentPeriod, radius, staged_bids, fileResult):
         '''
@@ -484,7 +482,6 @@ class ProviderEdge(Provider):
         logger.info('Agent: %s - Period %s - Initiating exec_algorithm ', 
 		    self._list_vars['strId'], str(self._list_vars['Current_Period'])  )          
         staged_bids = {}
-        availability = {}
         try:
             if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
                 fileResult = open(self._list_vars['strId'] + '.log',"a")
@@ -506,9 +503,9 @@ class ProviderEdge(Provider):
                 # include active bids not staged. 
                 initial_staged_bids = staged_bids
                 self.includeActiveBidsNotStaged(currentPeriod, radius, staged_bids, fileResult)
-                self.purchaseBids(staged_bids, availability, fileResult)
+                staged_bids = self.purchaseBids(staged_bids, fileResult)
                 self.purgeBids(initial_staged_bids, fileResult)
-                self.sendCapacityEdgeProvider(availability)
+                self.send_capacity()
 
         except ProviderException as e:
             self.registerLog(fileResult, e.message)
@@ -518,7 +515,4 @@ class ProviderEdge(Provider):
         fileResult.close()
         self._list_vars['State'] = AgentServerHandler.IDLE
 		
-		
-	
-	
 # End of Access provider class

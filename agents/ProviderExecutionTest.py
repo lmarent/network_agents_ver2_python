@@ -106,14 +106,15 @@ def getSeed(seed, year, month, day, hour, minute, second, microsecond):
 def create(list_classes, typ, providerName, providerId, serviceId, providerSeed, marketPositon, 
 	    adaptationFactor, monopolistPosition, debug, 
 	    resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod,
-        sellingAddress, buyingAddress, capacityControl ):
+        sellingAddress, buyingAddress, capacityControl, purchase_service ):
 
     if typ in list_classes:
         	targetClass = list_classes[typ]
         	return targetClass(providerName, providerId, serviceId, providerSeed, 
         			   marketPositon, adaptationFactor, monopolistPosition, 
         			   debug, resources, numberOffers, numAccumPeriods, 
-        			   numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+        			   numAncestors, startFromPeriod, sellingAddress, 
+                    buyingAddress, capacityControl, str(purchase_service))
     else:
         err = 'Class' + typ + 'not found to be loaded'
         raise ProviderException(err)
@@ -161,6 +162,173 @@ def insertDBBidPurchase(cursor, period, serviceId, executionCount, bid, quantity
     args = (period, serviceId, bid.getId(), quantity, executionCount )
     cursor.execute(sql, args )
 
+def insertDBDemandInformation(cursor, provider):
+    '''
+    This function insert bid history demand and include it in variables of the provider
+    '''
+    # variable initialization
+    serviceIdISP = '1'    
+    executionCount = getExecutionCount(cursor)
+    
+    delay = 0.19	
+    price = 14.5	
+    demand = 12
+    bid4_5 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_5.setUnitaryProfit(0.2)
+    bid4_5.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_5)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_5, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_5, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_5, demand)        
+    (provider._list_vars['Bids'])[bid4_5.getId()] = bid4_5
+        
+    delay = 0.19	
+    price = 15
+    demand = 11
+    bid4_6 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_6.setUnitaryProfit(0.2)
+    bid4_6.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_6)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_6, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_6, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_6, demand)        
+    (provider._list_vars['Bids'])[bid4_6.getId()] = bid4_6
+        
+        
+    delay = 0.19	
+    price = 15.5	
+    demand = 10
+    bid4_7 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_7.setUnitaryProfit(0.2)
+    bid4_7.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_7)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_7, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_7, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_7, demand+0)        
+    (provider._list_vars['Bids'])[bid4_7.getId()] = bid4_7
+    
+        
+    delay = 0.18	
+    price = 13.5	
+    demand = 15
+    bid4_8 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_8.setUnitaryProfit(0.2)
+    bid4_8.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_8)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_8, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_8, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_8, demand+0)        
+    (provider._list_vars['Bids'])[bid4_8.getId()] = bid4_8
+    
+
+    delay = 0.18	
+    price = 14	
+    demand = 14
+    bid4_9 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_9.setUnitaryProfit(0.2)
+    bid4_9.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_9)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_9, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_9, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_9, demand+0)        
+    (provider._list_vars['Bids'])[bid4_9.getId()] = bid4_9
+        
+    delay = 0.18	
+    price = 14.5	
+    demand = 13
+    bid4_10 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_10.setUnitaryProfit(0.2)
+    bid4_10.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_10)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_10, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_10, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_10, demand+0)        
+    (provider._list_vars['Bids'])[bid4_10.getId()] = bid4_10
+    
+    delay = 0.18	
+    price = 15	
+    demand = 12
+    bid4_11 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_11.setUnitaryProfit(0.2)
+    bid4_11.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_11)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_11, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_11, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_11, demand+0)        
+    (provider._list_vars['Bids'])[bid4_11.getId()] = bid4_11
+        
+    delay = 0.18	
+    price = 15.5	
+    demand = 11
+    bid4_12 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_12.setUnitaryProfit(0.2)
+    bid4_12.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_12)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_12, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_12, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_12, demand+0)        
+    (provider._list_vars['Bids'])[bid4_12.getId()] = bid4_12
+    
+    delay = 0.18	
+    price = 16	
+    demand = 10
+    bid4_13 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_13.setUnitaryProfit(0.2)
+    bid4_13.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_13)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_13, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_13, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_13, demand+0)        
+    (provider._list_vars['Bids'])[bid4_13.getId()] = bid4_13
+        
+    delay = 0.18	
+    price = 16.5	
+    demand = 9
+    bid4_14 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_14.setUnitaryProfit(0.2)
+    bid4_14.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_14)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_14, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_14, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_14, demand+0)        
+    (provider._list_vars['Bids'])[bid4_14.getId()] = bid4_14
+    
+    delay = 0.17	
+    price = 14.5	
+    demand = 14
+    bid4_15 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_15.setUnitaryProfit(0.2)
+    bid4_15.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_15)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_15, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_15, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_15, demand+0)        
+    (provider._list_vars['Bids'])[bid4_15.getId()] = bid4_15
+    
+    delay = 0.17	
+    price = 15	
+    demand = 13
+    bid4_16 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_16.setUnitaryProfit(0.2)
+    bid4_16.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_16)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_16, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_16, demand+2)
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_16, demand+0)        
+    (provider._list_vars['Bids'])[bid4_16.getId()] = bid4_16
+        
+    delay = 0.17	
+    price = 15.5	
+    demand = 12
+    bid4_17 = createBid(provider.getProviderId(), serviceIdISP, delay, price)
+    bid4_17.setUnitaryProfit(0.2)
+    bid4_17.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_17)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_17, demand+4)
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_17, demand+2)
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_17, demand+0)
+    (provider._list_vars['Bids'])[bid4_17.getId()] = bid4_17
+    
 
 def activateCustomer():
     # Open database connection
@@ -254,7 +422,7 @@ def test_cost_functions():
                   , monopolist_position, service_id, num_ancestors, debug \
 		  , seed, year, month, day, hour, minute, second \
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
-          , selling_marketplace_address, capacity_controlled_at \
+          , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
 	    WHERE status = 'A' AND id = 1"
 
@@ -293,9 +461,10 @@ def test_cost_functions():
             class_name = row[16]
             startFromPeriod = row[17]
             buyingAddress = row[18]
-            sellingAddress = row[19]            
+            sellingAddress = row[19]
             capacityControl = 'G' # Bulk Capacity.
             providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            purchase_service = row[21]
             # Brings resources definition
             cursor2 = db.cursor()
             sql_resources = "SELECT resource_id, capacity, cost \
@@ -314,7 +483,8 @@ def test_cost_functions():
             provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdBackhaul, 
         			      providerSeed, marketPosition, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, 
+                       capacityControl, purchase_service)
             providers.append(provider)
             break
         
@@ -406,7 +576,7 @@ def test_marketplace_capacity_management():
                   , monopolist_position, service_id, num_ancestors, debug \
 		  , seed, year, month, day, hour, minute, second \
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
-          , selling_marketplace_address, capacity_controlled_at \
+          , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
 	    WHERE status = 'A' AND id = 1"
 
@@ -450,6 +620,7 @@ def test_marketplace_capacity_management():
             sellingAddress = row[19]            
             capacityControl = 'G' # Bulk Capacity.
             providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            purchase_service = row[21]
             # Brings resources definition
             cursor2 = db.cursor()
             sql_resources = "SELECT resource_id, capacity, cost \
@@ -465,10 +636,11 @@ def test_marketplace_capacity_management():
             class_name = 'Provider'
             sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
             buyingAddress = ' '
-            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdBackhaul, 
+            provider = create( list_classes, class_name, providerName + str(providerId), providerId, serviceIdBackhaul, 
         			      providerSeed, marketPosition, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, 
+                      buyingAddress, capacityControl, purchase_service )
             providers.append(provider)
 
 
@@ -730,7 +902,7 @@ def test_provider_general_methods():
                   , monopolist_position, service_id, num_ancestors, debug \
 		  , seed, year, month, day, hour, minute, second \
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
-          , selling_marketplace_address, capacity_controlled_at \
+          , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
 	    WHERE status = 'A' AND id = 1"
 
@@ -773,6 +945,7 @@ def test_provider_general_methods():
             sellingAddress = row[19]            
             capacityControl = 'G' # Bulk Capacity.
             providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            purchase_service = row[21]
             # Brings resources definition
             cursor2 = db.cursor()
             sql_resources = "SELECT resource_id, capacity, cost \
@@ -791,7 +964,8 @@ def test_provider_general_methods():
             provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
         			      providerSeed, marketPosition, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, 
+                        buyingAddress, capacityControl, purchase_service)
             providers.append(provider)
 
             i = i + 1
@@ -867,7 +1041,6 @@ def test_provider_general_methods():
         provider1.run()
 
         deleteDBPreviousInformation(cursor)
-        executionCount = getExecutionCount(cursor)         
 
 
     
@@ -914,7 +1087,7 @@ def test_provider_database_classes():
                   , monopolist_position, service_id, num_ancestors, debug \
 		  , seed, year, month, day, hour, minute, second \
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
-          , selling_marketplace_address, capacity_controlled_at \
+          , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
 	    WHERE status = 'A' AND id = 1"
 
@@ -955,9 +1128,10 @@ def test_provider_database_classes():
             class_name = row[16]
             startFromPeriod = row[17]
             buyingAddress = row[18]
-            sellingAddress = row[19]            
+            sellingAddress = row[19]
             capacityControl = 'G' # Bulk Capacity.
             providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            purchase_service = row[21]
             # Brings resources definition
             cursor2 = db.cursor()
             sql_resources = "SELECT resource_id, capacity, cost \
@@ -976,7 +1150,8 @@ def test_provider_database_classes():
             provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdBackhaul, 
         			      providerSeed, marketPosition, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, 
+                       buyingAddress, capacityControl, purchase_service)
             providers.append(provider)
 
 
@@ -1216,7 +1391,534 @@ def test_provider_database_classes():
         db.close()
         fileResult2.close()
 
+def test_provider_edge_move_quality(provider, fileResult):
+    # variable initialization
+    serviceIdBackhaul = '2'    
+    direction = 1 
+    adaptationFactor = 0.01
+    marketPosition = 0.4
+    
+    serviceBackhaul = provider.getService(serviceIdBackhaul)
+    if (serviceBackhaul == None):
+        raise FoundationException("getService method is not working in class ProviderEdgeMonopoly")
+            
+    qualityVariableBack = serviceBackhaul.getDecisionVariable('3')
+    minValueBack = qualityVariableBack.getMinValue()        
+    maxValueBack = qualityVariableBack.getMaxValue()
+    maxValueRange = (maxValueBack - minValueBack)*adaptationFactor
+        
+    output1 = provider.moveQuality(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult)
 
+    if ((output1['3'])['Direction'] != 1):
+        raise FoundationException("error in the purchase method of moveQuality")
+
+    if (((output1['3'])['Step'] <= 0) or ((output1['3'])['Step'] >= maxValueRange) ):
+        raise FoundationException("error in the purchase method of moveQuality")
+                        
+    adaptationFactor = 0.05
+    marketPosition = 0.7
+    maxValueRange = (maxValueBack - minValueBack)*adaptationFactor
+    output1 = provider.moveQuality(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult)
+    if (((output1['3'])['Step'] <= 0) or ((output1['3'])['Step'] >= maxValueRange) ):
+        raise FoundationException("error in the purchase method of moveQuality")
+
+    direction = -1 
+    maxValueRange = maxValueRange *-1
+    output2 = provider.moveQuality(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult)
+    if ((output2['3'])['Direction'] != -1):
+        raise FoundationException("error in the purchase method of moveQuality")
+
+    if (((output2['3'])['Step'] >= 0) or ((output2['3'])['Step'] <= maxValueRange) ):
+        raise FoundationException("error in the purchase method of moveQuality")
+
+def test_provider_edge_move_price(provider, fileResult):
+    # variable initialization
+    serviceIdBackhaul = '2'
+    direction = 1 
+    adaptationFactor = 0.01
+    marketPosition = 0.4
+    
+    serviceBackhaul = provider.getService(serviceIdBackhaul)    
+    priceVariableBack = serviceBackhaul.getDecisionVariable('4')
+    minValueBack = priceVariableBack.getMinValue()        
+    maxValueBack = priceVariableBack.getMaxValue()
+    maxValueRange = (maxValueBack - minValueBack)*adaptationFactor
+
+    direction = 1
+    output2 = provider.movePrice(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult)
+    if ((output2['4'])['Direction'] != 1):
+        raise FoundationException("error in the purchase method of movePrice")
+
+    if (((output2['4'])['Step'] <= 0) or ((output2['4'])['Step'] >= maxValueRange) ):
+        raise FoundationException("error in the purchase method of moveQuality")
+
+    direction = -1
+    maxValueRange = maxValueRange *-1
+    output2 = provider.movePrice(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult)
+    if ((output2['4'])['Direction'] != -1):
+        raise FoundationException("error in the purchase method of movePrice")
+
+    if (((output2['4'])['Step'] >= 0) or ((output2['4'])['Step'] <= maxValueRange) ):
+        raise FoundationException("error in the purchase method of moveQuality")
+
+def test_provider_edge_convert_to_own_bid(ispProvider, transitProvider,  bid4, bid5):
+    # Variable initialization
+    serviceIdISP = '1'     
+    serviceIdBackhaul = '2'
+    serviceBackhaul = ispProvider.getService(serviceIdBackhaul)
+    serviceIsp = ispProvider.getService(serviceIdISP)
+    
+    # Test the function convert to own bid Backhaul --> ISP
+    bid4_1 = ispProvider.convertToOwnBid(serviceIsp, serviceBackhaul, bid4)
+    bid4_2 = ispProvider.convertToOwnBid(serviceIsp, serviceBackhaul, bid5)
+    bid4_1.setProviderBid(bid4)
+    bid4_2.setProviderBid(bid5)
+                
+    qualityValue = bid4_1.getDecisionVariable('2')
+    if ( qualityValue != 0.1894):
+        raise FoundationException("Error in method convertToOwnBid of ProviderEdgeMonopoly")
+
+    qualityValue = round(bid4_2.getDecisionVariable('2'),4)    
+    if ( qualityValue != 0.1682):
+        raise FoundationException("Error in method convertToOwnBid of ProviderEdgeMonopoly")
+
+    
+def test_isNeighborhood_bid_to_staged(provider, fileResult):
+    # Variable initialization
+    serviceIdISP = '1'     
+    serviceIsp = provider.getService(serviceIdISP)
+
+    staged_bids_test = {}
+    radius = 0.1        
+    delay = 0.18
+    price = 15
+    bidTest4_01 = createBid( provider.getProviderId(), serviceIsp.getId(), delay, price)
+
+    # Verifies method bids are Neighborhood Bids
+    delay = 0.17
+    price = 14.5
+    bidTest4_02 = createBid( provider.getProviderId(), serviceIsp.getId(), delay, price)
+
+    delay = 0.18
+    price = 18
+    bidTest4_03 = createBid( provider.getProviderId(), serviceIsp.getId(), delay, price)
+
+    staged_bids_test[bidTest4_03.getId()] = {'Object': bidTest4_03, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
+    ret = provider.isNeighborhoodBidToStaged( bidTest4_01,  staged_bids_test, radius, fileResult)
+    if ret != False:
+        raise FoundationException("Error in method isNeighborhoodBidToStaged of ProviderEdgeMonopoly - Error:1")
+
+    staged_bids_test[bidTest4_02.getId()] = {'Object': bidTest4_02, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
+    ret = provider.isNeighborhoodBidToStaged( bidTest4_01,  staged_bids_test, radius, fileResult)
+    if ret != True:
+        raise FoundationException("Error in method isNeighborhoodBidToStaged of ProviderEdgeMonopoly - Error:2")
+
+
+def test_include_exploring_bid(currentPeriod, provider, bid4, fileResult):
+    # Variable initialization
+    serviceIdISP = '1'     
+    serviceIsp = provider.getService(serviceIdISP)
+    serviceIdBackhaul = '2'        
+    serviceProvider = provider.getService(serviceIdBackhaul)
+    
+    adaptationFactor = 0.01
+    marketPosition = 0.4
+    numAncestors = 4
+
+    # Test is neighborhoodBidToStaged
+    staged_bids_test = {}
+    radius = 0.1        
+    delay = 0.18
+    price = 15
+    bidTest4_01 = createBid( provider.getProviderId(), serviceIsp.getId(), delay, price)
+
+    # Verifies method bids are Neighborhood Bids
+    delay = 0.17
+    price = 14.5
+    bidTest4_02 = createBid( provider.getProviderId(), serviceIsp.getId(), delay, price)
+
+    delay = 0.18
+    price = 18
+    bidTest4_03 = createBid( provider.getProviderId(), serviceIsp.getId(), delay, price)
+
+    staged_bids_test[bidTest4_03.getId()] = {'Object': bidTest4_03, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
+
+    staged_bids_resp = {}         
+    provider.includeExploringBid( currentPeriod, numAncestors, serviceProvider, adaptationFactor, marketPosition, bidTest4_01, bid4, serviceIsp, radius, staged_bids_resp, staged_bids_test, fileResult)
+    if len(staged_bids_resp) != 1:
+        raise FoundationException("Error in method includeExploringBid of ProviderEdgeMonopoly - Error:1 ")
+
+    staged_bids_test[bidTest4_02.getId()] = {'Object': bidTest4_02, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
+    
+    staged_bids_resp = {}
+    provider.includeExploringBid( currentPeriod, numAncestors, serviceProvider, adaptationFactor, marketPosition, bidTest4_01, bid4, serviceIsp, radius, staged_bids_resp, staged_bids_test, fileResult)
+    if len(staged_bids_resp) != 0:
+        raise FoundationException("Error in method includeExploringBid of ProviderEdgeMonopoly - Error 2")
+
+def test_exec_front_bids(ispProvider, transitProvider, currentPeriod, bid, fileResult):
+    '''
+     We test the function Exec Front Bids by calling all of their functions
+    '''
+    # Variable initialization
+    serviceIdISP = '1'     
+    serviceIdBackhaul = '2'
+    serviceBackhaul = ispProvider.getService(serviceIdBackhaul)
+    serviceIsp = ispProvider.getService(serviceIdISP)
+    staged_bids = {}
+    adaptationFactor = 0.1
+    marketPosition = 0.4
+    radius = 0.1
+    numAncestors = 4
+
+    quality = 0.02
+    price = 10.5
+    provBid4Test = createBidBackhaul(transitProvider.getProviderId(), serviceIdBackhaul, quality, price)
+          
+    direction = -1
+    staged_bids_resp = {}
+    directionQuality = ispProvider.moveQuality(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult)
+    newBidProv = ispProvider.moveBidOnDirectionEdge(bid, serviceBackhaul, directionQuality)
+    newBidOwn1 = ispProvider.convertToOwnBid( serviceIsp, serviceBackhaul,  newBidProv)
+    profForecast = ispProvider.determineProfitForecast(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, newBidOwn1, fileResult)
+    if profForecast > 0:
+        ispProvider.includeExploringBid( newBidOwn1, bid, serviceIsp, radius, staged_bids_resp, staged_bids, fileResult)
+
+    direction = 1
+    directionQuality = ispProvider.moveQuality(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult)
+    newBidProv = ispProvider.moveBidOnDirectionEdge(bid, serviceBackhaul, directionQuality)
+    newBidOwn1a = ispProvider.convertToOwnBid( serviceIsp, serviceBackhaul,  newBidProv)
+    profForecast = ispProvider.determineProfitForecast(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, newBidOwn1a, fileResult)
+    if profForecast > 0:
+        ispProvider.includeExploringBid( newBidOwn1a, bid, serviceIsp, radius, staged_bids_resp, staged_bids, fileResult)
+
+    # increase prices
+    direction = 1
+    directionPrice = ispProvider.movePrice(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult)
+    newBidProv = ispProvider.moveBidOnDirectionEdge(bid, serviceBackhaul, directionPrice)
+    newBidOwn2 = ispProvider.convertToOwnBid( serviceIsp, serviceBackhaul,  newBidProv)
+    profForecast = ispProvider.determineProfitForecast(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, newBidOwn2, fileResult)
+    if profForecast > 0:
+        ispProvider.includeExploringBid( newBidOwn2, bid, serviceIsp, radius, staged_bids_resp, staged_bids, fileResult)
+            
+    # decrease prices
+    direction = -1
+    directionPrice = ispProvider.movePrice(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult)
+    newBidProv = ispProvider.moveBidOnDirectionEdge(bid, serviceBackhaul, directionPrice)
+    newBidOwn3 = ispProvider.convertToOwnBid( serviceIsp, serviceBackhaul,  newBidProv)
+    profForecast = ispProvider.determineProfitForecast(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, newBidOwn3, fileResult)
+    if profForecast > 0:
+        ispProvider.includeExploringBid( newBidOwn3, bid, serviceIsp, radius, staged_bids_resp, staged_bids, fileResult)
+            
+    staged_bids_resp.clear()
+        
+    bidList = []
+    bidList.append(provBid4Test)
+    ispProvider.execFrontBids(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, bidList, staged_bids, staged_bids_resp, fileResult)
+
+    if (len(staged_bids_resp) != 2):
+        raise FoundationException("Error in test_exec_front_bids - Error:1")
+                
+    staged_bids_resp.clear()
+
+def test_ask_backhaul_bids(provider):
+    serviceBackhaulId = '2'
+    # Test the method AskBackhaulBids.
+    dic_return = provider.AskBackhaulBids(serviceBackhaulId)
+    if (len(dic_return) != 1):
+        raise FoundationException("Error in method AskBackhaulBids of ProviderEdgeMonopoly")
+        
+    bidList = []
+    keys_sorted = sorted(dic_return,reverse=True)
+    for front in keys_sorted:
+        bidList = dic_return[front]
+        break        
+        
+    if (len(bidList) != 5):
+        raise FoundationException("Error in method AskBackhaulBids of ProviderEdgeMonopoly")
+
+def test_exec_bid_update(provider, currentPeriod, fileResult):
+    # Variable initialization
+    serviceIdISP = '1'     
+    serviceIdBackhaul = '2'
+    serviceBackhaul = provider.getService(serviceIdBackhaul)
+    serviceIsp = provider.getService(serviceIdISP)
+    staged_bids = {}
+    adaptationFactor = 0.1
+    marketPosition = 0.4
+    radius = 0.1
+    numAncestors = 4
+    staged_bids_temp = {}
+    staged_bids_temp2 = {}
+    
+    provider.execBidUpdate(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, staged_bids, staged_bids_temp2, fileResult)
+    if (len(staged_bids_temp2) != 10):
+        raise FoundationException("Error in method execBidUpdate of ProviderEdgeMonopoly")
+        
+    for bidId in staged_bids_temp:
+        staged_bids_temp2[bidId] = staged_bids_temp[bidId]
+
+def test_get_related_own_bids(cursor, provider, fileResult):
+    # Variable initialization
+    serviceIdISP = '1'     
+    serviceIsp = provider.getService(serviceIdISP)
+    executionCount = getExecutionCount(cursor)
+
+    incrPrice = 0.5
+    priceVariable = serviceIsp.getDecisionVariable('1')
+    minPrice = priceVariable.getMinValue()
+    maxPrice = priceVariable.getMaxValue()
+        
+    numBefore = len(provider._list_vars['Bids'])
+        
+    incrQuality = 0.01
+    qualityVariable = serviceIsp.getDecisionVariable('2')
+    minQuality = qualityVariable.getMinValue()
+    maxQuality = qualityVariable.getMaxValue()
+    price = minPrice
+    quality = minQuality
+    while (price <= maxPrice):
+        quality = minQuality
+        while (quality <= maxQuality):
+            BidTmp = createBid(provider.getProviderId(), serviceIsp.getId(), quality, price)
+            (provider._list_vars['Bids'])[BidTmp.getId()] = BidTmp
+            quality = quality + incrQuality
+        price = price + incrPrice
+        
+    numAfter = len(provider._list_vars['Bids'])
+
+    if (numAfter - numBefore) != 102:
+        raise FoundationException("Error in assigning bids to provider4")
+    
+    staged_bids_resp = {}
+    
+    radius = 0.05
+    for bidId in staged_bids_resp:
+        bid = (staged_bids_resp[bidId])['Object']
+        relatedBids = provider.getOwnRelatedBids(bid, radius, 10, 2, fileResult)
+        if len(relatedBids) != 0:
+            raise FoundationException("Error in getOwnRelatedBids")
+        
+    for bidId in provider._list_vars['Bids']:
+        ((provider._list_vars['Bids'])[bidId]).setCreationPeriod(10)
+
+    radius = 0.2        
+    for bidId in staged_bids_resp:
+        bid = (staged_bids_resp[bidId])['Object']
+        relatedBids = provider.getOwnRelatedBids(bid, radius, 10, 2, fileResult)
+        if len(relatedBids) == 0:
+            raise FoundationException("Error in getOwnRelatedBids")
+
+    for bidId in provider._list_vars['Bids']:
+        ((provider._list_vars['Bids'])[bidId]).setCreationPeriod(9)
+
+    for bidId in staged_bids_resp:
+        bid = (staged_bids_resp[bidId])['Object']
+        relatedBids = provider.getOwnRelatedBids(bid, radius, 10, 2, fileResult)
+        if len(relatedBids) == 0:
+            raise FoundationException("Error in getOwnRelatedBids")
+
+    for bidId in provider._list_vars['Bids']:
+        ((provider._list_vars['Bids'])[bidId]).setCreationPeriod(8)
+
+    for bidId in staged_bids_resp:
+        bid = (staged_bids_resp[bidId])['Object']
+        relatedBids = provider.getOwnRelatedBids(bid, radius, 10, 2, fileResult)
+        if len(relatedBids) == 0:
+            raise FoundationException("Error in getOwnRelatedBids")
+
+    for bidId in provider._list_vars['Bids']:
+        ((provider._list_vars['Bids'])[bidId]).setCreationPeriod(7)
+
+    for bidId in staged_bids_resp:
+        bid = (staged_bids_resp[bidId])['Object']
+        relatedBids = provider.getOwnRelatedBids(bid, radius, 10, 2, fileResult)
+        if len(relatedBids) != 0:
+            raise FoundationException("Error in getOwnRelatedBids")
+
+    # This code creates the bids in the database
+    for bidId in provider._list_vars['Bids']:
+        ((provider._list_vars['Bids'])[bidId]).setCreationPeriod(7)
+        ((provider._list_vars['Bids'])[bidId]).setUnitaryProfit(0.6)
+        bid = ((provider._list_vars['Bids'])[bidId])            
+        insertDBBid(cursor, 7, executionCount, bid)
+        insertDBBidPurchase(cursor, 7, serviceIdISP, executionCount, bid, 3)
+
+    # This code creates purchases in the database for another period.
+    for bidId in provider._list_vars['Bids']:
+        bid = ((provider._list_vars['Bids'])[bidId])            
+        insertDBBidPurchase(cursor, 8, serviceIdISP, executionCount, bid, 2)
+        
+    # This code creates purchases in the database for another period.
+    for bidId in provider._list_vars['Bids']:
+        bid = ((provider._list_vars['Bids'])[bidId])            
+        insertDBBidPurchase(cursor, 9, serviceIdISP, executionCount, bid, 1)
+
+    bid4_3 = createBid(provider.getProviderId(), serviceIdISP, 0.15, 17) 
+    # This bring all bids that were created in the last three periods
+    radius = 0.1
+    currentPeriod = 10
+    bids_related1 = provider.getOwnRelatedBids(bid4_3, radius, currentPeriod, 3, fileResult)
+    num_bids_related = len(bids_related1)
+    if num_bids_related != 13:
+        raise FoundationException("Error in test_get_related_own_bids - Error:1")
+
+    bid4_4 = createBid(provider.getProviderId(), serviceIdISP, 0.14, 15)
+    bids_related2 = provider.getOwnRelatedBids(bid4_4, radius, currentPeriod, 3, fileResult)
+        
+    if len(bids_related2) != 10:
+        raise FoundationException("Error in test_get_related_own_bids - Error:2")
+    
+    return bids_related1, bids_related2
+
+
+def test_determine_profit_forecast(cursor, ispProvider, transitProvider, currentPeriod, fileResult):
+    ''' 
+    This code assumes that the database has been updated with demand
+    '''
+     
+    #Variable initialization
+    serviceIdISP = '1'     
+    serviceIdBackhaul = '2'
+    serviceBackhaul = ispProvider.getService(serviceIdBackhaul)
+    serviceIsp = ispProvider.getService(serviceIdISP)
+    adaptationFactor = 0.1
+    marketPosition = 0.4
+    radius = 0.1
+    numAncestors = 4
+
+    delay = 0.18	
+    price = 15	
+    bid4_test = createBid(ispProvider.getProviderId(), serviceBackhaul, delay, price)
+            
+    value = ispProvider.determineProfitForecast(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, bid4_test, fileResult)
+    value = round(value,4)    
+    if (value != -0.3744):
+        raise FoundationException("Error in test_determine_profit_forecast - Error:1")
+    
+
+def test_get_db_market_share_zone1(provider, bids_related, fileResult):
+    # Variable initialization
+    serviceIdISP = '1'     
+
+    bid4_3 = createBid(provider.getProviderId(), serviceIdISP, 0.15, 17) 
+    # This bring all bids that were created in the last three periods
+    currentPeriod = 10
+    marketZoneDemand, totQuantity, numRelated = provider.getDBMarketShareZone(bid4_3, bids_related, currentPeriod -1 , 1, fileResult)
+    if totQuantity != 13:
+        raise FoundationException("Error in test_get_db_market_share_zone - Error:1")
+        
+    marketZoneDemand, totQuantity, numRelated = provider.getDBMarketShareZone(bid4_3, bids_related, currentPeriod -1 , 2, fileResult)
+    if totQuantity != 39:
+        raise FoundationException("Error in test_get_db_market_share_zone - Error:2")
+
+    marketZoneDemand, totQuantity, numRelated = provider.getDBMarketShareZone(bid4_3, bids_related, currentPeriod -1 , 3, fileResult)
+    if totQuantity != 78:
+        raise FoundationException("Error in test_get_db_market_share_zone - Error:3")
+
+def test_get_db_profit_zone1(provider, bids_related, fileResult):
+    # Variable initialization
+    serviceIdISP = '1'     
+
+    bid4_3 = createBid(provider.getProviderId(), serviceIdISP, 0.15, 17) 
+    # This bring all bids that were created in the last three periods
+
+    profitZone, totProfit, numRelated = provider.getDBProfitZone(bid4_3, bids_related, 9, fileResult)
+    if round(totProfit,1) != 7.8:
+        raise FoundationException("Error (1) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
+        
+    profitZone, totProfit, numRelated = provider.getDBProfitZone(bid4_3, bids_related, 8, fileResult)
+    if round(totProfit,1) != 15.6:
+        raise FoundationException("Error (2) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
+
+    profitZone, totProfit, numRelated = provider.getDBProfitZone(bid4_3, bids_related, 7, fileResult)
+    if round(totProfit,1) != 23.4:
+        raise FoundationException("Error (3) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
+
+
+def test_get_db_market_share_zone2(provider, bids_related, fileResult ):
+    # Variable initialization
+    serviceIdISP = '1'     
+    bid4_4 = createBid(provider.getProviderId(), serviceIdISP, 0.14, 15)
+    currentPeriod = 10
+            
+    marketZoneDemand, totQuantity, numRelated = provider.getDBMarketShareZone(bid4_4, bids_related, currentPeriod -1, 1, fileResult)
+    if totQuantity != 10:
+        raise FoundationException("Error (1) in calculating method getDBMarketShareZone of ProviderEdgeMonopoly")
+        
+    marketZoneDemand, totQuantity, numRelated = provider.getDBMarketShareZone(bid4_4, bids_related, currentPeriod -1, 2, fileResult)
+    if totQuantity != 30:
+        raise FoundationException("Error (2) in calculating method getDBMarketShareZone of ProviderEdgeMonopoly")
+
+    marketZoneDemand, totQuantity, numRelated = provider.getDBMarketShareZone(bid4_4, bids_related, currentPeriod -1, 3, fileResult)
+    if totQuantity != 60:
+        raise FoundationException("Error (3) in calculating method getDBMarketShareZone of ProviderEdgeMonopoly")
+
+def test_get_db_profit_zone2(provider, bids_related, fileResult):
+    # Variable initialization
+    serviceIdISP = '1'     
+    bid4_4 = createBid(provider.getProviderId(), serviceIdISP, 0.14, 15)
+
+    profitZone, totProfit, numRelated = provider.getDBProfitZone(bid4_4, bids_related, 9, fileResult)
+    if round(totProfit,0) != 6:
+        raise FoundationException("Error (1) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
+        
+    profitZone, totProfit, numRelated = provider.getDBProfitZone(bid4_4, bids_related, 8, fileResult)
+    if round(totProfit,0) != 12:
+        raise FoundationException("Error (2) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
+
+    profitZone, totProfit, numRelated = provider.getDBProfitZone(bid4_4, bids_related, 7, fileResult)
+    if round(totProfit,0) != 18:
+        raise FoundationException("Error (3) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
+
+def test_calculate_forecast(provider, fileResult):
+    # Variable initialization
+    serviceIdISP = '1'     
+    radius = 0.1
+    bid4_3 = createBid(provider.getProviderId(), serviceIdISP, 0.15, 17) 
+    bid4_4 = createBid(provider.getProviderId(), serviceIdISP, 0.14, 15)
+    currentPeriod = 10
+    #-------------------------------------------------------
+    # Test Calculate Forecast
+    #-------------------------------------------------------        
+    staged_bids = {}
+    staged_bids[bid4_3.getId()] = {'Object': bid4_3, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
+    staged_bids[bid4_4.getId()] = {'Object': bid4_4, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
+                                    
+    provider.calculateForecast(radius, currentPeriod, 3, 5, staged_bids, fileResult)
+        
+    if ((staged_bids[bid4_3.getId()])['Forecast'] <= 5.571) or ((staged_bids[bid4_3.getId()])['Forecast'] >= 5.572):
+        raise FoundationException("Error (1) in calculating method calculateForecast of ProviderEdgeMonopoly")
+        
+    if ((staged_bids[bid4_4.getId()])['Forecast'] <= 5.454) or ((staged_bids[bid4_4.getId()])['Forecast'] >= 5.455):
+        raise FoundationException("Error (2) in calculating method calculateForecast of ProviderEdgeMonopoly")
+
+def test_purchase_bids_based_on_providers_bids(provider, bid4, bid5, fileResult):
+    # Variable initialization
+    serviceIdISP = '1'     
+    serviceIdBackhaul = '2'
+    serviceBackhaul = provider.getService(serviceIdBackhaul)
+    serviceIsp = provider.getService(serviceIdISP)
+
+    # Test the function convert to own bid.        
+    bid4_1 = provider.convertToOwnBid(serviceIsp, serviceBackhaul, bid4)
+    bid4_2 = provider.convertToOwnBid(serviceIsp, serviceBackhaul, bid5)
+    bid4_1.setProviderBid(bid4)
+    bid4_2.setProviderBid(bid5)
+
+    currentPeriod = provider.getCurrentPeriod()
+    quantity = provider.purchaseBasedOnProvidersBids(currentPeriod, serviceIdBackhaul, bid4, 3, fileResult)
+    if (quantity != 3):
+        raise FoundationException("error in test_purchase_bids_based_on_providers_bids - Error:1")
+    
+
+    staged_bids = {}
+    staged_bids[bid4_1.getId()] = {'Object': bid4_1, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 3 }
+    staged_bids[bid4_2.getId()] = {'Object': bid4_2, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 3 }
+    provider.purchaseBidsBasedOnProvidersBids( currentPeriod, staged_bids, fileResult)
+    for bidId in staged_bids:
+        if (staged_bids[bidId]['Object']).getCapacity() != staged_bids[bidId]['Forecast']:
+            raise FoundationException("error in test_purchase_bids_based_on_providers_bids - Error:2")
+    
 
 def test_provider_edge_monopoly_classes():
     '''
@@ -1250,9 +1952,9 @@ def test_provider_edge_monopoly_classes():
                   , monopolist_position, service_id, num_ancestors, debug \
 		  , seed, year, month, day, hour, minute, second \
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
-          , selling_marketplace_address, capacity_controlled_at \
+          , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
-	    WHERE status = 'A' AND id = 1"
+	    WHERE id in (1,2,3,4)"
 
     try:
         providers = []
@@ -1291,9 +1993,10 @@ def test_provider_edge_monopoly_classes():
             class_name = row[16]
             startFromPeriod = row[17]
             buyingAddress = row[18]
-            sellingAddress = row[19]            
-            capacityControl = 'G' # Bulk Capacity.
+            sellingAddress = row[19]
+            capacityControl = row[20]
             providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            purchase_service = row[21]
             # Brings resources definition
             cursor2 = db.cursor()
             sql_resources = "SELECT resource_id, capacity, cost \
@@ -1305,66 +2008,94 @@ def test_provider_edge_monopoly_classes():
             for resourceRow in resourceRows:
                 resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
             
-            capacityControl = 'G' # Bulk Capacity.
-            class_name = 'Provider'
-            sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
-            buyingAddress = ' '
-            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdBackhaul, 
+            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
         			      providerSeed, marketPosition, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
-            providers.append(provider)
+        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, 
+                       buyingAddress, capacityControl, purchase_service)
 
-            i = i + 1
 
-            capacityControl = 'G' # Bulk Capacity.
-            class_name = 'ProviderEdge'
-            providerId = i
-            providerName = 'Provider' + str(providerId)
-            sellingAddress = foundation.agent_properties.addr_mktplace_isp
-            buyingAddress = foundation.agent_properties.addr_mktplace_backhaul
-            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdISP, 
-        			      providerSeed, marketPosition, adaptationFactor, 
-        			      monopolistPosition, debug, resources, numberOffers, 
-
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
             providers.append(provider)
             i = i + 1
-
-            capacityControl = 'B' # Capacity by Bid.
-            class_name = 'Provider'
-            providerId = i
-            providerName = 'Provider' + str(providerId)
-            sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
-            buyingAddress = ' '
-            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdBackhaul, 
-        			      providerSeed, marketPosition, adaptationFactor, 
-        			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
-            providers.append(provider)
-            i = i + 1
-
-            capacityControl = 'B' # Capacity by Bid.
-            class_name = 'ProviderEdgeMonopoly'
-            providerId = i
-            providerName = 'Provider' + str(providerId)
-            sellingAddress = foundation.agent_properties.addr_mktplace_isp
-            buyingAddress = foundation.agent_properties.addr_mktplace_backhaul
-            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdISP, 
-        			      providerSeed, marketPosition, adaptationFactor, 
-        			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, 
-                       sellingAddress, buyingAddress, capacityControl)
-            providers.append(provider)
-            i = i + 1
-
-            break
 
         # start the providers
-        provider1 = providers[0]  # backhaul provider - Bulk capacity.
-        provider2 = providers[1]  # isp provider
-        provider3 = providers[2]  # backhaul provider - Bid capacity.
-        provider4 = providers[3]  # isp monopoly provider 
+        provider1 = providers[0]  # isp Edgeprovider 
+        provider2 = providers[1]  # backhaul provider - Bulk capacity.
+        provider3 = providers[2]  # isp Edge Monopoly provider 
+        provider4 = providers[3]  # backhaul provider - Bid capacity. 
+
+        # Verifies provider 1.
+        if (provider1._list_vars['Type'] != Agent.PROVIDER_ISP):
+            raise FoundationException("error in configure provider 1 - Error 1 ")
+            
+        if (provider1._list_vars['SellingAddres'] != foundation.agent_properties.addr_mktplace_isp):
+            raise FoundationException("error in configure provider 1 - Error 2 ")
+        
+        if (provider1._list_vars['BuyingAddres'] != foundation.agent_properties.addr_mktplace_backhaul):
+            raise FoundationException("error in configure provider 1 - Error 3 ")
+        
+        if (provider1._list_vars['serviceId'] != serviceIdISP):
+            raise FoundationException("error in configure provider 1 - Error 4 ")
+            
+        if (provider1._list_vars['capacityControl'] != 'B'):
+            raise FoundationException("error in configure provider 1 - Error 5 ")
+            
+        if (provider1._list_vars['PurchaseServiceId'] != serviceIdBackhaul):
+            raise FoundationException("error in configure provider 1 - Error 6 ")
+
+        # Verifies provider 2.
+        if (provider2._list_vars['Type'] != Agent.PROVIDER_BACKHAUL):
+            raise FoundationException("error in configure provider 2 - Error 1 ")
+            
+        if (provider2._list_vars['SellingAddres'] != foundation.agent_properties.addr_mktplace_backhaul):
+            raise FoundationException("error in configure provider 2 - Error 2 ")
+                
+        if (provider2._list_vars['serviceId'] != serviceIdBackhaul):
+            raise FoundationException("error in configure provider 2 - Error 3 ")
+            
+        if (provider2._list_vars['capacityControl'] != 'G'):
+            raise FoundationException("error in configure provider 2 - Error 4 ")
+
+        if (provider2._list_vars['PurchaseServiceId'] != 'None'):
+            raise FoundationException("error in configure provider 2 - Error 5 ")
+                    
+        # Verifies provider 3.
+        if (provider3._list_vars['Type'] != Agent.PROVIDER_ISP):
+            raise FoundationException("error in configure provider 3 - Error 1 ")
+            
+        if (provider3._list_vars['SellingAddres'] != foundation.agent_properties.addr_mktplace_isp):
+            raise FoundationException("error in configure provider 3 - Error 2 ")
+        
+        if (provider3._list_vars['BuyingAddres'] != foundation.agent_properties.addr_mktplace_backhaul):
+            raise FoundationException("error in configure provider 3 - Error 3 ")
+        
+        if (provider3._list_vars['serviceId'] != serviceIdISP):
+            raise FoundationException("error in configure provider 3 - Error 4 ")
+            
+        if (provider3._list_vars['capacityControl'] != 'B'):
+            raise FoundationException("error in configure provider 3 - Error 5 ")
+            
+        if (provider3._list_vars['PurchaseServiceId'] != serviceIdBackhaul):
+            raise FoundationException("error in configure provider 3 - Error 6 ")
+
+        # Verifies provider 4.
+        if (provider4._list_vars['Type'] != Agent.PROVIDER_BACKHAUL):
+            raise FoundationException("error in configure provider 4 - Error 1 ")
+            
+        if (provider4._list_vars['SellingAddres'] != foundation.agent_properties.addr_mktplace_backhaul):
+            raise FoundationException("error in configure provider 4 - Error 2 ")
+                
+        if (provider4._list_vars['serviceId'] != serviceIdBackhaul):
+            raise FoundationException("error in configure provider 4 - Error 3 ")
+            
+        if (provider4._list_vars['capacityControl'] != 'B'):
+            raise FoundationException("error in configure provider 4 - Error 4 ")
+            
+        if (provider4._list_vars['PurchaseServiceId'] != 'None'):
+            raise FoundationException("error in configure provider 4 - Error 5 ")
+        
+        # Verifies parameters for providers, so we can start from a established point.
+        
 
         provider1.start_listening()
         provider1.initialize()
@@ -1374,619 +2105,79 @@ def test_provider_edge_monopoly_classes():
         provider3.initialize()
         provider4.start_listening()
         provider4.initialize()
-        if (provider4.getNumberServices() != 2):
+        if (provider3.getNumberServices() != 2):
             raise FoundationException("error in the initialize method of class ProviderEdgeMonopoly")
-
-
-        
-        # This code verifies the Market Place Server with BulkCapacity
-        # send capacity 10 units
-        provider1.send_capacity()
         
         # Variable Initialization        
         serviceId = '2'
         fileResult1 = open(provider1.getProviderId() + '.log',"a")
+        fileResult2 = open(provider2.getProviderId() + '.log',"a")        
+        fileResult3 = open(provider3.getProviderId() + '.log',"a")
+        fileResult4 = open(provider4.getProviderId() + '.log',"a")
+
+        # This code verifies the Market Place Server with BulkCapacity
+        # send capacity 100 units
+        provider2.send_capacity()
         currentPeriod = provider2.getCurrentPeriod()
         
         # creates the bid with the minimal quality.                
         quality = 0
         price = 10
-        bid = createBidBackhaul(provider1.getProviderId(), serviceId, quality, price)
-        provider1.sendBid(bid, fileResult1)
+        bid = createBidBackhaul(provider2.getProviderId(), serviceId, quality, price)
+        provider2.sendBid(bid, fileResult1)
         
-        # Buy with minimum quality 3 units - Response 3 units purchased
-        fileResult2 = open(provider2.getProviderId() + '.log',"a")        
-
-        # Variable Initialization        
-        serviceId = '2'
-        fileResult3 = open(provider3.getProviderId() + '.log',"a")
-        currentPeriod = provider3.getCurrentPeriod()
-        
-        # creates bids with the minimal quality.                
+                
+        # creates bids for tranit provider with bulk capacity.
         quality = 0
         price = 10
-        bid2 = createBidWithCapacity(provider3.getProviderId(), serviceId, quality, price, 10)
-        bid3 = createBidWithCapacity(provider3.getProviderId(), serviceId, quality, price, 5)
-        provider3.sendBid(bid2, fileResult3)
-        provider3.sendBid(bid3, fileResult3)
+        bid2 = createBidWithCapacity(provider4.getProviderId(), serviceId, quality, price, 10)
+        bid3 = createBidWithCapacity(provider4.getProviderId(), serviceId, quality, price, 5)
+        provider4.sendBid(bid2, fileResult3)
+        provider4.sendBid(bid3, fileResult3)
         
         
-        
-        # ----------------
-        #  Test Methods for the ProviderEdgeMonopoly
-        # ----------------
-        quality = 0.1
+        quality = 0.01
         price = 11
-        bid4 = createBidWithCapacity(provider3.getProviderId(), serviceId, quality, price, 10)
-        provider3.sendBid(bid4, fileResult3)
+        bid4 = createBidWithCapacity(provider4.getProviderId(), serviceId, quality, price, 10)        
+        provider4.sendBid(bid4, fileResult3)
 
-        quality = 0.3
+        quality = 0.03
         price = 13
-        bid5 = createBidWithCapacity(provider3.getProviderId(), serviceId, quality, price, 10)
-        provider3.sendBid(bid5, fileResult3)
+        bid5 = createBidWithCapacity(provider4.getProviderId(), serviceId, quality, price, 10)
+        provider4.sendBid(bid5, fileResult3)
 
-        fileResult4 = open(provider4.getProviderId() + '.log',"a")
-        currentPeriod = provider4.getCurrentPeriod()
-        quantity = provider4.purchaseBasedOnProvidersBids(currentPeriod, serviceId, bid4, 3, fileResult4)
-        if (quantity != 3):
-            raise FoundationException("error in the purchase method of ProviderEdgeMonopoly")
 
         # test auxiliary functions for moving bids.        
-        direction = 1 
-        adaptationFactor = 0.1
-        marketPosition = 0.4
-        
-        serviceBackhaul = provider4.getService(serviceIdBackhaul)
-        if (serviceBackhaul == None):
-            raise FoundationException("getService method is not working in class ProviderEdgeMonopoly")
-            
-        qualityVariableBack = serviceBackhaul.getDecisionVariable('3')
-        minValueBack = qualityVariableBack.getMinValue()        
-        maxValueBack = qualityVariableBack.getMaxValue()
-        maxValueRange = (maxValueBack - minValueBack)*adaptationFactor
-        
-        output1 = provider4.moveQuality(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult4)
-
-        if ((output1['3'])['Direction'] != 1):
-            raise FoundationException("error in the purchase method of moveQuality")
-
-        if (((output1['3'])['Step'] <= 0) or ((output1['3'])['Step'] >= maxValueRange) ):
-            raise FoundationException("error in the purchase method of moveQuality")
+        test_provider_edge_move_quality(provider3, fileResult3)
+        test_provider_edge_move_price(provider3, fileResult3)
+        test_provider_edge_convert_to_own_bid(provider3, provider4, bid4, bid5)
                         
-        adaptationFactor = 0.5
-        marketPosition = 0.7
-        maxValueRange = (maxValueBack - minValueBack)*adaptationFactor
-        output1 = provider4.moveQuality(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult4)
-        if (((output1['3'])['Step'] <= 0) or ((output1['3'])['Step'] >= maxValueRange) ):
-            raise FoundationException("error in the purchase method of moveQuality")
-
-        direction = -1 
-        maxValueRange = maxValueRange *-1
-        output2 = provider4.moveQuality(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult4)
-        if ((output2['3'])['Direction'] != -1):
-            raise FoundationException("error in the purchase method of moveQuality")
-
-        if (((output2['3'])['Step'] >= 0) or ((output2['3'])['Step'] <= maxValueRange) ):
-            raise FoundationException("error in the purchase method of moveQuality")
-
-
-        priceVariableBack = serviceBackhaul.getDecisionVariable('4')
-        minValueBack = priceVariableBack.getMinValue()        
-        maxValueBack = priceVariableBack.getMaxValue()
-        maxValueRange = (maxValueBack - minValueBack)*adaptationFactor
-
-        direction = 1
-        output2 = provider4.movePrice(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult4)
-        if ((output2['4'])['Direction'] != 1):
-            raise FoundationException("error in the purchase method of movePrice")
-
-        if (((output2['4'])['Step'] <= 0) or ((output2['4'])['Step'] >= maxValueRange) ):
-            raise FoundationException("error in the purchase method of moveQuality")
-
-        direction = -1
-        maxValueRange = maxValueRange *-1
-        output2 = provider4.movePrice(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult4)
-        if ((output2['4'])['Direction'] != -1):
-            raise FoundationException("error in the purchase method of movePrice")
-
-        if (((output2['4'])['Step'] >= 0) or ((output2['4'])['Step'] <= maxValueRange) ):
-            raise FoundationException("error in the purchase method of moveQuality")
-        
-        # Test functions for relating variables in services
-        serviceIsp = provider4.getService(serviceIdISP)
-        for decisionVariable in serviceIsp._decision_variables:
-            provider4.getRelatedDecisionVariable(serviceIsp, serviceBackhaul, decisionVariable)        
-
-        # Test functions for relating variables in services
-        for decisionVariable in serviceBackhaul._decision_variables:
-            provider4.getRelatedDecisionVariable(serviceBackhaul, serviceIsp, decisionVariable)        
-        
-        
-        # Test the function convert to own bid.        
-        bid4_1 = provider4.convertToOwnBid(serviceIsp, serviceBackhaul, bid4)
-        bid4_2 = provider4.convertToOwnBid(serviceIsp, serviceBackhaul, bid5)
-        bid4_1.setProviderBid(bid4)
-        bid4_2.setProviderBid(bid5)
-        
-        qualityVariable = serviceIsp.getDecisionVariable('2')
-        minValue = qualityVariable.getMinValue()
-        maxValue = qualityVariable.getMaxValue()
-        
-        if (bid4_1.getDecisionVariable('2') != minValue + (0.9*(maxValue-minValue))):
-            raise FoundationException("Error in method convertToOwnBid of ProviderEdgeMonopoly")
-
-        if (bid4_2.getDecisionVariable('2') != minValue + (0.7*(maxValue-minValue))):
-            raise FoundationException("Error in method convertToOwnBid of ProviderEdgeMonopoly")
+        test_purchase_bids_based_on_providers_bids(provider3, bid4, bid5, fileResult3)
                 
-        staged_bids = {}
-        staged_bids[bid4_1.getId()] = {'Object': bid4_1, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 3 }
-        staged_bids[bid4_2.getId()] = {'Object': bid4_2, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 3 }
-        provider4.purchaseBidsBasedOnProvidersBids( currentPeriod, staged_bids, fileResult4)
-        provider4.sendBids(staged_bids, fileResult4)        
-
-        # Test is neighborhoodBidToStaged
-        staged_bids_test = {}
-        radius = 0.1        
-        delay = 0.18
-        price = 15
-        bidTest4_01 = createBid( provider4.getProviderId(), serviceIsp.getId(), delay, price)
-
-        # Verifies method bids are Neighborhood Bids
-        delay = 0.17
-        price = 14.5
-        bidTest4_02 = createBid( provider4.getProviderId(), serviceIsp.getId(), delay, price)
-
-        delay = 0.18
-        price = 18
-        bidTest4_03 = createBid( provider4.getProviderId(), serviceIsp.getId(), delay, price)
-
-        staged_bids_test[bidTest4_03.getId()] = {'Object': bidTest4_03, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
-        ret = provider4.isNeighborhoodBidToStaged( bidTest4_01,  staged_bids_test, radius, fileResult4)
-        if ret != False:
-            raise FoundationException("Error in method isNeighborhoodBidToStaged of ProviderEdgeMonopoly")
-
-        staged_bids_resp = {}
-        provider4.includeExploringBid( bidTest4_01, bid4, serviceIsp, radius, staged_bids_resp, staged_bids_test, fileResult4)
-        if len(staged_bids_resp) != 1:
-            raise FoundationException("Error in method includeExploringBid of ProviderEdgeMonopoly")
-                
-        staged_bids_test[bidTest4_02.getId()] = {'Object': bidTest4_02, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
-        ret = provider4.isNeighborhoodBidToStaged( bidTest4_01,  staged_bids_test, radius, fileResult4)
-        if ret != True:
-            raise FoundationException("Error in method isNeighborhoodBidToStaged of ProviderEdgeMonopoly")
-
-        staged_bids_resp = {}
-        provider4.includeExploringBid( bidTest4_01, bid4, serviceIsp, radius, staged_bids_resp, staged_bids_test, fileResult4)
-        if len(staged_bids_resp) != 0:
-            raise FoundationException("Error in method includeExploringBid of ProviderEdgeMonopoly")
-                
+        test_isNeighborhood_bid_to_staged(provider3, fileResult3)
+        test_include_exploring_bid(currentPeriod, provider3, bid4, fileResult3)
+                        
         deleteDBPreviousInformation(cursor)
-        executionCount = getExecutionCount(cursor)         
+        insertDBDemandInformation(cursor, provider3)
         currentPeriod = 13
-
-        # we are going to test customers oriented by quality        
-        
-        delay = 0.18	
-        price = 15	
-        demand = 12
-        bid4_test = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        insertDBBid(cursor, 13, executionCount, bid)
-
-
-        delay = 0.19	
-        price = 14.5	
-        demand = 12
-        bid4_5 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_5.setUnitaryProfit(0.2)
-        bid4_5.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_5)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_5, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_5, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_5, demand)        
-        (provider4._list_vars['Bids'])[bid4_5.getId()] = bid4_5
-        
-        delay = 0.19	
-        price = 15
-        demand = 11
-        bid4_6 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_6.setUnitaryProfit(0.2)
-        bid4_6.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_6)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_6, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_6, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_6, demand)        
-        (provider4._list_vars['Bids'])[bid4_6.getId()] = bid4_6
-        
-        
-        delay = 0.19	
-        price = 15.5	
-        demand = 10
-        bid4_7 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_7.setUnitaryProfit(0.2)
-        bid4_7.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_7)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_7, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_7, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_7, demand+0)        
-        (provider4._list_vars['Bids'])[bid4_7.getId()] = bid4_7
-        
-        
-        delay = 0.18	
-        price = 13.5	
-        demand = 15
-        bid4_8 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_8.setUnitaryProfit(0.2)
-        bid4_8.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_8)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_8, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_8, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_8, demand+0)        
-        (provider4._list_vars['Bids'])[bid4_8.getId()] = bid4_8
-        
-        
-        delay = 0.18	
-        price = 14	
-        demand = 14
-        bid4_9 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_9.setUnitaryProfit(0.2)
-        bid4_9.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_9)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_9, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_9, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_9, demand+0)        
-        (provider4._list_vars['Bids'])[bid4_9.getId()] = bid4_9
-        
-        
-        delay = 0.18	
-        price = 14.5	
-        demand = 13
-        bid4_10 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_10.setUnitaryProfit(0.2)
-        bid4_10.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_10)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_10, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_10, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_10, demand+0)        
-        (provider4._list_vars['Bids'])[bid4_10.getId()] = bid4_10
-        
-        
-        delay = 0.18	
-        price = 15	
-        demand = 12
-        bid4_11 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_11.setUnitaryProfit(0.2)
-        bid4_11.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_11)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_11, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_11, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_11, demand+0)        
-        (provider4._list_vars['Bids'])[bid4_11.getId()] = bid4_11
-        
-        
-        delay = 0.18	
-        price = 15.5	
-        demand = 11
-        bid4_12 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_12.setUnitaryProfit(0.2)
-        bid4_12.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_12)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_12, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_12, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_12, demand+0)        
-        (provider4._list_vars['Bids'])[bid4_12.getId()] = bid4_12
-        
-        
-        delay = 0.18	
-        price = 16	
-        demand = 10
-        bid4_13 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_13.setUnitaryProfit(0.2)
-        bid4_13.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_13)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_13, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_13, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_13, demand+0)        
-        (provider4._list_vars['Bids'])[bid4_13.getId()] = bid4_13
-        
-        
-        delay = 0.18	
-        price = 16.5	
-        demand = 9
-        bid4_14 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_14.setUnitaryProfit(0.2)
-        bid4_14.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_14)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_14, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_14, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_14, demand+0)        
-        (provider4._list_vars['Bids'])[bid4_14.getId()] = bid4_14
-        
-        delay = 0.17	
-        price = 14.5	
-        demand = 14
-        bid4_15 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_15.setUnitaryProfit(0.2)
-        bid4_15.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_15)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_15, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_15, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_15, demand+0)        
-        (provider4._list_vars['Bids'])[bid4_15.getId()] = bid4_15
-        
-        delay = 0.17	
-        price = 15	
-        demand = 13
-        bid4_16 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_16.setUnitaryProfit(0.2)
-        bid4_16.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_16)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_16, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_16, demand+2)
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_16, demand+0)        
-        (provider4._list_vars['Bids'])[bid4_16.getId()] = bid4_16
-        
-        delay = 0.17	
-        price = 15.5	
-        demand = 12
-        bid4_17 = createBid(provider4.getProviderId(), serviceIdISP, delay, price)
-        bid4_17.setUnitaryProfit(0.2)
-        bid4_17.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_17)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_17, demand+4)
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_17, demand+2)
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_17, demand+0)
-        (provider4._list_vars['Bids'])[bid4_17.getId()] = bid4_17
-
-        
-        provBid4Test = provider.convertToOwnBid(serviceBackhaul, serviceIsp,  bid4_test)
-        bid = provBid4Test
-        radius = 0.1
-        value = provider4.determineProfitForecast(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, bid4_test, fileResult4)
-
-        # we test the function Exec Front Bids by calling all of their functions
-        
-        staged_bids.clear()
-        
-        direction = -1
-        staged_bids_resp = {}
-        directionQuality = provider4.moveQuality(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult4)
-        newBidProv = provider4.moveBidOnDirection(bid, serviceBackhaul, directionQuality)
-        newBidOwn1 = provider4.convertToOwnBid( serviceIsp, serviceBackhaul,  newBidProv)
-        profForecast = provider4.determineProfitForecast(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, newBidOwn1, fileResult4)
-        if profForecast > 0:
-            provider4.includeExploringBid( newBidOwn1, bid, serviceIsp, radius, staged_bids_resp, staged_bids, fileResult4)
-            
-        # increase prices
-        direction = 1
-
-        directionPrice = provider4.movePrice(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult4)
-        newBidProv = provider4.moveBidOnDirection(bid, serviceBackhaul, directionPrice)
-        newBidOwn2 = provider4.convertToOwnBid( serviceIsp, serviceBackhaul,  newBidProv)
-        profForecast = provider4.determineProfitForecast(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, newBidOwn2, fileResult4)
-        if profForecast > 0:
-            provider4.includeExploringBid( newBidOwn2, bid, serviceIsp, radius, staged_bids_resp, staged_bids, fileResult4)            
-            
-
-        # decrease prices
-        direction = -1
-        directionPrice = provider4.movePrice(serviceBackhaul, adaptationFactor, marketPosition, direction, fileResult4)
-        newBidProv = provider4.moveBidOnDirection(bid, serviceBackhaul, directionPrice)
-
-        newBidOwn3 = provider4.convertToOwnBid( serviceIsp, serviceBackhaul,  newBidProv)
-        profForecast = provider4.determineProfitForecast(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, newBidOwn3, fileResult4)
-        if profForecast > 0:
-            provider4.includeExploringBid( newBidOwn3, bid, serviceIsp, radius, staged_bids_resp, staged_bids, fileResult4)
-            
-        staged_bids_resp.clear()
-        
-        bidList = []
-        bidList.append(provBid4Test)
-        provider4.execFrontBids(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, bidList, staged_bids, staged_bids_resp, fileResult4)
-
-        if (len(staged_bids_resp) != 0):
-            raise FoundationException("Error in method execFrontBids of ProviderEdgeMonopoly")
-                
-        staged_bids_resp.clear()
-        
-        # Test the method AskBackhaulBids.
-        dic_return = provider4.AskBackhaulBids(serviceBackhaul.getId())
-        if (len(dic_return) != 1):
-            raise FoundationException("Error in method AskBackhaulBids of ProviderEdgeMonopoly")
-        
-        staged_bids_temp = {}
-        bidList = []
-        keys_sorted = sorted(dic_return,reverse=True)
-        for front in keys_sorted:
-            bidList = dic_return[front]
-            break        
-        
-        if (len(bidList) != 5):
-            raise FoundationException("Error in method AskBackhaulBids of ProviderEdgeMonopoly")
-                    
-        staged_bids_temp2 = {}
-        provider4.execBidUpdate(currentPeriod, numAncestors, radius, serviceIsp, serviceBackhaul, adaptationFactor, marketPosition, staged_bids, staged_bids_temp2, fileResult4)
-        if (len(staged_bids_temp2) != 11):
-            raise FoundationException("Error in method execBidUpdate of ProviderEdgeMonopoly")
-        
-        for bidId in staged_bids_temp:
-            staged_bids_temp2[bidId] = staged_bids_temp[bidId]
+                                       
+        test_determine_profit_forecast(cursor, provider3, provider4, currentPeriod, fileResult3 )
+        test_exec_front_bids(provider3, provider2, currentPeriod, bid, fileResult3)        
+        test_ask_backhaul_bids(provider3)
+        test_exec_bid_update(provider3, currentPeriod, fileResult3)
                 
         # Delete all previous bids.
-        provider4._list_vars['Bids'].clear()
-                        
-        incrPrice = 0.5
-        priceVariable = serviceIsp.getDecisionVariable('1')
-        minPrice = priceVariable.getMinValue()
-        maxPrice = priceVariable.getMaxValue()
+        provider3._list_vars['Bids'].clear()
         
-        numBefore = len(provider4._list_vars['Bids'])
+        bids_related1, bids_related2 = test_get_related_own_bids(cursor, provider3, fileResult3)
+        test_get_db_market_share_zone1(provider3, bids_related1, fileResult3)
+        test_get_db_profit_zone1(provider3, bids_related1, fileResult3)        
         
-        incrQuality = 0.01
-        qualityVariable = serviceIsp.getDecisionVariable('2')
-        minQuality = qualityVariable.getMinValue()
-        maxQuality = qualityVariable.getMaxValue()
-        price = minPrice
-        quality = minQuality
-        while (price <= maxPrice):
-            quality = minQuality
-            while (quality <= maxQuality):
-                BidTmp = createBid(provider4.getProviderId(), serviceIsp.getId(), quality, price)
-                (provider4._list_vars['Bids'])[BidTmp.getId()] = BidTmp
-                quality = quality + incrQuality
-            price = price + incrPrice
+        test_get_db_market_share_zone2(provider3, bids_related2, fileResult3 )
+        test_get_db_profit_zone2( provider3, bids_related2, fileResult3 )        
         
-        numAfter = len(provider4._list_vars['Bids'])
+        test_calculate_forecast( provider3, fileResult3 )
 
-        if (numAfter - numBefore) != 102:
-            raise FoundationException("Error in assigning bids to provider4")
-        
-        radius = 0.05
-        for bidId in staged_bids_resp:
-            bid = (staged_bids_resp[bidId])['Object']
-            relatedBids = provider4.getOwnRelatedBids(bid, radius, 10, 2, fileResult4)
-            if len(relatedBids) != 0:
-                raise FoundationException("Error in getOwnRelatedBids")
-        
-        for bidId in provider4._list_vars['Bids']:
-            ((provider4._list_vars['Bids'])[bidId]).setCreationPeriod(10)
-
-        radius = 0.2        
-        for bidId in staged_bids_resp:
-            bid = (staged_bids_resp[bidId])['Object']
-            relatedBids = provider4.getOwnRelatedBids(bid, radius, 10, 2, fileResult4)
-            if len(relatedBids) == 0:
-                raise FoundationException("Error in getOwnRelatedBids")
-
-        for bidId in provider4._list_vars['Bids']:
-            ((provider4._list_vars['Bids'])[bidId]).setCreationPeriod(9)
-
-        for bidId in staged_bids_resp:
-            bid = (staged_bids_resp[bidId])['Object']
-            relatedBids = provider4.getOwnRelatedBids(bid, radius, 10, 2, fileResult4)
-            if len(relatedBids) == 0:
-                raise FoundationException("Error in getOwnRelatedBids")
-
-        for bidId in provider4._list_vars['Bids']:
-            ((provider4._list_vars['Bids'])[bidId]).setCreationPeriod(8)
-
-        for bidId in staged_bids_resp:
-            bid = (staged_bids_resp[bidId])['Object']
-            relatedBids = provider4.getOwnRelatedBids(bid, radius, 10, 2, fileResult4)
-            if len(relatedBids) == 0:
-                raise FoundationException("Error in getOwnRelatedBids")
-
-        for bidId in provider4._list_vars['Bids']:
-            ((provider4._list_vars['Bids'])[bidId]).setCreationPeriod(7)
-
-        for bidId in staged_bids_resp:
-            bid = (staged_bids_resp[bidId])['Object']
-            relatedBids = provider4.getOwnRelatedBids(bid, radius, 10, 2, fileResult4)
-            if len(relatedBids) != 0:
-                raise FoundationException("Error in getOwnRelatedBids")
-
-        # This code creates the bids in the database
-        for bidId in provider4._list_vars['Bids']:
-            ((provider4._list_vars['Bids'])[bidId]).setCreationPeriod(7)
-            ((provider4._list_vars['Bids'])[bidId]).setUnitaryProfit(0.6)
-            bid = ((provider4._list_vars['Bids'])[bidId])            
-            insertDBBid(cursor, 7, executionCount, bid)
-            insertDBBidPurchase(cursor, 7, serviceIdISP, executionCount, bid, 3)
-
-        # This code creates purchases in the database for another period.
-        for bidId in provider4._list_vars['Bids']:
-            bid = ((provider4._list_vars['Bids'])[bidId])            
-            insertDBBidPurchase(cursor, 8, serviceIdISP, executionCount, bid, 2)
-        
-        # This code creates purchases in the database for another period.
-        for bidId in provider4._list_vars['Bids']:
-            bid = ((provider4._list_vars['Bids'])[bidId])            
-            insertDBBidPurchase(cursor, 9, serviceIdISP, executionCount, bid, 1)
-
-        bid4_3 = createBid(provider4.getProviderId(), serviceIdISP, 0.15, 17) 
-        # This bring all bids that were created in the last three periods
-        radius = 0.1
-        currentPeriod = 10
-        bids_related = provider4.getOwnRelatedBids(bid4_3, radius, currentPeriod, 3, fileResult4)
-        
-        if len(bids_related) != 13:
-            raise FoundationException("Error in calculating method getOwnRelatedBids of ProviderEdgeMonopoly")
-            
-        marketZoneDemand, totQuantity, numRelated = provider4.getDBMarketShareZone(bid4_3, bids_related, currentPeriod -1 , 1, fileResult4)
-        if totQuantity != 13:
-            raise FoundationException("Error (1) in calculating method getDBMarketShareZone of ProviderEdgeMonopoly")
-        
-        marketZoneDemand, totQuantity, numRelated = provider4.getDBMarketShareZone(bid4_3, bids_related, currentPeriod -1 , 2, fileResult4)
-        if totQuantity != 39:
-            raise FoundationException("Error (2) in calculating method getDBMarketShareZone of ProviderEdgeMonopoly")
-
-        marketZoneDemand, totQuantity, numRelated = provider4.getDBMarketShareZone(bid4_3, bids_related, currentPeriod -1 , 3, fileResult4)
-        if totQuantity != 78:
-            raise FoundationException("Error (3) in calculating method getDBMarketShareZone of ProviderEdgeMonopoly")
-
-        profitZone, totProfit, numRelated = provider4.getDBProfitZone(bid4_3, bids_related, 9, fileResult4)
-        if round(totProfit,1) != 7.8:
-            raise FoundationException("Error (1) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
-        
-        profitZone, totProfit, numRelated = provider4.getDBProfitZone(bid4_3, bids_related, 8, fileResult4)
-        if round(totProfit,1) != 15.6:
-            raise FoundationException("Error (2) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
-
-        profitZone, totProfit, numRelated = provider4.getDBProfitZone(bid4_3, bids_related, 7, fileResult4)
-        if round(totProfit,1) != 23.4:
-            raise FoundationException("Error (3) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
-        
-        
-        bid4_4 = createBid(provider4.getProviderId(), serviceIdISP, 0.14, 15)
-
-        bids_related = provider4.getOwnRelatedBids(bid4_4, radius, currentPeriod, 3, fileResult4)
-        
-        if len(bids_related) != 10:
-            raise FoundationException("Error in calculating method getOwnRelatedBids of ProviderEdgeMonopoly")
-            
-        marketZoneDemand, totQuantity, numRelated = provider4.getDBMarketShareZone(bid4_4, bids_related, currentPeriod -1, 1, fileResult4)
-        if totQuantity != 10:
-            raise FoundationException("Error (1) in calculating method getDBMarketShareZone of ProviderEdgeMonopoly")
-        
-        marketZoneDemand, totQuantity, numRelated = provider4.getDBMarketShareZone(bid4_4, bids_related, currentPeriod -1, 2, fileResult4)
-        if totQuantity != 30:
-            raise FoundationException("Error (2) in calculating method getDBMarketShareZone of ProviderEdgeMonopoly")
-
-        marketZoneDemand, totQuantity, numRelated = provider4.getDBMarketShareZone(bid4_4, bids_related, currentPeriod -1, 3, fileResult4)
-        if totQuantity != 60:
-            raise FoundationException("Error (3) in calculating method getDBMarketShareZone of ProviderEdgeMonopoly")
-
-
-        profitZone, totProfit, numRelated = provider4.getDBProfitZone(bid4_4, bids_related, 9, fileResult4)
-        if round(totProfit,0) != 6:
-            raise FoundationException("Error (1) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
-        
-        profitZone, totProfit, numRelated = provider4.getDBProfitZone(bid4_4, bids_related, 8, fileResult4)
-        if round(totProfit,0) != 12:
-            raise FoundationException("Error (2) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
-
-        profitZone, totProfit, numRelated = provider4.getDBProfitZone(bid4_4, bids_related, 7, fileResult4)
-        if round(totProfit,0) != 18:
-            raise FoundationException("Error (3) in calculating method getDBProfitZone of ProviderEdgeMonopoly")
-        
-        
-        #-------------------------------------------------------
-        # Test Calculate Forecast
-        #-------------------------------------------------------        
-        staged_bids.clear()
-        staged_bids[bid4_3.getId()] = {'Object': bid4_3, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
-        staged_bids[bid4_4.getId()] = {'Object': bid4_4, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
-                                    
-        provider4.calculateForecast(radius, currentPeriod, 3, 5, staged_bids, fileResult4)
-        
-        if ((staged_bids[bid4_3.getId()])['Forecast'] <= 5.571) or ((staged_bids[bid4_3.getId()])['Forecast'] >= 5.572):
-            raise FoundationException("Error (1) in calculating method calculateForecast of ProviderEdgeMonopoly")
-        
-        if ((staged_bids[bid4_4.getId()])['Forecast'] <= 5.454) or ((staged_bids[bid4_4.getId()])['Forecast'] >= 5.455):
-            raise FoundationException("Error (2) in calculating method calculateForecast of ProviderEdgeMonopoly")
-
-        
-        
-	
     except FoundationException as e:
         print e.__str__()
         fileResult1.close()
@@ -2000,7 +2191,75 @@ def test_provider_edge_monopoly_classes():
     finally:
         	# disconnect from server
         	db.close()
+    
 
+def test_sort_by_last_market_share(cursor, ispProvider, executionCount, fileResult):
+    # Variable initialization.
+    serviceIdISP = '1'
+    currentPeriod = 12
+
+    delay = 0.2
+    price = 13	
+    demand = 11
+    bid4_12 = createBid(ispProvider.getProviderId(), serviceIdISP, delay, price)
+    bid4_12.setUnitaryProfit(0.2)
+    bid4_12.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_12)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_12, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_12, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_12, demand+0)        
+    (ispProvider._list_vars['Bids'])[bid4_12.getId()] = bid4_12
+             
+    delay = 0.18
+    price = 14.0	
+    demand = 10
+    bid4_13 = createBid(ispProvider.getProviderId(), serviceIdISP, delay, price)
+    bid4_13.setUnitaryProfit(0.2)
+    bid4_13.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_13)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_13, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_13, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_13, demand+0)        
+    (ispProvider._list_vars['Bids'])[bid4_13.getId()] = bid4_13
+             
+    delay = 0.15
+    price = 15.5	
+    demand = 9
+    bid4_14 = createBid(ispProvider.getProviderId(), serviceIdISP, delay, price)
+    bid4_14.setUnitaryProfit(0.2)
+    bid4_14.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_14)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_14, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_14, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_14, demand+0)        
+    (ispProvider._list_vars['Bids'])[bid4_14.getId()] = bid4_14
+        
+    delay = 0.14
+    price = 17	
+    demand = 14
+    bid4_15 = createBid(ispProvider.getProviderId(), serviceIdISP, delay, price)
+    bid4_15.setUnitaryProfit(0.2)
+    bid4_15.setCreationPeriod(10)
+    insertDBBid(cursor, 10, executionCount, bid4_15)
+    insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_15, demand+4)        
+    insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_15, demand+2)        
+    insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_15, demand+0)        
+    (ispProvider._list_vars['Bids'])[bid4_15.getId()] = bid4_15
+        
+    dict_result = ispProvider.sortByLastMarketShare(currentPeriod, fileResult)
+    list_keys = dict_result.keys()
+    if (list_keys[0] != bid4_15.getId()):
+        raise FoundationException("Error in test_sort_by_last_market_share - Error: 1")
+
+    if (list_keys[1] != bid4_12.getId()):
+        raise FoundationException("Error in test_sort_by_last_market_share - Error: 2")
+
+    if (list_keys[2] != bid4_13.getId()):
+        raise FoundationException("Error in test_sort_by_last_market_share - Error: 3")
+
+    if (list_keys[3] != bid4_14.getId()):
+        raise FoundationException("Error in test_sort_by_last_market_share - Error: 4")
+    
 
 def test_provider_edge_monopoly_current_bids():
     '''
@@ -2034,9 +2293,9 @@ def test_provider_edge_monopoly_current_bids():
                   , monopolist_position, service_id, num_ancestors, debug \
 		  , seed, year, month, day, hour, minute, second \
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
-          , selling_marketplace_address, capacity_controlled_at \
+          , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
-	    WHERE status = 'A' AND id = 1"
+	    WHERE id in (2,3) order by id"
 
     try:
         providers = []
@@ -2045,7 +2304,7 @@ def test_provider_edge_monopoly_current_bids():
         # Fetch all the rows in a list of lists.
         results = cursor.fetchall()
 
-        serviceIdISP = '1'            
+        serviceIdISP = '1'
         serviceIdBackhaul = '2'
         adaptationFactor = 0
         monopolistPosition = 0
@@ -2056,7 +2315,7 @@ def test_provider_edge_monopoly_current_bids():
             providerId = row[0]
             providerName = row[1]
             marketPosition = row[2] 
-            adaptationFactor = 0.99 # Large values for testing.
+            adaptationFactor = row[3] 
             monopolistPosition = row[4] 
             serviceId = str(row[5])
             numAncestors = row[6]
@@ -2075,9 +2334,10 @@ def test_provider_edge_monopoly_current_bids():
             class_name = row[16]
             startFromPeriod = row[17]
             buyingAddress = row[18]
-            sellingAddress = row[19]            
-            capacityControl = 'G' # Bulk Capacity.
+            sellingAddress = row[19]
+            capacityControl = row[20]
             providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            purchase_service = row[21]
             # Brings resources definition
             cursor2 = db.cursor()
             sql_resources = "SELECT resource_id, capacity, cost \
@@ -2089,33 +2349,16 @@ def test_provider_edge_monopoly_current_bids():
             for resourceRow in resourceRows:
                 resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
             
-            capacityControl = 'G' # Bulk Capacity.
-            class_name = 'Provider'
-            sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
-            buyingAddress = ' '
-            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdBackhaul, 
+            adaptationFactor = 0.99 # Large values for testing.            
+            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
         			      providerSeed, marketPosition, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
-            providers.append(provider)
+        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, 
+                       buyingAddress, capacityControl, purchase_service)
 
-            i = i + 1
-
-            capacityControl = 'B' # Capacity by Bid.
-            class_name = 'ProviderEdgeMonopoly'
-            providerId = i
-            providerName = 'Provider' + str(providerId)
-            sellingAddress = foundation.agent_properties.addr_mktplace_isp
-            buyingAddress = foundation.agent_properties.addr_mktplace_backhaul
-            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdISP, 
-        			      providerSeed, marketPosition, adaptationFactor, 
-        			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, 
-                       sellingAddress, buyingAddress, capacityControl)
             providers.append(provider)
             i = i + 1
 
-            break
 
         # start the providers
         provider1 = providers[0]  # backhaul provider - Bulk capacity.
@@ -2133,70 +2376,8 @@ def test_provider_edge_monopoly_current_bids():
         deleteDBPreviousInformation(cursor)
         executionCount = getExecutionCount(cursor)         
         currentPeriod = 12
-
-        delay = 0.2
-        price = 13	
-        demand = 11
-        bid4_12 = createBid(provider2.getProviderId(), serviceIdISP, delay, price)
-        bid4_12.setUnitaryProfit(0.2)
-        bid4_12.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_12)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_12, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_12, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_12, demand+0)        
-        (provider2._list_vars['Bids'])[bid4_12.getId()] = bid4_12
         
-        
-        delay = 0.18
-        price = 14.0	
-        demand = 10
-        bid4_13 = createBid(provider2.getProviderId(), serviceIdISP, delay, price)
-        bid4_13.setUnitaryProfit(0.2)
-        bid4_13.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_13)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_13, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_13, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_13, demand+0)        
-        (provider2._list_vars['Bids'])[bid4_13.getId()] = bid4_13
-        
-        
-        delay = 0.15
-        price = 15.5	
-        demand = 9
-        bid4_14 = createBid(provider2.getProviderId(), serviceIdISP, delay, price)
-        bid4_14.setUnitaryProfit(0.2)
-        bid4_14.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_14)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_14, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_14, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_14, demand+0)        
-        (provider2._list_vars['Bids'])[bid4_14.getId()] = bid4_14
-        
-        delay = 0.14
-        price = 17	
-        demand = 14
-        bid4_15 = createBid(provider2.getProviderId(), serviceIdISP, delay, price)
-        bid4_15.setUnitaryProfit(0.2)
-        bid4_15.setCreationPeriod(10)
-        insertDBBid(cursor, 10, executionCount, bid4_15)
-        insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_15, demand+4)        
-        insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_15, demand+2)        
-        insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_15, demand+0)        
-        (provider2._list_vars['Bids'])[bid4_15.getId()] = bid4_15
-        
-        dict_result = provider2.sortByLastMarketShare(currentPeriod, fileResult2)
-        list_keys = dict_result.keys()
-        if (list_keys[0] != bid4_15.getId()):
-            raise FoundationException("Error (1) in calculating method sortByLastMarketShare of Provider")
-
-        if (list_keys[1] != bid4_12.getId()):
-            raise FoundationException("Error (2) in calculating method sortByLastMarketShare of Provider")
-
-        if (list_keys[2] != bid4_13.getId()):
-            raise FoundationException("Error (3) in calculating method sortByLastMarketShare of Provider")
-
-        if (list_keys[3] != bid4_14.getId()):
-            raise FoundationException("Error (4) in calculating method sortByLastMarketShare of Provider")
+        test_sort_by_last_market_share(cursor, provider2, executionCount, fileResult2)
         
         radius = 0.1
         staged_bids = {}    
@@ -2232,7 +2413,6 @@ def test_provider_edge_monopoly_current_bids():
         insertDBBid(cursor, 12, executionCount, bid4_18)
         insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_18, 20)        
         
-
         bid4_19 = createBid(provider2.getProviderId(), serviceIdISP, delay, price)
         bid4_19.setUnitaryProfit(0.2)
         bid4_19.setCreationPeriod(13)
@@ -2380,8 +2560,8 @@ def test_provider_edge_monopoly_current_bids():
         bid1_20 = createBidBackhaul(provider1.getProviderId(), serviceIdBackhaul, quality3, price3)
         bid1_21 = createBidBackhaul(provider1.getProviderId(), serviceIdBackhaul, quality4, price4)
         
-        output1 = provider1.generateDirectionBetweenTwoBids( bid1_20, bid1_21, fileResult1)
-        output2 = provider1.generateDirectionBetweenTwoBids( bid1_21, bid1_20, fileResult1)
+        output1 = provider1.generateDirectionBetweenTwoBids(bid1_20, bid1_21, fileResult1)
+        output2 = provider1.generateDirectionBetweenTwoBids(bid1_21, bid1_20, fileResult1)
         
 
         if ((output1['4'])['Direction'] != -1):  # Price
@@ -2443,28 +2623,28 @@ def test_provider_edge_monopoly_current_bids():
         
         # It should inactivivate the bid for and move it for the two first cases.
         if len(staged_bids) != 3:
-            raise FoundationException("error in the method moveBid") 
+            raise FoundationException("error in the method moveBid - 1 ") 
                 
         staged_bids = {}        
         marketShare = 0        
         provider2.moveBid(currentPeriod, radius, bid4_20, moveDirections, marketShare, staged_bids, Provider.MARKET_SHARE_ORIENTED, fileResult2)
 
         if len(staged_bids) != 3:
-            raise FoundationException("error in the method moveBid") 
+            raise FoundationException("error in the method moveBid - 2") 
 
         staged_bids = {}        
         marketShare = 3  
         provider2.moveBid(currentPeriod, radius, bid4_20, moveDirections, marketShare, staged_bids, Provider.PROFIT_ORIENTED, fileResult2)
 
-        if len(staged_bids) != 3:
-            raise FoundationException("error in the method moveBid") 
+        if len(staged_bids) != 4:
+            raise FoundationException("error in the method moveBid - 3") 
 
         staged_bids = {}        
         marketShare = 3  
         provider2.moveBid(currentPeriod, radius, bid4_20, moveDirections, marketShare, staged_bids, Provider.MARKET_SHARE_ORIENTED, fileResult2)
 
-        if len(staged_bids) != 3:
-            raise FoundationException("error in the method moveBid") 
+        if len(staged_bids) != 4:
+            raise FoundationException("error in the method moveBid - 4") 
         
         provider2._list_vars['Type'] = Agent.PROVIDER_BACKHAUL
         
@@ -2473,16 +2653,14 @@ def test_provider_edge_monopoly_current_bids():
         provider2.moveBid(currentPeriod, radius, bid4_20, moveDirections, marketShare, staged_bids, Provider.PROFIT_ORIENTED, fileResult2)
 
         if len(staged_bids) != 4:
-            raise FoundationException("error in the method moveBid") 
+            raise FoundationException("error in the method moveBid - 5") 
 
         staged_bids = {}        
         marketShare = 3  
         provider2.moveBid(currentPeriod, radius, bid4_20, moveDirections, marketShare, staged_bids, Provider.MARKET_SHARE_ORIENTED, fileResult2)
 
         if len(staged_bids) != 4:
-            raise FoundationException("error in the method moveBid") 
-
-        provider2._list_vars['Type'] = Agent.PROVIDER_ISP
+            raise FoundationException("error in the method moveBid - 6") 
         
         
     except FoundationException as e:
@@ -2527,7 +2705,7 @@ def test_integrated_classes():
                   , monopolist_position, service_id, num_ancestors, debug \
 		  , seed, year, month, day, hour, minute, second \
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
-          , selling_marketplace_address, capacity_controlled_at \
+          , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
 	    WHERE status = 'A'"
 
@@ -2569,6 +2747,7 @@ def test_integrated_classes():
             sellingAddress = row[19]            
             capacityControl = row[20]
             providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            purchase_service = row[21]
             # Brings resources definition
             cursor2 = db.cursor()
             sql_resources = "SELECT resource_id, capacity, cost \
@@ -2583,7 +2762,8 @@ def test_integrated_classes():
             provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
         			      providerSeed, marketPosition, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, 
+                       buyingAddress, capacityControl, purchase_service)
             providers.append(provider)
             i = i + 1
 
@@ -2610,10 +2790,10 @@ def test_integrated_classes():
 
 if __name__ == '__main__':
     #test_integrated_classes()
-    test_cost_functions()
+    #test_cost_functions()
     #test_marketplace_capacity_management()
     #test_provider_general_methods()
     #test_provider_database_classes()
     #test_provider_edge_monopoly_classes()
-    #test_provider_edge_monopoly_current_bids()
+    test_provider_edge_monopoly_current_bids()
     

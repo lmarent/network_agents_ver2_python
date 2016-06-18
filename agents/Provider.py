@@ -49,7 +49,7 @@ class Provider(Agent):
                   + ' monopolist position:' + str(monopolistPosition)
                   + 'debug:' + str(debug)
                   + 'numOffers:' + str(numberOffers))
-            super(Provider, self).__init__(strID, Id, providerType, serviceId, providerSeed, sellingAddress, buyingAddress, capacityControl) 
+            super(Provider, self).__init__(strID, Id, providerType, serviceId, providerSeed, sellingAddress, buyingAddress, capacityControl, purchase_service) 
             self._used_variables['marketPosition'] = marketPosition
             # Is a value between 0 and 1, 1 means that the provider can complete follow another provider, 0
             # the provider fails to adapt others' strategies. 
@@ -293,7 +293,7 @@ class Provider(Agent):
         # If the bid is purchased, then it start by bringing the cost of the bid.
         providerBid = bid.getProviderBid()
         if (providerBid != None):
-            totalUnitaryCost = providerBid.getBidPrice()
+            totalUnitaryCost = self.getBidPrice(providerBid)
             
         resources = self._used_variables['resources']
         resourceConsumption = self.calculateBidUnitaryResourceRequirements(bid)

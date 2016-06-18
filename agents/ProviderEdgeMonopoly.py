@@ -43,9 +43,9 @@ class ProviderEdgeMonopoly(ProviderEdge):
     def __init__(self,  strID, Id, serviceId, accessProviderSeed, marketPosition, 
 				 adaptationFactor, monopolistPosition, debug, resources, 
 				 numberOffers, numAccumPeriods, numAncestors, startFromPeriod, 
-                 sellingAddress, buyingAddress, capacityControl):
+                 sellingAddress, buyingAddress, capacityControl, purchase_service):
         try:
-            super(ProviderEdgeMonopoly, self).__init__(strID, Id, serviceId, accessProviderSeed, marketPosition, adaptationFactor, monopolistPosition, debug, resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+            super(ProviderEdgeMonopoly, self).__init__(strID, Id, serviceId, accessProviderSeed, marketPosition, adaptationFactor, monopolistPosition, debug, resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl, purchase_service)
             logger.debug('Agent: %s - Edge Provider Created', self._list_vars['strId'])
         except FoundationException as e:
             raise ProviderException(e.__str__())
@@ -59,14 +59,16 @@ class ProviderEdgeMonopoly(ProviderEdge):
         else:
             return None
     
-    ''' 
-    The Purchase method assigns all the parameters and access provider ID
-    to the message to be send to the Marketplace.
-	
-    In the end, the function sends the message to the marketplace
-    and checks if it was succesfully received. 
-    '''
     def purchaseBasedOnProvidersBids(self, currentPeriod, serviceId, bid, quantity, fileResult):        
+        ''' 
+        The Purchase method assigns all the parameters and access provider ID
+        to the message to be send to the Marketplace.
+    	
+        In the end, the function sends the message to the marketplace
+        and checks if it was succesfully received. 
+        
+        Test: implemented.
+        '''
         self.registerLog(fileResult, 'Period:' + str(self.getCurrentPeriod()) + ':bidId:' + bid.getId() + ':qty_to_purchase:' + str(quantity))
         messagePurchase = Message('')
         messagePurchase.setMethod(Message.RECEIVE_PURCHASE)
@@ -91,6 +93,10 @@ class ProviderEdgeMonopoly(ProviderEdge):
             raise ProviderException('Purchase not received! Communication failed')
 
     def purchaseBidsBasedOnProvidersBids(self, currentPeriod, staged_bids, fileResult):
+        '''
+        Purchase the bids in the staged_bids dictionary.
+        Test: implemented.
+        '''
         for bidId in staged_bids:
             bid = (staged_bids[bidId])['Object']
             bidProv = bid.getProviderBid()
@@ -98,32 +104,14 @@ class ProviderEdgeMonopoly(ProviderEdge):
             quantity = self.purchaseBasedOnProvidersBids(currentPeriod, bidProv.getService(), bidProv, forecast, fileResult)
             ((staged_bids[bidId])['Object']).setCapacity(quantity)
 
-    '''
-    This method creates the query for the Marketplace asking 
-    other providers' offers.
-    '''
-    def AskBackhaulBids(self, serviceId):
-        messageAsk = Message('')
-        messageAsk.setMethod(Message.GET_BEST_BIDS)
-        messageAsk.setParameter('Provider', self._list_vars['strId'])
-        messageAsk.setParameter('Service', serviceId)
-        messageResult = self._channelMarketPlaceBuy.sendMessage(messageAsk)
-        if messageResult.isMessageStatusOk():
-            document = self.removeIlegalCharacters(messageResult.getBody())
-            try:
-                dom = xml.dom.minidom.parseString(document)
-                return self.handleBestBids(dom)
-            except Exception as e: 
-                raise FoundationException(str(e))
-        else:
-            raise FoundationException("Best bids not received")
 
     def moveQuality(self, service, adaptationFactor, marketPosition, direction,  fileResult):
         ''' 
         This creates the direction of the move to quality.
-        direction should be 1 or -1, when 1 improves, -1 decrease
+        direction should be 1 or -1, when 1 improve, -1 lower
+        Test: implemented.
         '''
-        self.registerLog(fileResult, 'decreaseQuality') 
+        self.registerLog(fileResult, 'moveQuality') 
         output = {}
         for decisionVariable in service._decision_variables:
             min_value = (service.getDecisionVariable(decisionVariable)).getMinValue()
@@ -147,16 +135,16 @@ class ProviderEdgeMonopoly(ProviderEdge):
             # If the variable is price, it maintains the current level of the decision variable
             if (service._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
                 output[decisionVariable] = {'Direction' : direction, 'Step': 0}
-        
-        
-        self.registerLog(fileResult, 'decreaseQuality:' + str(output)) 
+                
+        self.registerLog(fileResult, 'moveQuality:' + str(output)) 
         return output
         
             
     def movePrice(self, service, adaptationFactor, marketPosition, direction, fileResult):
         ''' 
-        This creates the direction of the move to decrease quality.
+        This creates the direction of the move the price.
         direction should be 1 or -1, when 1 improves, 0 decrease
+        Test: implemented.
         '''
         self.registerLog(fileResult, 'movePrice') 
         output = {}
@@ -181,16 +169,36 @@ class ProviderEdgeMonopoly(ProviderEdge):
         self.registerLog(fileResult, 'movePrice:' + str(output)) 
         return output
 
+    def calculateQualityRelativeObjective(self, ownOptimum, provOptimum, min_value, max_value, percentage):
+        ''' 
+        This method establishes the target position for quality for a bid based on the 
+        quality percentage previously establised by the operator.
+        '''
+        newValue = 0
+        if (ownOptimum == 1) and (provOptimum == 1) : # both maximize
+            newValue = min_value + (percentage*(max_value-min_value))
+                
+        if (ownOptimum == 1) and (provOptimum == 2) : # own maximize provider:minimize
+            newValue = min_value + ((1-percentage)*(max_value-min_value))
+                
+        if (ownOptimum == 2) and (provOptimum == 1) : # own minimize provider:maximize
+            newValue = min_value + ((1-percentage)*(max_value-min_value))
+                
+        if (ownOptimum == 2) and (provOptimum == 2) : # own minimize provider:minimize
+            newValue = min_value + (percentage*(max_value-min_value))
+        
+        return newValue
+
     def convertToOwnBid(self, serviceOwn, serviceProvider,  bid):
         '''
-        This function assumes that we keep the same distance in percentage with the optimal 
-        value
+        This function assumes that we keep the same distance in percentage with the provider's decision value
+        Test: implemented.
         '''
         newBid = Bid()
         uuidId = uuid.uuid1()	# make a UUID based on the host ID and current time
         idStr = str(uuidId)
         newBid.setValues(idStr, self.getProviderId(), serviceOwn.getId())
-
+        effectiveMove = True
         for decisionVariable in serviceProvider._decision_variables:
             min_value = (serviceProvider.getDecisionVariable(decisionVariable)).getMinValue()
             max_value = (serviceProvider.getDecisionVariable(decisionVariable)).getMaxValue()
@@ -203,32 +211,31 @@ class ProviderEdgeMonopoly(ProviderEdge):
             else:
                 percentage = (value -min_value) / (max_value - min_value)
             
-            ownDecisionVariable = self.getRelatedDecisionVariable(serviceProvider, serviceOwn, decisionVariable)
+            ownDecisionVariable, aggregationMode = self.getRelatedDecisionVariable(serviceProvider.getId(), serviceOwn.getId(), decisionVariable)
             min_value = (serviceOwn.getDecisionVariable(ownDecisionVariable)).getMinValue()
             max_value = (serviceOwn.getDecisionVariable(ownDecisionVariable)).getMaxValue()            
             ownOptimum = serviceOwn.getDecisionVariableObjetive(ownDecisionVariable)
             
             if (decisionVariable != serviceProvider.getPriceDecisionVariable()):
-                if (ownOptimum == 1) and (provOptimum == 1) : # both maximize
-                    newValue = min_value + (percentage*(max_value-min_value))
-                
-                if (ownOptimum == 1) and (provOptimum == 2) : # own maximize provider:minimize
-                    newValue = min_value + ((1-percentage)*(max_value-min_value))
-                
-                if (ownOptimum == 2) and (provOptimum == 1) : # own minimize provider:maximize
-                    newValue = min_value + ((1-percentage)*(max_value-min_value))
-                
-                if (ownOptimum == 2) and (provOptimum == 2) : # own minimize provider:minimize
-                    newValue = min_value + (percentage*(max_value-min_value))
+                newValue = self.calculateQualityRelativeObjective(ownOptimum, provOptimum, min_value, max_value, percentage)
+                newValueAdj = self.calculateRequiredQuality(newValue, min_value, max_value, value, ownOptimum, aggregationMode)
+                if (newValueAdj < 0):
+                    effectiveMove = False
             else:
-                newValue = min_value + (percentage*(max_value-min_value))
+                newValueAdj = min_value + (percentage*(max_value-min_value))
                 
-            newBid.setDecisionVariable(ownDecisionVariable, newValue)
+            newBid.setDecisionVariable(ownDecisionVariable, newValueAdj)
         
-        return newBid
+        if (effectiveMove == False):
+            return None
+        else: 
+            return newBid
 
     def moveBidOnDirectionEdge(self, bid, service, directionMove ):
-        # Create a new bid
+        '''
+        Create a new bid from bid based on the direction given bu directionMove
+        Test: implemented.
+        '''
         newBid = Bid()
         uuidId = uuid.uuid1()    # make a UUID based on the host ID and current time
         idStr = str(uuidId)
@@ -247,10 +254,12 @@ class ProviderEdgeMonopoly(ProviderEdge):
             newBid.setDecisionVariable(decisionVariable, new_value)
         return newBid
     
-    '''
-    Identifies the direction of the move depending on the profit forecast. Bid must be an own bid.
-    '''
     def determineProfitForecast(self, currentPeriod, numAncestors, radius, serviceOwn, serviceProvider, adaptationFactor, marketPosition, bid, fileResult):
+        '''
+        Identifies the direction of the move depending on the profit forecast. 
+        The Bid given must be an own bid.
+        Test: implemented.
+        '''
         bids_related = self.getOwnRelatedBids(bid, radius, currentPeriod - 1 , numAncestors, fileResult)
         i = 0
         progression = []
@@ -265,6 +274,7 @@ class ProviderEdgeMonopoly(ProviderEdge):
     def isNeighborhoodBidToStaged(self, newBid,  staged_bids, radius, fileResult):
         '''
         Establish whether or not a bid is neigboor of other bid already staged.
+        Test: implemented.
         '''    
         # Compare the distance againts bids that will not be changed
         for bidIdComp in staged_bids:
@@ -275,70 +285,82 @@ class ProviderEdgeMonopoly(ProviderEdge):
         return False
 
 
-    def includeExploringBid(self, newBid, oldBid, serviceOwn, radius, staged_bids_resp, staged_bids, fileResult):
+    def includeExploringBid(self, currentPeriod, numAncestors, serviceProvider, adaptationFactor, marketPosition, newBid, oldBid, serviceOwn, radius, staged_bids_resp, staged_bids, fileResult):
+        '''
+        Include the bid in the bid to be staged whenever there is a positive forecast
+        Test: implemented.
+        '''
         self.registerLog(fileResult, 'Starting includeExploringBid')
-        if ( self.isNeighborhoodBidToStaged(newBid,staged_bids,radius, fileResult) == False ):
-            self.registerLog(fileResult, 'includeExploringBid method is incluing another bid.')
-            decVarPrice = serviceOwn.getPriceDecisionVariable()
-            newBid.setProviderBid(oldBid)
-            bidPrice = newBid.getDecisionVariable(decVarPrice)
-            self.completeNewBidInformation(newBid, bidPrice, fileResult )
-            staged_bids_resp[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
+        profForecast = self.determineProfitForecast(currentPeriod, numAncestors, radius, serviceOwn, serviceProvider, adaptationFactor, marketPosition, newBid, fileResult) 
+        if (profForecast >= 0):
+            if ( self.isNeighborhoodBidToStaged(newBid,staged_bids,radius, fileResult) == False ):
+                self.registerLog(fileResult, 'includeExploringBid method is incluing another bid.')
+                decVarPrice = serviceOwn.getPriceDecisionVariable()
+                newBid.setProviderBid(oldBid)
+                bidPrice = newBid.getDecisionVariable(decVarPrice)
+                self.completeNewBidInformation(newBid, bidPrice, fileResult )
+                staged_bids_resp[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
         
         
     def execFrontBids(self, currentPeriod, numAncestors, radius, serviceOwn, serviceProvider, adaptationFactor, marketPosition, bidList, staged_bids, explore_staged_bids, fileResult):
+        '''
+        This type of providers has three options, 
+             1. Decrease quality - the aggregated quality is lower than the provider offers.
+             2. Increase quality - The aggregated quality is better than the provider offers.
+             3. Increase prices and maintain the same quality
+        decrease the quality
+
+        Test: implemented.
+        ''' 
         for bid in bidList:
-            # This type of providers have three options, decrease quality, decrease price, or increase prices
-            # decrease the quality
+            # Decrease quality            
             direction = -1
             directionQuality = self.moveQuality(serviceProvider, adaptationFactor, marketPosition, direction, fileResult)
             newBidProv = self.moveBidOnDirectionEdge(bid, serviceProvider, directionQuality)
             newBidOwn1 = self.convertToOwnBid( serviceOwn, serviceProvider,  newBidProv)
-            profForecast = self.determineProfitForecast(currentPeriod, numAncestors, radius, serviceOwn, serviceProvider, adaptationFactor, marketPosition, newBidOwn1, fileResult) 
-            if (profForecast >= 0):
-                self.includeExploringBid(newBidOwn1, bid, serviceOwn, radius, explore_staged_bids, staged_bids, fileResult)
-                
-            
-            # increase prices
+            if (newBidOwn1 != None):
+                self.includeExploringBid(currentPeriod, numAncestors, serviceProvider, adaptationFactor, marketPosition, newBidOwn1, bid, serviceOwn, radius, explore_staged_bids, staged_bids, fileResult)
+
+            # Increase quality            
+            direction = 1
+            directionQuality = self.moveQuality(serviceProvider, adaptationFactor, marketPosition, direction, fileResult)
+            newBidProv = self.moveBidOnDirectionEdge(bid, serviceProvider, directionQuality)
+            newBidOwn2 = self.convertToOwnBid( serviceOwn, serviceProvider,  newBidProv)
+            if (newBidOwn2 != None):
+                self.includeExploringBid(currentPeriod, numAncestors, serviceProvider, adaptationFactor, marketPosition, newBidOwn2, bid, serviceOwn, radius, explore_staged_bids, staged_bids, fileResult)
+
+            # Increase prices
             direction = 1
             directionPrice = self.movePrice(serviceProvider, adaptationFactor, marketPosition, direction, fileResult)
             newBidProv = self.moveBidOnDirectionEdge(bid, serviceProvider, directionPrice)
-            newBidOwn2 = self.convertToOwnBid( serviceOwn, serviceProvider,  newBidProv)
-            profForecast = self.determineProfitForecast(currentPeriod, numAncestors, radius, serviceOwn, serviceProvider, adaptationFactor, marketPosition, newBidOwn2, fileResult)
-            if (profForecast >= 0):
-                self.includeExploringBid(newBidOwn2, bid, serviceOwn, radius, explore_staged_bids, staged_bids, fileResult)
-            
-            # decrease prices
-            direction = -1
-            directionPrice = self.movePrice(serviceProvider, adaptationFactor, marketPosition, direction, fileResult)
-            newBidProv = self.moveBidOnDirectionEdge(bid, serviceProvider, directionPrice)
             newBidOwn3 = self.convertToOwnBid( serviceOwn, serviceProvider,  newBidProv)
-            profForecast = self.determineProfitForecast(currentPeriod, numAncestors, radius, serviceOwn, serviceProvider, adaptationFactor, marketPosition, newBidOwn3, fileResult)
-            if (profForecast >= 0):
-                self.includeExploringBid(newBidOwn3, bid, serviceOwn, radius, explore_staged_bids, staged_bids, fileResult)
+            if (newBidOwn3 != None):
+                self.includeExploringBid(currentPeriod, numAncestors, serviceProvider, adaptationFactor, marketPosition, newBidOwn3, bid, serviceOwn, radius, explore_staged_bids, staged_bids, fileResult)
+            
                 
-
-    '''
-    Execute the bid update for an specific service that is required for a resource.
-    return quantities purchased.
-    '''                     
     def execBidUpdate(self, currentPeriod, numAncestors, radius, serviceOwn, serviceProvider, adaptationFactor, marketPosition, staged_bids, explore_staged_bids, fileResult):
+        '''
+        Execute the bid update for an specific service that is required for a resource.
+        return quantities purchased.
+        Test: implemented.
+        '''                             
         dic_return = self.AskBackhaulBids(serviceProvider.getId())
         self.registerLog(fileResult, 'Period: ' + str(currentPeriod) + 'Number of fronts:' + str(len(dic_return)))
-        # Sorts the offerings  based on the customer's needs 
         if (len(dic_return) > 0):
             keys_sorted = sorted(dic_return,reverse=True)
             for front in keys_sorted:
                 bidList = dic_return[front]                                                                        
+                # Just explore those bids in the first pareto front.                
                 self.execFrontBids(currentPeriod, numAncestors, radius, serviceOwn, serviceProvider, adaptationFactor, marketPosition, bidList, staged_bids, explore_staged_bids, fileResult)
                 break
         self.registerLog(fileResult, 'Nbr staged bids by method execBidUpdate:' + str(len(explore_staged_bids)) )
 
 
-    ''' 
-    get those own bids that are in my neighborhood
-    '''    
     def getOwnRelatedBids(self, bid, radius, currentPeriod, numPeriods, fileResult):
+        ''' 
+        Get those own bids that are in my neighborhood
+        Test: implemented.
+        '''    
         self.registerLog(fileResult, 'getOwnRelatedBids:' + bid.getId() )
         ret_relatedBids = {}
         for bidId in self._list_vars['Bids']:
@@ -353,6 +375,10 @@ class ProviderEdgeMonopoly(ProviderEdge):
 
 
     def calculateForecast(self, radius, currentPeriod, numPeriods, initialQtyByBid, staged_bids, fileResult):
+        '''
+        Calculate the forecast for bids given as paramters in the dictionary staged_bids
+        Test: implemented.
+        '''
         totForecast = 0        
         for bidId in staged_bids:
             bid = (staged_bids[bidId])['Object']

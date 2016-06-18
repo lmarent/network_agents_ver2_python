@@ -548,7 +548,6 @@ class Agent(Process):
                 response = (self._channelClockServer).sendMessage(connect)
                 if (response.isMessageStatusOk() ):
                     self._services[serviceId] = self.handleGetService(response.getBody())
-                    logger.debug('service:' + self._service.__str__())
                     logger.debug('init consumer- finish service retrieve')
         except FoundationException as e:
             raise FoundationException(e.__str__())
