@@ -19,7 +19,7 @@ addr_mktplace_backhaul = '192.168.2.13'
 addr_clock_server = '192.168.2.12'
 addr_agent = '192.168.2.13'
 
-threshold = 100000
+threshold = 2
 own_neighbor_radius = 0.05
 others_neighbor_radius = 100 # almost every bid is in the neighbor.
 initial_number_bids = 5

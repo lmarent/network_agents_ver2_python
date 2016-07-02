@@ -237,7 +237,7 @@ class Message(object):
 	for item in self._parameters:
 	    result2 = result2 + item
 	    result2 = result2 + ':'
-	    result2 = result2 + self._parameters[item]		
+	    result2 = result2 + str(self._parameters[item])
 	    result2 = result2 + Message.LINE_SEPARATOR
 
 	result2 = result2 + Message.LINE_SEPARATOR

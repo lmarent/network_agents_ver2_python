@@ -191,7 +191,9 @@ class ProviderEdge(Provider):
                 newOwnBid.setQualityRequirement(decisionVariableId, qualityRequest[decisionVariableId])
             # Assign the provider Bid.
             newOwnBid.setProviderBid(providerBid) 
-            totUnitaryCost = self.calculateBidUnitaryCost(newOwnBid)
+            totUnitaryCost = self.calculateBidUnitaryCost(newOwnBid, fileResult)
+            newOwnBid.insertParentBid(ownBid.getParentBid())
+            self.completeNewBidInformation(newOwnBid, bidPrice, fileResult )
             if (bidPrice >= totUnitaryCost):
                 newOwnBids.append( (bidPrice - totUnitaryCost, newOwnBid))
         return newOwnBids
@@ -214,7 +216,7 @@ class ProviderEdge(Provider):
             bid = bidTuple[1] 
             qtyBidToPurchase = qtyToPurchase
             
-            resourceConsumption = self.calculateBidUnitaryResourceRequirements(bid)
+            resourceConsumption = self.calculateBidUnitaryResourceRequirements(bid, fileResult)
             for resourceId in resourceConsumption:
                 resourceAvail = self.getAvailableCapacity(resourceId) / resourceConsumption[resourceId]
                 qtyBidToPurchase = min (qtyBidToPurchase, resourceAvail)
@@ -234,7 +236,7 @@ class ProviderEdge(Provider):
                     bid.setCapacity(qtyPurchased)
                     totPurchased = totPurchased + qtyPurchased
                     purchasedBids.append(bid)     
-        self.registerLog(fileResult, 'Ending purchaseBid qtyPurchased:' + str(totPurchased)) 
+        self.registerLog(fileResult, 'Ending purchaseBid - Period: ' + str(self.getCurrentPeriod()) + ' qtyPurchased:' + str(totPurchased)) 
         return totPurchased, purchasedBids
            
     def getRelatedDecisionVariable(self, serviceFromId, serviceToId, decisionVariableIdFrom):
@@ -359,24 +361,24 @@ class ProviderEdge(Provider):
             raise FoundationException("Best bids not received")
 
 
-    def swapPurchasedBids(self, purchasedBids, staged_bids, fileResult):
+    def swapPurchasedBids(self, currentPeriod, purchasedBids, staged_bids, fileResult):
         '''
         swap the bid actually purchased
         Test: implemented.
         '''
-        self.registerLog(fileResult, 'Starting swapPurchasedBids' + 'bid to include:' + str(len(purchasedBids)) )
+        self.registerLog(fileResult, 'Starting swapPurchasedBids' + 'bid to include:' + str(len(purchasedBids)) + 'bids_staged:' + str(len(staged_bids)) )
             
         for bid in purchasedBids:
             if bid.getCapacity() > 0:
                 staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': bid.getCapacity() }
-        self.registerLog(fileResult, 'ending swapPurchasedBids' + str(len(staged_bids)))
+        self.registerLog(fileResult, 'Ending - swapPurchasedBids - Period:' + str(currentPeriod) + 'Bids_staged:' + str(len(staged_bids)))
           
-    def purchaseBids(self, staged_bids, fileResult):
+    def purchaseBids(self, currentPeriod, staged_bids, fileResult):
         '''
         Create the forecast for the staged bids.
         Test: 
         '''        
-        self.registerLog(fileResult, 'Starting purchaseBids' )
+        self.registerLog(fileResult, 'Starting purchaseBids - Period:' + str(currentPeriod) + 'Nbr Staged_bids:' + str(self.countByStatus(staged_bids)) )
         staged_bids_result = {}
         purchaseServiceId = self.getPurchaseService()
         dic_return = self.AskBackhaulBids(purchaseServiceId)
@@ -391,10 +393,10 @@ class ProviderEdge(Provider):
                 if (forecast > 0) and (len(bidPurchasable) > 0):
                     totPurchased, purchasedBids = self.purchaseBid(bid, purchaseServiceId, forecast, bidPrice, bidPurchasable, fileResult)
                     # if could not purchase anything, then it removes the bid from the staged bids.
-                    self.swapPurchasedBids(purchasedBids, staged_bids_result, fileResult)
+                    self.swapPurchasedBids(currentPeriod, purchasedBids, staged_bids_result, fileResult)
             else:
                 staged_bids_result[bidId] = staged_bids[bidId]
-        self.registerLog(fileResult, 'Ending purchaseBids' + 'bids included:' + str(len(staged_bids_result)) )
+        self.registerLog(fileResult, 'Ending purchaseBids - Period:' + str(currentPeriod) + 'bids included:' + str(self.countByStatus(staged_bids_result)) )
         return staged_bids_result
     
     def setInitialBids(self, fileResult):
@@ -503,7 +505,7 @@ class ProviderEdge(Provider):
                 # include active bids not staged. 
                 initial_staged_bids = staged_bids
                 self.includeActiveBidsNotStaged(currentPeriod, radius, staged_bids, fileResult)
-                staged_bids = self.purchaseBids(staged_bids, fileResult)
+                staged_bids = self.purchaseBids(currentPeriod, staged_bids, fileResult)
                 self.purgeBids(initial_staged_bids, fileResult)
                 self.send_capacity()
 

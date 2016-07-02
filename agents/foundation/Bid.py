@@ -176,12 +176,12 @@ class Bid(object):
         self._status = status
     
     def __str__(self):
-        val_return = 'Id:' + self._bidId + '\n'
-        val_return = val_return + 'Provider:' + self._provider + '\n'
-        val_return = val_return + 'Service:' + self._service + '\n'
-        val_return = val_return + 'Status:' + self.getStatusStr() + '\n'
+        val_return = 'Id:' + self._bidId + ' '
+        val_return = val_return + ':Provider:' + self._provider + ' '
+        val_return = val_return + ':Service:' + self._service + ' '
+        val_return = val_return + ':Status:' + self.getStatusStr() + ' '
         for decisionVariable in self._decision_variables:
-            val_return = val_return + 'desc_var:' + decisionVariable + ' value:'+ str(self._decision_variables[decisionVariable]) + '\n'	    
+            val_return = val_return + ':desc_var:' + decisionVariable + ':value:'+ str(self._decision_variables[decisionVariable]) + ' '
         return val_return
 
 	'''
@@ -272,6 +272,9 @@ class Bid(object):
     
     def getCapacity(self):
         return self._capacity
+    
+    def getParentBid(self):
+        return self._parent
     
     '''
     This method returns the associated bid of the provider that helps to create this bid.

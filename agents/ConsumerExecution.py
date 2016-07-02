@@ -52,10 +52,10 @@ if __name__ == '__main__':
     # Prepare SQL query to SELECT customers from the database.
     sql = "select a.number_execute, b.service_id, a.seed, a.year, a.month, a.day, \
 		  a.hour, a.minute, a.second, a.microsecond \
-	   from simulation_consumer a, simulation_consumerservice b \
-	  where a.id = b.consumer_id \
-	    and b.execute = 1 \
-	    LIMIT 1"
+          from simulation_consumer a, simulation_consumerservice b \
+	      where a.id = b.consumer_id \
+	      and b.execute = 1 \
+	      LIMIT 1"
 
     # every iteraction of the consumer execution requires 6 random numbers. 
     if (bidPeriods > 0):

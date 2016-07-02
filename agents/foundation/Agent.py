@@ -396,7 +396,8 @@ class AgentServerHandler(asyncore.dispatcher_with_send):
                 self.do_processing(message)
                 message = self.getMessage(string_key)
         except Exception as e:
-            raise FoundationException("Error in reading the socket for agent:" + str(self._list_args['Id']) + 'read the data:' + data)
+            raise asyncore.ExitNow('Server is quitting!')
+            
 
 '''
 The AgentServer class initializes the socket communication and 
@@ -426,7 +427,10 @@ class AgentServer(asyncore.dispatcher):
             logger.debug('Incoming connection from %s', repr(addr))
             string_pair = repr(addr) + repr(sock)
             self._strings_received[string_pair] = ''
-            handler = AgentServerHandler( addr, sock, self._list_args, self._strings_received)
+            try:
+                handler = AgentServerHandler( addr, sock, self._list_args, self._strings_received)
+            except asyncore.ExitNow, e:
+                raise FoundationException(str(e))
             logger.debug('Ending handle Accept Id: %s address:%s port:%s', self._list_args['Id'], self._list_args['Address'], self._list_args['Port'])
 
 '''
@@ -513,7 +517,7 @@ class Agent(Process):
              (agent_type == Agent.PROVIDER_BACKHAUL)):
             port = agent_properties.l_port_provider + Id
             self._list_vars['Port'] = port
-            self._list_vars['State'] = AgentServerHandler.BID_PERMITED
+            self._list_vars['State'] = AgentServerHandler.IDLE
         
         if (agent_type == Agent.PRESENTER_TYPE):
             port = agent_properties.l_port_presenter + Id
