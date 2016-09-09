@@ -35,7 +35,8 @@ def load_classes(list_classes):
         	else:
         	    if re.match(r"Provider.*?\.py$", filename):
             		classname = re.sub(r".py", r"", filename)
-            		if (classname not in black_list):
+            		#if (classname not in black_list):
+                        if (classname in foundation.agent_properties.provider_types):
             		    module = __import__(classname)
             		    targetClass = getattr(module, classname)
             		    list_classes[classname] = targetClass   
@@ -88,7 +89,9 @@ if __name__ == '__main__':
     load_classes(list_classes)
     
     # Open database connection
-    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    #db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database,
+    foundation.agent_properties.user_password,foundation.agent_properties.database_name )
 
     # prepare a cursor object using cursor() method
     cursor = db.cursor()
@@ -119,6 +122,10 @@ if __name__ == '__main__':
         # Fetch all the rows in a list of lists.
         results = cursor.fetchall()
         i = 1
+        lst = []
+        lst = foundation.agent_properties.provider_types.split(',')
+
+
         for row in results:
             providerId = row[0]
             providerName = row[1]
@@ -156,14 +163,16 @@ if __name__ == '__main__':
             resources = {}
             for resourceRow in resourceRows:
                 resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
-        	    
-            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
+            
+            if (class_name in lst):
+                provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
         			      providerSeed, marketPositon, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
         			      numAccumPeriods, numAncestors, startFromPeriod, 
                        sellingAddress, buyingAddress, capacityControl, purchase_service)
-            providers.append(provider)
-            i = i + 1
+                providers.append(provider)
+                i = i + 1
+
 	    # start the providers
         for w in providers:
             w.start()

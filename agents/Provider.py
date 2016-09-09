@@ -102,7 +102,9 @@ class Provider(Agent):
     Get the maxium period register for a purchase - Not Tested
     '''    
     def getDBMaxPeriod(self):
-        db1 = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+        #db1 = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+        db1 = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name )
         cursor = db1.cursor() 
         sql = 'select max(a.period) from Network_Simulation.simulation_bid_purchases a, \
                 Network_Simulation.simulation_generalparameters b \
