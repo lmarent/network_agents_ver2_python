@@ -24,7 +24,10 @@ database_name = 'Network_Simulation'
 addr_mktplace_isp = '10.10.6.2'
 addr_mktplace_backhaul = '10.10.4.2'
 addr_clock_server = '10.10.6.1'
-addr_agent = '10.10.4.1'
+addr_agent_mktplace_isp = '10.10.4.1'
+addr_agent_mktplace_backhaul = '10.10.4.1'
+addr_agent_clock = '10.10.4.1'
+
 
 threshold = 2
 own_neighbor_radius = 0.05
