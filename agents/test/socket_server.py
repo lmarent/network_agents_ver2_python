@@ -1,5 +1,7 @@
 import SocketServer
 import sys
+sys.path.append("/home/network_agents_ver2_python/agents/foundation")
+import agent_properties
 
 class MyTCPHandler(SocketServer.BaseRequestHandler):
     """
@@ -25,7 +27,8 @@ if __name__ == "__main__":
         HOST = sys.argv[1]
         PORT = int(sys.argv[2])
     else:
-        HOST, PORT = "192.168.2.13", 4400
+    	print 'Host:', agent_properties.addr_agent_mktplace_isp, ' port:', agent_properties.l_port_provider
+        HOST, PORT = agent_properties.addr_agent_mktplace_isp, agent_properties.l_port_provider
 
     # Create the server, binding to localhost on port 9999
     server = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
