@@ -21,13 +21,12 @@ database_name = 'Network_Simulation'
 
 # Addresses for marketplace, clockserver, and own agent address
 # are defined below.
-addr_mktplace_isp = '10.10.6.2'
-addr_mktplace_backhaul = '10.10.4.2'
+addr_mktplace_isp = '10.10.2.1'
+addr_mktplace_backhaul = '10.10.3.1'
 addr_clock_server = '10.10.6.1'
-addr_agent_mktplace_isp = '10.10.4.1'
-addr_agent_mktplace_backhaul = '10.10.4.1'
-addr_agent_clock_server = '10.10.4.1'
-
+addr_agent_mktplace_isp = '10.10.2.2'
+addr_agent_mktplace_backhaul = '10.10.3.2'
+addr_agent_clock_server = '10.10.3.2'
 
 threshold = 2
 own_neighbor_radius = 0.05
@@ -35,7 +34,7 @@ others_neighbor_radius = 100 # almost every bid is in the neighbor.
 initial_number_bids = 5
 num_periods_market_share = 3
 intervals_per_cycle = 2
-provider_types = 'Provider'
+provider_types = 'ProviderEdge,ProviderEdgeMonopoly'
 
 #directory results
 result_directory = 'results/'

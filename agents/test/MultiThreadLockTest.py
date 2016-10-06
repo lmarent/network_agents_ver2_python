@@ -12,6 +12,7 @@ class socket_test:
     '''demonstration class only
       - coded for clarity, not efficiency
     '''
+    streamStaged = ''
 
     def __init__(self, sock=None):
         if sock is None:
@@ -23,24 +24,50 @@ class socket_test:
     def connect(self, host, port):
         self.sock.connect((host, port))
 
-    def mysend(self, msg):
-        totalsent = 0
-        while totalsent < MSGLEN:
-            sent = self.sock.send(msg[totalsent:])
-            if sent == 0:
-                raise RuntimeError("socket connection broken")
-            totalsent = totalsent + sent
+    def close(self):
+        self.sock.close()
+       
 
-    def myreceive(self):
-        chunks = []
-        bytes_recd = 0
-        while bytes_recd < MSGLEN:
-            chunk = self.sock.recv(min(MSGLEN - bytes_recd, 2048))
-            if chunk == '':
-                raise RuntimeError("socket connection broken")
-            chunks.append(chunk)
-            bytes_recd = bytes_recd + len(chunk)
-        return ''.join(chunks)
+    '''
+    This method is responsible for getting messages from 
+    the socket.
+    '''
+    def getMessage(self):
+        foundIdx = self._streamStaged.find("Method")
+        if (foundIdx == 0):
+            foundIdx2 = self._streamStaged.find("Method", foundIdx + 1)
+            if (foundIdx2 != -1):
+                message = Message(self._streamStaged[foundIdx : foundIdx2 - 1])
+                # Even that the message could have errors is complete
+                self._streamStaged = self._streamStaged[foundIdx2 : ]
+            else:
+                message = Message(self._streamStaged)
+                if (message.isComplete( len(self._streamStaged) )):
+                    self._streamStaged = ''
+                else:
+                    message = None
+        else:
+            if (len(self._streamStaged) == 0):
+                message = None
+            else:
+                # The message is not well formed, so we create a message with method not specified
+                message = Message('')
+                message.setMethod(Message.UNDEFINED)
+                self._streamStaged = self._streamStaged[foundIdx :]
+        return message
+
+                
+    '''
+    This method is responsible for sending messages through the 
+    socket.
+    '''
+    def sendMessage(self, message):
+        print 'start sending message' 
+        msgstr = message.__str__()
+        self.sock.sendall(msgstr)
+        messageResults = None
+        return messageResults
+
 
 class socket_clockserver_test(socket_test):
     
@@ -50,7 +77,15 @@ class socket_clockserver_test(socket_test):
     def messagePeriod(self,period):
     	periodEnd = Message("")
     	periodEnd.setMethod(Message.END_PERIOD)
-	endPeriod.setParameter("Period", period);
+        periodEnd.setParameter("Period", period)
+        return periodEnd
+
+    def messageBids(self, period, body):
+        bidsMes = Message("")
+        bidsMes.setMethod(Message.RECEIVE_BID_INFORMATION)
+        bidsMes.setParameter("Period", period)
+        bidsMes.setBody(body)
+        return bidsMes
 
 
 class socket_mrk_place_test(socket_test):
@@ -58,34 +93,58 @@ class socket_mrk_place_test(socket_test):
     def __init__(self):
         socket_test.__init__(self)
 
-    def messageBids(self,period):
-    	periodEnd = Message("")
-    	periodEnd.setMethod(Message.END_PERIOD)
-	endPeriod.setParameter("Period", period);
+    def messagePeriod(self,period):
+        periodEnd = Message("")
+        periodEnd.setMethod(Message.END_PERIOD)
+        periodEnd.setParameter("Period", period)
+        return periodEnd
+
+    def messageBids(self, period, body):
+        bidsMes = Message("")
+        bidsMes.setMethod(Message.RECEIVE_BID_INFORMATION)
+        bidsMes.setParameter("Period", period)
+        bidsMes.setBody(body)
+        return bidsMes
 
 
 def clock_server(Id):
+    period = 4
+    body = open('MessageMarketPlace.txt', 'r').read()
     sck_clock_server = socket_clockserver_test() 
     host = agent_properties.addr_agent_clock_server
     port = agent_properties.l_port_provider + ( Id * 3 )
-    sck_clock_server.connect(host,port)
     print threading.currentThread().getName(), 'Starting', ' host:', host, ' port:', port
-    time.sleep(2)
+    sck_clock_server.connect(host,port)
+    time.sleep(1)
+    clockMessage = sck_clock_server.messagePeriod(period)
+    sck_clock_server.sendMessage(clockMessage)
+    print threading.currentThread().getName(), 'After sending end period message'
+    bidMessage = sck_clock_server.messageBids(period, body)
+    sck_clock_server.sendMessage(bidMessage)
+    print threading.currentThread().getName(), 'After sending bid message'
     print threading.currentThread().getName(), 'Exiting', 
+    sck_clock_server.close()
 
 def market_place(Id):
+    period = 3
+    body = open('MessageMarketPlace.txt', 'r').read()
     sck_mkt_place_server = socket_mrk_place_test() 
     host = agent_properties.addr_agent_mktplace_isp
     port = agent_properties.l_port_provider + ( (Id * 3) + 1)
-    sck_mkt_place_server.connect(host, port)
     print threading.currentThread().getName(), 'Starting', ' host:', host, ' port:', port
-    time.sleep(3)
+    sck_mkt_place_server.connect(host, port)
+    bidMessage = sck_mkt_place_server.messageBids(period, body)
+    sck_mkt_place_server.sendMessage(bidMessage)
+    time.sleep(5)
     print threading.currentThread().getName(), 'Exiting'
+    sck_mkt_place_server.close()
+
+
 
 Id = 5
 t = threading.Thread(name='clock_server', target=clock_server, args=(Id,))
 w = threading.Thread(name='market_place', target=market_place, args=(Id,))
 
-w.start()
 t.start()
+w.start()
 

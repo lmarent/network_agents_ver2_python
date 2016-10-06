@@ -1,7 +1,8 @@
 from foundation.FoundationException import FoundationException
 import uuid
 import logging
-from foundation.Agent import AgentServerHandler
+from foundation.AgentServer import AgentServerHandler
+from foundation.AgentType import AgentType
 from foundation.Agent import Agent
 from foundation.Message import Message
 from foundation.DecisionVariable import DecisionVariable
@@ -38,7 +39,9 @@ class ProviderEdge(Provider):
 				 numberOffers, numAccumPeriods, numAncestors, startFromPeriod, 
                  sellingAddress, buyingAddress, capacityControl, purchase_service):
         try:
-            super(ProviderEdge, self).__init__(strID, Id, serviceId, accessProviderSeed, marketPosition, adaptationFactor, monopolistPosition, debug, resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl, purchase_service, Agent.PROVIDER_ISP)
+            
+            agent_type = AgentType(AgentType.PROVIDER_ISP)
+            super(ProviderEdge, self).__init__(strID, Id, serviceId, accessProviderSeed, marketPosition, adaptationFactor, monopolistPosition, debug, resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl, purchase_service, agent_type)
             logger.debug('Agent: %s - Edge Provider Created', self._list_vars['strId'])
         except FoundationException as e:
             raise ProviderException(e.__str__())
@@ -52,78 +55,90 @@ class ProviderEdge(Provider):
 	'''
     def initialize(self):
         logger.debug('Agent: %s - Initilizing provider', self._list_vars['strId'])
-        for decisionVariable in (self._service)._decision_variables:
-            ((self._service)._decision_variables[decisionVariable]).executeSample(self._list_vars['Random'])
-        #Bring services required to fulfill resources.
-        # Open database connection
-        db1 = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+        self.lock.acquire()
+        try:
+            for decisionVariable in (self._service)._decision_variables:
+                ((self._service)._decision_variables[decisionVariable]).executeSample(self._list_vars['Random'])
+            #Bring services required to fulfill resources.
+            # Open database connection
+            db1 = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+                                    foundation.agent_properties.user_password,foundation.agent_properties.database_name )
 
-        purchaseServiceId = self._list_vars['PurchaseServiceId']
-        self.getServiceFromServer(purchaseServiceId)
+            purchaseServiceId = self._list_vars['PurchaseServiceId']
+            self.getServiceFromServer(purchaseServiceId)
 
-        # prepare a cursor object using cursor() method 
-        # This is to be able to purchase raw resources from other providers.
-        cursor = db1.cursor()                
-        resource_services = {}
-        resources = self._used_variables['resources']
-        prov_id = int(self._list_vars['Id'])
-        for resourceId in resources:
-            # Prepare SQL query to SELECT providers from the database.
-            sql = "select b.resource_id, c.id, c.name  \
-                    from simulation_provider a, simulation_provider_resource b, simulation_service c \
-                    where a.id = %s and a.id = b.id and b.resource_id = %s and c.id = b.service_id"
-                                
-            iResourceId = int(resourceId)
-            cursor.execute(sql, (prov_id, iResourceId))
-            results = cursor.fetchall()
-            res_services = []
-            for row in results:
-                serviceId = str(row[1])
-                res_services.append(str(serviceId))
-                self.getServiceFromServer(serviceId)
-                    
-            resource_services[resourceId] = res_services
-        self._list_vars['Resource_Service'] = resource_services
+            # prepare a cursor object using cursor() method 
+            # This is to be able to purchase raw resources from other providers.
+            cursor = db1.cursor()                
+            resource_services = {}
+            resources = self._used_variables['resources']
+            prov_id = int(self._list_vars['Id'])
+            for resourceId in resources:
+                # Prepare SQL query to SELECT providers from the database.
+                sql = "select b.resource_id, c.id, c.name  \
+                        from simulation_provider a, simulation_provider_resource b, simulation_service c \
+                        where a.id = %s and a.id = b.id and b.resource_id = %s and c.id = b.service_id"
 
-        self._servicesRelat = {}
-        # Bring the service's decision variables relationships
-        sql2 = "select a.service_to_id, a.decision_variable_to_id, a.aggregation \
-                  from simulation_provider b, simulation_service_relationship a \
-                    where b.id = %s and b.service_id = %s \
-                    and b.service_id = a.service_from_id \
-                    and b.purchase_service_id = a.service_to_id \
-                    and a.decision_variable_from_id = %s"
-            
-        serviceIdOwn = (self._service).getId()        
-        for decisionVariable in (self._service)._decision_variables:
-            cursor.execute(sql2, (prov_id, serviceIdOwn, decisionVariable))
-            results2 = cursor.fetchall()
-            ret_tuple = None
-            for row in results2:
-                serviceTo = str(row[0])
-                variableTo = str(row[1])
-                aggregation = str(row[2])
-                ret_tuple = (serviceTo, decisionVariable, variableTo, aggregation)
-                break
-            if (ret_tuple != None):
-                # Insert direct relation from -> to                    
-                if serviceIdOwn in self._servicesRelat.keys():
-                    (self._servicesRelat[serviceIdOwn]).append(ret_tuple)
-                else:
-                    self._servicesRelat[serviceIdOwn] = []
-                    (self._servicesRelat[serviceIdOwn]).append(ret_tuple)
-                # Insert direct relation from -> to
-                if ret_tuple[0] in self._servicesRelat.keys():
-                    ret_tuple2 = (serviceIdOwn, ret_tuple[2], ret_tuple[1], ret_tuple[3])
-                    (self._servicesRelat[ret_tuple[0]]).append(ret_tuple2)
-                else:
-                    self._servicesRelat[ret_tuple[0]] = []
-                    ret_tuple2 = (serviceIdOwn, ret_tuple[2], ret_tuple[1], ret_tuple[3])
-                    (self._servicesRelat[ret_tuple[0]]).append(ret_tuple2)
-        db1.close()
+                iResourceId = int(resourceId)
+                cursor.execute(sql, (prov_id, iResourceId))
+                results = cursor.fetchall()
+                res_services = []
+                for row in results:
+                    serviceId = str(row[1])
+                    res_services.append(str(serviceId))
+                    self.getServiceFromServer(serviceId)
+
+                resource_services[resourceId] = res_services
+            self._list_vars['Resource_Service'] = resource_services
+
+            self._servicesRelat = {}
+            # Bring the service's decision variables relationships
+            sql2 = "select a.service_to_id, a.decision_variable_to_id, a.aggregation \
+                      from simulation_provider b, simulation_service_relationship a \
+                        where b.id = %s and b.service_id = %s \
+                        and b.service_id = a.service_from_id \
+                        and b.purchase_service_id = a.service_to_id \
+                        and a.decision_variable_from_id = %s"
+
+            serviceIdOwn = (self._service).getId()        
+            for decisionVariable in (self._service)._decision_variables:
+                cursor.execute(sql2, (prov_id, serviceIdOwn, decisionVariable))
+                results2 = cursor.fetchall()
+                ret_tuple = None
+                for row in results2:
+                    serviceTo = str(row[0])
+                    variableTo = str(row[1])
+                    aggregation = str(row[2])
+                    ret_tuple = (serviceTo, decisionVariable, variableTo, aggregation)
+                    break
+                if (ret_tuple != None):
+                    # Insert direct relation from -> to                    
+                    if serviceIdOwn in self._servicesRelat.keys():
+                        (self._servicesRelat[serviceIdOwn]).append(ret_tuple)
+                    else:
+                        self._servicesRelat[serviceIdOwn] = []
+                        (self._servicesRelat[serviceIdOwn]).append(ret_tuple)
+                    # Insert direct relation from -> to
+                    if ret_tuple[0] in self._servicesRelat.keys():
+                        ret_tuple2 = (serviceIdOwn, ret_tuple[2], ret_tuple[1], ret_tuple[3])
+                        (self._servicesRelat[ret_tuple[0]]).append(ret_tuple2)
+                    else:
+                        self._servicesRelat[ret_tuple[0]] = []
+                        ret_tuple2 = (serviceIdOwn, ret_tuple[2], ret_tuple[1], ret_tuple[3])
+                        (self._servicesRelat[ret_tuple[0]]).append(ret_tuple2)
+            db1.close()
+        finally:
+            self.lock.release()
+            logger.debug('Ending Initilizing provider')
 
     def getPurchaseService(self):
-        return self._list_vars['PurchaseServiceId']
+        purchaseServiceId = ''
+        self.lock.acquire()
+        try:
+            purchaseServiceId = self._list_vars['PurchaseServiceId']
+        finally:
+            self.lock.release()
+        return purchaseServiceId
 
     ''' 
     Create the purchase message without indicating bid and quantity.
@@ -163,7 +178,7 @@ class ProviderEdge(Provider):
         for decisionVariable in service._decision_variables:
             value = float(bid.getDecisionVariable(decisionVariable))
             message.setParameter(decisionVariable, str(value))
-        messageResult = self._channelMarketPlaceBuy.sendMessage(message)
+        messageResult = self.sendMessageMarketBuy(message)
         
         # Check if message was succesfully received by the marketplace
         if messageResult.isMessageStatusOk():
@@ -340,26 +355,6 @@ class ProviderEdge(Provider):
                     totPurchasableBids[bidId] = purchasableBids[bidId]
         return totPurchasableBids
 
-    '''
-    This method creates the query for the Marketplace asking 
-    other providers' offers.
-    '''
-    def AskBackhaulBids(self, serviceId):
-        messageAsk = Message('')
-        messageAsk.setMethod(Message.GET_BEST_BIDS)
-        messageAsk.setParameter('Provider', self._list_vars['strId'])
-        messageAsk.setParameter('Service', serviceId)
-        messageResult = self._channelMarketPlaceBuy.sendMessage(messageAsk)
-        if messageResult.isMessageStatusOk():
-            document = self.removeIlegalCharacters(messageResult.getBody())
-            try:
-                dom = xml.dom.minidom.parseString(document)
-                return self.handleBestBids(dom)
-            except Exception as e: 
-                raise FoundationException(str(e))
-        else:
-            raise FoundationException("Best bids not received")
-
 
     def swapPurchasedBids(self, currentPeriod, purchasedBids, staged_bids, fileResult):
         '''
@@ -410,8 +405,12 @@ class ProviderEdge(Provider):
     
     
     def updateAvailability(self, resourceId, newAvailability):
-        if (resourceId in self._used_variables['resources']):
-            ((self._used_variables['resources'])[resourceId])['Capacity'] = newAvailability
+        self.lock.acquire()
+        try:
+            if (resourceId in self._used_variables['resources']):
+                ((self._used_variables['resources'])[resourceId])['Capacity'] = newAvailability
+        finally:
+            self.lock.release()
         
     def updateCurrentBids(self, currentPeriod, radius, staged_bids, fileResult):
         '''
@@ -439,7 +438,7 @@ class ProviderEdge(Provider):
             message.setParameter("Provider", self._list_vars['strId'])
             message.setParameter("Resource", resourceId)
             message.setParameter("Quantity",str(qtyAvailable))
-            messageResult = self._channelMarketPlace.sendMessage(message)
+            messageResult = self.sendMessageMarket(message)
             if messageResult.isMessageStatusOk():
                 logger.info("Capacity tranmitted sucessfully")
             else:
@@ -447,33 +446,42 @@ class ProviderEdge(Provider):
         logger.debug("Ends send capacity")
     
     def includeActiveBidsNotStaged(self,currentPeriod, radius,  staged_bids, fileResult):
-        for bidId in self._list_vars['Bids']:
-            if bidId not in staged_bids.keys():
-                bid = (self._list_vars['Bids'])[bidId]
-                marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, bid, bid, Provider.MARKET_SHARE_ORIENTED, fileResult)
-                staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
-        self.registerLog(fileResult, 'include active bids not stated end number of bids:' + str(len(staged_bids)) )
+        self.lock.acquire()
+        try:
+            for bidId in self._list_vars['Bids']:
+                if bidId not in staged_bids.keys():
+                    bid = (self._list_vars['Bids'])[bidId]
+                    marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, bid, bid, Provider.MARKET_SHARE_ORIENTED, fileResult)
+                    staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
+            self.registerLog(fileResult, 'include active bids not stated end number of bids:' + str(len(staged_bids)) )
+        finally:
+            self.lock.release()
 
 
     def restartAvailableCapacity(self):
-        db1 = MySQLdb.connect("localhost","root","password","Network_Simulation" )
-        cursor2 = db1.cursor()
-        sql_resources = "SELECT resource_id, capacity, cost \
-        			       FROM simulation_provider_resource \
-        			      WHERE provider_id = '%s'" % (self._list_vars['Id'])
-        cursor2.execute(sql_resources)
-        resourceRows = cursor2.fetchall()
-        resources = {}
-        for resourceRow in resourceRows:
-            resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
-        # Replace the current cost
-        for resourceId in self._used_variables['resources']:
-            if resourceId in resources.keys():
-                (resources[resourceId])['Cost'] = ((self._used_variables['resources'])[resourceId])['Cost']
-        
-        db1.close()
-        # replace resource variables
-        self._used_variables['resources'] = resources
+        self.lock.acquire()
+        try:
+            db1 = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+            foundation.agent_properties.user_password,foundation.agent_properties.database_name )
+            cursor2 = db1.cursor()
+            sql_resources = "SELECT resource_id, capacity, cost \
+                               FROM simulation_provider_resource \
+                              WHERE provider_id = '%s'" % (self._list_vars['Id'])
+            cursor2.execute(sql_resources)
+            resourceRows = cursor2.fetchall()
+            resources = {}
+            for resourceRow in resourceRows:
+                resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
+            # Replace the current cost
+            for resourceId in self._used_variables['resources']:
+                if resourceId in resources.keys():
+                    (resources[resourceId])['Cost'] = ((self._used_variables['resources'])[resourceId])['Cost']
+
+            db1.close()
+            # replace resource variables
+            self._used_variables['resources'] = resources
+        finally:
+            self.lock.release()
         
 	'''
 	The exec_algorithm function finds available offerings and chooses
@@ -481,8 +489,8 @@ class ProviderEdge(Provider):
 	signals received by the simulation environment (demand server).
 	'''
     def exec_algorithm(self):
-        logger.info('Agent: %s - Period %s - Initiating exec_algorithm ', 
-		    self._list_vars['strId'], str(self._list_vars['Current_Period'])  )          
+        logger.debug('Starting exec_algorithm Agent: %s - Period %s', 
+		    self._list_vars['strId'], str(self._list_vars['Current_Period'])  )
         staged_bids = {}
         try:
             if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
@@ -512,9 +520,9 @@ class ProviderEdge(Provider):
         except ProviderException as e:
             self.registerLog(fileResult, e.message)
         except Exception as e:
-            self.registerLog(fileResult, e.message)
-            
+            self.registerLog(fileResult, e.message)    
         fileResult.close()
         self._list_vars['State'] = AgentServerHandler.IDLE
-		
+        logger.debug('Ending exec_algorithm Agent: %s - Period %s', 
+            self._list_vars['strId'], str(self._list_vars['Current_Period'])  )
 # End of Access provider class

@@ -103,6 +103,13 @@ def createBid(strProv, serviceId, delay, price):
     message = bid.to_message()
     return message, idStr
 
+def verifyBid(sock2):
+    received = sock2.recv(16800)
+    messageBid= Message(received)
+    if (not messageBid.isMessageStatusOk()):
+        raise FoundationException("error in creating bid")
+
+
 def purchase(serviceId, bidId, quantity, delay, price):
     messagePurchase = Message('')
     messagePurchase.setMethod(Message.RECEIVE_PURCHASE)
@@ -115,6 +122,20 @@ def purchase(serviceId, bidId, quantity, delay, price):
     messagePurchase.setParameter('1', price) # Price decision variable
     messagePurchase.setParameter('2', delay) # Delay decision variable
     return messagePurchase
+
+def verifyPurchase(sock2, qty):
+    received = sock2.recv(16800)
+    messagePurchase= Message(received)
+    print messagePurchase.__str__()
+    if (not messagePurchase.isMessageStatusOk()):
+        raise FoundationException("error in creating purchase")
+    else:
+        # verify that the quantity purchased.
+        qtyPurchasedStr = messagePurchase.getParameter('Quantity_Purchased')
+        qtyPurchased = float(qtyPurchasedStr)
+        if (qtyPurchased <> qty):
+            raise FoundationException("error in creating purchase - Qty purchased not equal to " + str(qty))
+
 
 # Sends the availability for the provider
 def send_availability(strProv,strResource, quantity):
@@ -162,7 +183,8 @@ try:
                 port_message = Message("")
                 port_message.setMethod(Message.SEND_PORT)
                 port_message.setParameter("Port", agent_properties.l_port_provider)
-                port_message.setParameter("Type", 'provider')
+                port_message.setParameter("Type", "provider")
+                port_message.setParameter("CapacityType","bulk")
                 sock2.sendall(port_message.__str__())
                 received = sock2.recv(4096)
                 recMsg = Message(received)
@@ -173,71 +195,85 @@ try:
                 # send the provider availability
                 message = send_availability(strProv,"1", str(100))
                 sock2.sendall(message.__str__())                
+                received = sock2.recv(16800)
+                messageAvail= Message(received)
+                if (not messageAvail.isMessageStatusOk()):
+                    raise FoundationException("error in sending availability")
                 
                 print "It is connected to the agent server"		
                 # creates bids for the service 01
                 message, bidId1 = createBid(strProv, serviceId, str(0.145), str(20))
                 sock2.sendall(message.__str__())
+                verifyBid(sock2)
+                
                 message = purchase(serviceId, bidId1, str(10), str(0.145), str(20))
                 sock2.sendall(message.__str__())
+                received = sock2.recv(16800)
+                messagePur1 = Message(received)
+                if (not messagePur1.isMessageStatusOk()):
+                    raise FoundationException("error in creating purchase")
                     
                 message, bidId2 = createBid(strProv, serviceId, str(0.16), str(18))
                 sock2.sendall(message.__str__())
+                verifyBid(sock2)
+                
                 message = purchase(serviceId, bidId2, str(5), str(0.16), str(18))
                 sock2.sendall(message.__str__())
+                verifyPurchase(sock2,5)
                 
                 message, bidId3 = createBid(strProv, serviceId, str(0.13), str(21))
                 sock2.sendall(message.__str__())
+                verifyBid(sock2)
+
                 message = purchase(serviceId, bidId3, str(4), str(0.13), str(21))
                 sock2.sendall(message.__str__())
+                verifyPurchase(sock2,4)
                 
                 message, bidId4 = createBid(strProv, serviceId, str(0.15), str(19.5))
                 sock2.sendall(message.__str__())
+                verifyBid(sock2)
+                
                 message = purchase(serviceId, bidId4, str(3), str(0.15), str(19.5))
                 sock2.sendall(message.__str__())
+                verifyPurchase(sock2,3)
                 
                 message, bidId5 = createBid(strProv, serviceId, str(0.155), str(18))
                 sock2.sendall(message.__str__())
+                verifyBid(sock2)
+                
                 message = purchase(serviceId, bidId5, str(2), str(0.155), str(18))
                 sock2.sendall(message.__str__())
+                verifyPurchase(sock2,2)
                 
                 message, bidId6 = createBid(strProv, serviceId, str(0.155), str(17.5))
                 sock2.sendall(message.__str__())
+                verifyBid(sock2)
+                                
                 message = purchase(serviceId, bidId6, str(1), str(0.155), str(17.5))
                 sock2.sendall(message.__str__())
-                
+                verifyPurchase(sock2,1)
 
 #
                 # Try to purchase without availability
                 message = purchase(serviceId, bidId6, str(10), str(0.16), str(17.5))
                 sock2.sendall(message.__str__())
-                received = sock2.recv(16800)
-                messagePur1 = Message(received)
-                if (messagePur1.isMessageStatusOk()):
-                    print bid.getId() + 'Qua:' + messagePur1.getParameter("Quantity_Purchased")
+                verifyPurchase(sock2,10)
 #                    
                 message = purchase(serviceId, bidId4, str(20), str(0.125), str(20))
                 sock2.sendall(message.__str__())
-                received = sock2.recv(16800)
-                messagePur1 = Message(received)
-                if (messagePur1.isMessageStatusOk()):
-                    print bid.getId() + 'Qua:' + messagePur1.getParameter("Quantity_Purchased")
+                verifyPurchase(sock2,20)
 
 #                    
                 message = purchase(serviceId, bidId5, str(10), str(0.16), str(17))
                 sock2.sendall(message.__str__())
-                received = sock2.recv(16800)
-                messagePur1 = Message(received)
-                if (messagePur1.isMessageStatusOk()):
-                    print bid.getId() + 'Qua:' + messagePur1.getParameter("Quantity_Purchased")
+                verifyPurchase(sock2,10)
 #                    
 
                 message = purchase(serviceId, bidId4, str(30), str(0.16), str(17))
                 sock2.sendall(message.__str__())
-                received = sock2.recv(16800)
-                messagePur1 = Message(received)
-                if (messagePur1.isMessageStatusOk()):
-                    print bid.getId() + 'Qua:' + messagePur1.getParameter("Quantity_Purchased")
+                verifyPurchase(sock2,30)
+
+                time.sleep(30)
 
                 #try to buy an inactive bid
 #                bid6.setStatus(Bid.INACTIVE)

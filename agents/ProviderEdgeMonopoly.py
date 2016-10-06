@@ -8,7 +8,8 @@ Created on Wed May 25 13:16:15 2016
 from foundation.FoundationException import FoundationException
 import uuid
 import logging
-from foundation.Agent import AgentServerHandler
+from foundation.AgentServer import AgentServerHandler
+from foundation.AgentType import AgentType
 from foundation.Agent import Agent
 from foundation.Message import Message
 from foundation.DecisionVariable import DecisionVariable
@@ -20,6 +21,7 @@ from foundation.Bid import Bid
 import MySQLdb
 import xml.dom.minidom
 import math
+import threading
 
 
 logger = logging.getLogger('provider_edge')
@@ -46,18 +48,31 @@ class ProviderEdgeMonopoly(ProviderEdge):
                  sellingAddress, buyingAddress, capacityControl, purchase_service):
         try:
             super(ProviderEdgeMonopoly, self).__init__(strID, Id, serviceId, accessProviderSeed, marketPosition, adaptationFactor, monopolistPosition, debug, resources, numberOffers, numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl, purchase_service)
-            logger.debug('Agent: %s - Edge Provider Created', self._list_vars['strId'])
+            logger.debug('Agent: %s - Edge Provider Monopoly Created', self._list_vars['strId'])
         except FoundationException as e:
             raise ProviderException(e.__str__())
 
     def getNumberServices(self):
-        return len(self._services)
+        numServices = 0
+        self.lock.acquire()
+        try:
+            numServices = len(self._services)
+        finally:
+            self.lock.release()
+        return numServices
+            
     
     def getService(self, serviceId):
-        if serviceId in self._services.keys():
-            return self._services[serviceId]
-        else:
-            return None
+        service = None
+        self.lock.acquire()
+        try:
+            if serviceId in self._services.keys():
+                service = self._services[serviceId]
+            else:
+                service = None
+        finally:
+           self.lock.release()
+        return service
     
     def purchaseBasedOnProvidersBids(self, currentPeriod, serviceId, bid, quantity, fileResult):        
         ''' 
@@ -82,7 +97,7 @@ class ProviderEdgeMonopoly(ProviderEdge):
         for decisionVariable in service._decision_variables:
             value = float(bid.getDecisionVariable(decisionVariable))
             messagePurchase.setParameter(decisionVariable, str(value))
-        messageResult = self._channelMarketPlaceBuy.sendMessage(messagePurchase)
+        messageResult = self.sendMessageMarketBuy(messagePurchase)
         # Check if message was succesfully received by the marketplace
         if messageResult.isMessageStatusOk():
             quantity = float(messageResult.getParameter("Quantity_Purchased"))
@@ -113,39 +128,44 @@ class ProviderEdgeMonopoly(ProviderEdge):
         direction should be 1 or -1, when 1 improve, -1 lower
         Test: implemented.
         '''
-        self.registerLog(fileResult, 'moveQuality') 
+        self.registerLog(fileResult, 'moveQuality')
         output = {}
-        minStep = 0.0
-        for decisionVariable in service._decision_variables:
-            min_value = (service.getDecisionVariable(decisionVariable)).getMinValue()
-            max_value = (service.getDecisionVariable(decisionVariable)).getMaxValue()
-            maximum_step = (max_value - min_value) * adaptationFactor
-            # Since we want to determine the step size, we have to do invert the
-            # meaning of market position. 
-            market_position = 1 - marketPosition
-            # Gets the objetive to persuit.
-            optimum = service.getDecisionVariableObjetive(decisionVariable)
-            
-            # Gets the modeling objetive of the decision variable
-            if (service._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
-                min_val_adj, max_val_adj = self.calculateIntervalsQuality(market_position, 0, maximum_step, optimum)
-                if (optimum == 1): #Maximize
-                    step = self._list_vars['Random'].uniform(min_val_adj, max_val_adj) * direction
+        self.lock.acquire()
+        try:
+            minStep = 0.0
+            for decisionVariable in service._decision_variables:
+                min_value = (service.getDecisionVariable(decisionVariable)).getMinValue()
+                max_value = (service.getDecisionVariable(decisionVariable)).getMaxValue()
+                maximum_step = (max_value - min_value) * adaptationFactor
+                # Since we want to determine the step size, we have to do invert the
+                # meaning of market position. 
+                market_position = 1 - marketPosition
+                # Gets the objetive to persuit.
+                optimum = service.getDecisionVariableObjetive(decisionVariable)
+
+                # Gets the modeling objetive of the decision variable
+                if (service._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                    min_val_adj, max_val_adj = self.calculateIntervalsQuality(market_position, 0, maximum_step, optimum)
+                    if (optimum == 1): #Maximize
+                        step = self._list_vars['Random'].uniform(min_val_adj, max_val_adj) * direction
+                    else:
+                        step = ( self._list_vars['Random'].uniform(min_val_adj, max_val_adj) ) * -1 * direction
+                    output[decisionVariable] = {'Direction' : direction, 'Step': step}
+
+                    if (minStep == 0.0):
+                        minStep = step
+
+                    if minStep > abs(step):
+                        minStep = step
                 else:
-                    step = ( self._list_vars['Random'].uniform(min_val_adj, max_val_adj) ) * -1 * direction
-                output[decisionVariable] = {'Direction' : direction, 'Step': step}
-                
-                if (minStep == 0.0):
-                    minStep = step
-                    
-                if minStep > abs(step):
-                    minStep = step
-            else:
-                output[decisionVariable] = {'Direction' : direction, 'Step': 0}
-                
-        self.registerLog(fileResult, 'moveQuality:' + str(output)) 
-        return output
+                    output[decisionVariable] = {'Direction' : direction, 'Step': 0}
+
+            self.registerLog(fileResult, 'moveQuality:' + str(output)) 
+
+        finally:
+           self.lock.release()
         
+        return output
             
     def movePrice(self, service, adaptationFactor, marketPosition, direction, fileResult):
         ''' 
@@ -155,44 +175,56 @@ class ProviderEdgeMonopoly(ProviderEdge):
         '''
         self.registerLog(fileResult, 'movePrice') 
         output = {}
-        step = 0
-        for decisionVariable in service._decision_variables:
-            min_value = (service.getDecisionVariable(decisionVariable)).getMinValue()
-            max_value = (service.getDecisionVariable(decisionVariable)).getMaxValue()
-            maximum_step = (max_value - min_value) * adaptationFactor
-            # Since we want to determine the step size, we have to do invert the
-            # meaning of market position. 
-            market_position = 1 - marketPosition
+        self.lock.acquire()
+        try:
+            step = 0
+            for decisionVariable in service._decision_variables:
+                min_value = (service.getDecisionVariable(decisionVariable)).getMinValue()
+                max_value = (service.getDecisionVariable(decisionVariable)).getMaxValue()
+                maximum_step = (max_value - min_value) * adaptationFactor
+                # Since we want to determine the step size, we have to do invert the
+                # meaning of market position. 
+                market_position = 1 - marketPosition
+
+                # Gets the modeling objetive of the decision variable
+                if (service._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                    min_val_adj, max_val_adj = self.calculateIntervalsPrice(market_position, 0, maximum_step)
+                    step = self._list_vars['Random'].uniform(min_val_adj, max_val_adj) * direction
+                    output[decisionVariable] = {'Direction' : direction, 'Step': step}
+                else:
+                    output[decisionVariable] = {'Direction' : direction, 'Step': 0}
+
+
+            self.registerLog(fileResult, 'movePrice:' + str(output)) 
             
-            # Gets the modeling objetive of the decision variable
-            if (service._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
-                min_val_adj, max_val_adj = self.calculateIntervalsPrice(market_position, 0, maximum_step)
-                step = self._list_vars['Random'].uniform(min_val_adj, max_val_adj) * direction
-                output[decisionVariable] = {'Direction' : direction, 'Step': step}
-            else:
-                output[decisionVariable] = {'Direction' : direction, 'Step': 0}
-            
-                
-        self.registerLog(fileResult, 'movePrice:' + str(output)) 
+        finally:
+           self.lock.release()
+        
         return output
+         
 
     def calculateQualityRelativeObjective(self, value, minValue, maxValue, aggregationMode, adaptationFactor):
         ''' 
         This method establishes the target position for quality for a bid based on the 
         quality percentage previously establised by the operator.
         '''
+        qualityReq = 0
+        self.lock.acquire()
+        try:
+            if ((aggregationMode == 'M') or (aggregationMode == 'N')): # MAX aggregation
+                qualityReq = value 
+                if ((maxValue - minValue) == 0 ):
+                    qualityReq = maxValue
+                else:
+                    qualityReq = (qualityReq -minValue) / (maxValue - minValue)
 
-        if ((aggregationMode == 'M') or (aggregationMode == 'N')): # MAX aggregation
-            qualityReq = value 
-            if ((maxValue - minValue) == 0 ):
-                qualityReq = maxValue
-            else:
-                qualityReq = (qualityReq -minValue) / (maxValue - minValue)
-                        
-        if ((aggregationMode == 'S') or (aggregationMode == 'X')) : # SUM aggregation or NON aggregation
-            # this provider can decide              
-            qualityReq = minValue + ( self._list_vars['Random'].uniform(minValue, maxValue) * adaptationFactor) + value 
-                    
+            if ((aggregationMode == 'S') or (aggregationMode == 'X')) : # SUM aggregation or NON aggregation
+                # this provider can decide              
+                qualityReq = minValue + ( self._list_vars['Random'].uniform(minValue, maxValue) * adaptationFactor) + value 
+
+        finally:
+           self.lock.release()
+
         return qualityReq
 
     def convertToOwnBid(self, serviceOwn, serviceProvider,  bid, adaptationFactor, fileResult):
@@ -395,14 +427,19 @@ class ProviderEdgeMonopoly(ProviderEdge):
         '''    
         self.registerLog(fileResult, 'getOwnRelatedBids:' + bid.getId() )
         ret_relatedBids = {}
-        for bidId in self._list_vars['Bids']:
-            otherBid = (self._list_vars['Bids'])[bidId]
-            # bids recent enough to be taken into account.
-            if (otherBid.getCreationPeriod() >= (currentPeriod - numPeriods)):
-                if (self.areNeighborhoodBids(radius, bid, otherBid, fileResult)):
-                    ret_relatedBids[bidId] = otherBid
+        self.lock.acquire()
+        try:    
+            for bidId in self._list_vars['Bids']:
+                otherBid = (self._list_vars['Bids'])[bidId]
+                # bids recent enough to be taken into account.
+                if (otherBid.getCreationPeriod() >= (currentPeriod - numPeriods)):
+                    if (self.areNeighborhoodBids(radius, bid, otherBid, fileResult)):
+                        ret_relatedBids[bidId] = otherBid        
+            self.registerLog(fileResult, 'getOwnRelatedBids:' + str(len(ret_relatedBids)) )
+            
+        finally:
+            self.lock.release()
         
-        self.registerLog(fileResult, 'getOwnRelatedBids:' + str(len(ret_relatedBids)) )
         return ret_relatedBids
 
 
@@ -428,12 +465,18 @@ class ProviderEdgeMonopoly(ProviderEdge):
                 (staged_bids[bidId])['Forecast'] = initialQtyByBid
 
     def canAdoptStrongPosition(self, currentPeriod, fileResult):
-        self.registerLog(fileResult, 'Starting canAdoptStrongPosition')
-        value = self._list_vars['Random'].uniform(0, 1)
         val_return = True
-        if value <= self.getMonopolistPosition():
-            val_return = False
-        self.registerLog(fileResult, 'Ending canAdoptStrongPosition' + str(val_return))            
+        self.lock.acquire()
+        try:
+            self.registerLog(fileResult, 'Starting canAdoptStrongPosition')
+            value = self._list_vars['Random'].uniform(0, 1)
+            val_return = True
+            if value <= self.getMonopolistPosition():
+                val_return = False
+            self.registerLog(fileResult, 'Ending canAdoptStrongPosition' + str(val_return))            
+            
+        finally:
+            self.lock.release()
         return val_return
 
     def updateClosestBidForecast(self, currentPeriod, bid, staged_bids, forecast, fileResult):
@@ -516,6 +559,8 @@ class ProviderEdgeMonopoly(ProviderEdge):
 	signals received by the simulation environment (demand server).
 	'''
     def exec_algorithm(self):
+        logger.debug('Starting exec_algorithm Agent: %s - Period %s', 
+                    self._list_vars['strId'], str(self._list_vars['Current_Period'])  )
         if (self._list_vars['State'] == AgentServerHandler.BID_PERMITED):
             fileResult = open(self._list_vars['strId'] + '.log',"a")
             self.registerLog(fileResult, 'executing algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(self.getCurrentPeriod()) )
@@ -563,3 +608,5 @@ class ProviderEdgeMonopoly(ProviderEdge):
             fileResult.close()
             
         self._list_vars['State'] = AgentServerHandler.IDLE
+        logger.debug('Ending exec_algorithm Agent: %s - Period %s', 
+                    self._list_vars['strId'], str(self._list_vars['Current_Period'])  )

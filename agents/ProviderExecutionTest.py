@@ -2,6 +2,7 @@ import multiprocessing
 from Provider import Provider
 from ProviderAgentException import ProviderException
 from foundation.FoundationException import FoundationException
+from foundation.AgentType import AgentType
 import foundation.agent_properties
 import MySQLdb
 import logging
@@ -23,9 +24,9 @@ from foundation.DecisionVariable import DecisionVariable
 
 
 
-logger = logging.getLogger('provider_application')
+logger = logging.getLogger('provider_test')
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('providers_logs.log')
+fh = logging.FileHandler('providers_test.log')
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
@@ -331,8 +332,13 @@ def insertDBDemandInformation(cursor, provider):
     
 
 def activateCustomer():
+
+    # this method only activates a consumer.
+    logger.info('Starting activateCustomer')
+
     # Open database connection
-    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name)
 
     # prepare a cursor object using cursor() method
     cursor = db.cursor()
@@ -354,7 +360,7 @@ def activateCustomer():
         # Fetch all the rows in a list of lists.
         results = cursor.fetchall()
         num_consumers = 0
-        i = 1
+        i = 20 # the first customer start with id 20, so we left 19 numbers for providers.
         for row in results:
             serviceId = str(row[1])
             seed = row[2]
@@ -374,9 +380,12 @@ def activateCustomer():
             customer_seed = random.randint(0, 1000 * num_consumers)
             logger.info('customer seed:'+ str(customer_seed))
             consumer = Consumer("agent" + str(i), i, serviceId, customer_seed)
+            consumer.start_agent()
             consumers.append(consumer)
             num_consumers = num_consumers + 1
             break
+
+        logger.info('After activateCustomer')
 
         if num_consumers > 0:
             return consumers[0]
@@ -395,12 +404,15 @@ def activateCustomer():
 
 def test_cost_functions():
 
+    logger.info('Starting test_cost_functions')
+
     list_classes = {}
     # Load Provider classes
     load_classes(list_classes)
     
     # Open database connection
-    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name)
     
     db.autocommit(1)    
     
@@ -424,7 +436,7 @@ def test_cost_functions():
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
           , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
-	    WHERE status = 'A' AND id = 1"
+	    WHERE id = 1"
 
     try:
         providers = []
@@ -517,7 +529,7 @@ def test_cost_functions():
         
         # start the providers
         provider1 = providers[0]  # backhaul provider - Bulk capacity.
-        provider1.connect()
+        provider1.start_agent()
         
         # This code test that test the integration functions between clock server and agent.
         # The code assume that service serviceIdBackhaul has as quality variable bandwidth quality
@@ -533,7 +545,8 @@ def test_cost_functions():
                     if (costFun.getParameters() != costFun2.getParameters()):
                         raise FoundationException("error in the the cost function integration")
                     
-                                            
+        provider1.stop_agent()
+        logger.info('ending test_cost_functions')
         pass
     
     except FoundationException as e:
@@ -549,12 +562,16 @@ def test_cost_functions():
 
     
 def test_marketplace_capacity_management():
+
+    logger.info('Starting test_marketplace_capacity_management')
+
     list_classes = {}
     # Load Provider classes
     load_classes(list_classes)
     
     # Open database connection
-    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name)
     
     db.autocommit(1)    
     
@@ -578,7 +595,7 @@ def test_marketplace_capacity_management():
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
           , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
-	    WHERE status = 'A' AND id = 1"
+	    WHERE id = 1"
 
     try:
         providers = []
@@ -634,6 +651,8 @@ def test_marketplace_capacity_management():
             
             capacityControl = 'G' # Bulk Capacity.
             class_name = 'Provider'
+            providerId = i
+            providerName = 'Provider' + str(providerId)
             sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
             buyingAddress = ' '
             provider = create( list_classes, class_name, providerName + str(providerId), providerId, serviceIdBackhaul, 
@@ -643,7 +662,8 @@ def test_marketplace_capacity_management():
                       buyingAddress, capacityControl, purchase_service )
             providers.append(provider)
 
-
+            logger.info('first provider created')
+            
             i = i + 1
 
             capacityControl = 'B' # Capacity by Bid.
@@ -655,10 +675,11 @@ def test_marketplace_capacity_management():
             provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdISP, 
         			      providerSeed, marketPosition, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
-
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+                          numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl, purchase_service)
             providers.append(provider)
             i = i + 1
+            
+            logger.info('second provider created')
 
             capacityControl = 'B' # Capacity by Bid.
             class_name = 'Provider'
@@ -669,9 +690,11 @@ def test_marketplace_capacity_management():
             provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdBackhaul, 
         			      providerSeed, marketPosition, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 
-        			      numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl)
+                          numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, buyingAddress, capacityControl, purchase_service)
             providers.append(provider)
             i = i + 1
+
+            logger.info('third provider created')
 
             break
 
@@ -680,11 +703,11 @@ def test_marketplace_capacity_management():
         provider2 = providers[1]  # isp provider
         provider3 = providers[2]  # backhaul provider - Bid capacity.
 
-        provider1.start_listening()
+        provider1.start_agent()
         provider1.initialize()
-        provider2.start_listening()
+        provider2.start_agent()
         provider2.initialize()
-        provider3.start_listening()
+        provider3.start_agent()
         provider3.initialize()
 
         
@@ -859,6 +882,13 @@ def test_marketplace_capacity_management():
             quantityPur = quantityPur + customer.purchase( messagePurchase11, bidIsp_3, quantity - quantityPur)
             quantityPur = quantityPur + customer.purchase( messagePurchase11, bidIsp_4, quantity - quantityPur)
             
+            customer.stop_agent()
+
+        provider1.stop_agent()
+        provider2.stop_agent()
+        provider3.stop_agent()
+        
+        logger.info('ending test_marketplace_capacity_management')
         pass
     
     except FoundationException as e:
@@ -875,12 +905,15 @@ def test_marketplace_capacity_management():
 
 def test_provider_general_methods():
 
+    logger.info('Starting test_provider_general_methods')
+
     list_classes = {}
     # Load Provider classes
     load_classes(list_classes)
     
     # Open database connection
-    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name )
     
     db.autocommit(1)    
     
@@ -904,7 +937,7 @@ def test_provider_general_methods():
 		  , microsecond, class_name, start_from_period, buying_marketplace_address \
           , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
 	     FROM simulation_provider \
-	    WHERE status = 'A' AND id = 1"
+	    WHERE id = 1"
 
     try:
         providers = []
@@ -972,6 +1005,7 @@ def test_provider_general_methods():
 
         # start the providers
         provider1 = providers[0]  # backhaul provider - Bulk capacity.
+        provider1.start_agent()
         fileResult1 = open(provider1.getProviderId() + '.log',"a")
     
         # This code test the method calculateDeltaProfitProgression
@@ -1039,10 +1073,10 @@ def test_provider_general_methods():
         if (valReturn != False):
             raise FoundationException("Bids are not close")
         
-        provider1.run()
-
         deleteDBPreviousInformation(cursor)
-
+        
+        provider1.stop_agent()
+        logger.info('Ending test_provider_general_methods')
 
     
     except FoundationException as e:
@@ -1053,7 +1087,8 @@ def test_provider_general_methods():
         print e.__str__()
     finally:
         	# disconnect from server
-        	db.close()
+            fileResult1.close()
+            db.close()
 
 def test_replace_dominated_bids(cursor, executionCount, provider2, fileResult2):
 
@@ -1147,12 +1182,15 @@ def test_provider_database_classes():
     The ProviderExecution starts the threads for the service provider agents.
     '''    
 
+    logger.info('Starting test_provider_database_classes')
+
     list_classes = {}
     # Load Provider classes
     load_classes(list_classes)
     
     # Open database connection
-    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name )
     
     db.autocommit(1)    
     
@@ -1229,7 +1267,7 @@ def test_provider_database_classes():
             resources = {}
             for resourceRow in resourceRows:
                 resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
-            
+                        
             capacityControl = 'G' # Bulk Capacity.
             class_name = 'Provider'
             sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
@@ -1241,7 +1279,7 @@ def test_provider_database_classes():
                        buyingAddress, capacityControl, purchase_service)
             providers.append(provider)
 
-
+            logger.info('test_provider_database_classes step:After creating provider 1')
             i = i + 1
 
             capacityControl = 'G' # Bulk Capacity.
@@ -1258,16 +1296,24 @@ def test_provider_database_classes():
             providers.append(provider)
             i = i + 1
 
+            logger.info('test_provider_database_classes setp:After creating provider 2')
             break
 
         # start the providers
         provider1 = providers[0]  # backhaul provider - Bulk capacity.
         provider2 = providers[1]  # isp provider
+        
+        logger.info('test_provider_database_classes step:before initiating provider 1')
 
-        provider1.start_listening()
+        provider1.start_agent()
         provider1.initialize()
-        provider2.start_listening()
+        
+        logger.info('test_provider_database_classes step:after initiating provider 1')
+        
+        provider2.start_agent()
         provider2.initialize()
+
+        logger.info('test_provider_database_classes step:1')
 
         fileResult2 = open(provider2.getProviderId() + '.log',"a")        
 
@@ -1325,6 +1371,7 @@ def test_provider_database_classes():
             raise FoundationException("error in getDBMarketShareZone")
 
         marketZoneDemand, totQuantity, numRelated = provider2.getDBMarketShareZone(bid,competitor_bids,5,3, fileResult2)
+
         if (totQuantity != 23):
             raise FoundationException("error in getDBMarketShareZone")
 
@@ -1355,12 +1402,17 @@ def test_provider_database_classes():
         if (totQuantity2 != 22):
             raise FoundationException("error in getDBBidAncestorsMarketShare")
         
+        
+        logger.info('test_provider_database_classes step:2')
+        
         provider2._list_vars['Current_Period'] = 11        
         
         bid6.insertParentBid(bid5)
 
         delay = 0.14
         price = 20 
+                
+        logger.info('test_provider_database_classes step: after acquire lock')
         
         # include in related bids in order to test the function getRelatedBids ( bid7 - bid 14)
         bid7 = createBid( provider2.getProviderId(), serviceId, delay, price)
@@ -1409,7 +1461,8 @@ def test_provider_database_classes():
         related_bids = provider2.getRelatedBids(bid, currentPeriod, 0, radius, fileResult2)          
         if len(related_bids) != 0:
             raise FoundationException("error in getRelatedBids")
-
+        
+        
         related_bids ={}
         related_bids = provider2.getRelatedBids(bid, currentPeriod, 1, radius, fileResult2)          
         if len(related_bids) != 2:
@@ -1452,6 +1505,8 @@ def test_provider_database_classes():
         if (forecast2 < 5) or (forecast2 > 6):
             raise FoundationException("error in calculateMovedBidForecast PROFIT_ORIENTED")
 
+
+        logger.info('test_provider_database_classes step:3')
                         
         # ---------------------------------------------
         # verifies the method evaluateDirectionalDerivate
@@ -1479,7 +1534,13 @@ def test_provider_database_classes():
         # verifies the method replacedominatedBids 
         # --------------------------------------------
         test_replace_dominated_bids(cursor, executionCount, provider2, fileResult2)
+        
+        logger.info('test_provider_database_classes step:4')
+        
+        provider1.stop_agent()
+        provider2.stop_agent()
 
+        logger.info('Ending test_provider_database_classes')
 
     except FoundationException as e:
         print e.__str__()
@@ -1591,13 +1652,15 @@ def test_provider_edge_convert_to_own_bid(ispProvider, transitProvider,  bid4, b
     bid4_1 = ispProvider.convertToOwnBid(serviceIsp, serviceBackhaul, bid4, adaptationFactor, fileResult)
     bid4_2 = ispProvider.convertToOwnBid(serviceIsp, serviceBackhaul, bid5, adaptationFactor, fileResult)
                 
-    qualityValue = round(bid4_1.getDecisionVariable('2'),4)
-    if ( qualityValue != 0.1544):
-        raise FoundationException("Error in method convertToOwnBid of ProviderEdgeMonopoly")
+    qualityValue = round(bid4_1.getDecisionVariable('2'),3)
+    if ( qualityValue != 0.154):
+        logger.error('qualityValue: %s', str(qualityValue))
+        raise FoundationException("Error in method convertToOwnBid of ProviderEdgeMonopoly 1")
 
-    qualityValue = round(bid4_2.getDecisionVariable('2'),4)    
-    if ( qualityValue != 0.1567):
-        raise FoundationException("Error in method convertToOwnBid of ProviderEdgeMonopoly")
+    qualityValue = round(bid4_2.getDecisionVariable('2'),3)    
+    if ( qualityValue != 0.156):
+        logger.error('qualityValue: %s', str(qualityValue))
+        raise FoundationException("Error in method convertToOwnBid of ProviderEdgeMonopoly 2")
 
     
 def test_isNeighborhood_bid_to_staged(provider, fileResult):
@@ -1693,12 +1756,14 @@ def test_exec_front_bids(ispProvider, transitProvider, currentPeriod, bid, fileR
     newBid = ispProvider.convertToOwnBid( serviceIsp, serviceBackhaul,  provBid4Test, adaptationFactor, fileResult)
     
     # Verifies the own bid is within the correct quality and price.
-    qualityValue = round(newBid.getDecisionVariable('2'),4)
-    if ( qualityValue != 0.158):
+    qualityValue = round(newBid.getDecisionVariable('2'),3)
+    if ( qualityValue != 0.156):
+        logger.error('qualityValue: %s', str(qualityValue))
         raise FoundationException("Error in method test_exec_front_bids of ProviderEdgeMonopoly - Error 1")
 
     priceValue = round(newBid.getDecisionVariable('1'),2)    
-    if ( priceValue != 17.6):
+    if ( priceValue != 17.71):
+        logger.error('priceValue: %s', str(priceValue))
         raise FoundationException("Error in method test_exec_front_bids of ProviderEdgeMonopoly - Error 2")
 
     staged_bids_resp = {}
@@ -1748,12 +1813,14 @@ def test_exec_front_bids(ispProvider, transitProvider, currentPeriod, bid, fileR
     directionPrice = ispProvider.movePrice(serviceIsp, adaptationFactor, marketPosition, direction, fileResult)
     newBidOwn3 = ispProvider.moveBidOnDirectionEdge(newBid, serviceIsp, directionPrice)
 
-    qualityValueTmp = round(newBidOwn3.getDecisionVariable('2'),4)
+    qualityValueTmp = round(newBidOwn3.getDecisionVariable('2'),3)
     if ( qualityValue != qualityValueTmp ):
+        logger.error('qualityValueTmp: %s qualityValue:%s', str(qualityValueTmp), str(qualityValue) )
         raise FoundationException("Error in method test_exec_front_bids of ProviderEdgeMonopoly - Error 7")
 
-    priceValueTmp = round(newBidOwn3.getDecisionVariable('1'),4)
+    priceValueTmp = round(newBidOwn3.getDecisionVariable('1'),3)
     if ( priceValueTmp < priceValue ):
+        logger.error('priceValueTmp: %s priceValue:%s', str(priceValueTmp), str(priceValue) )
         raise FoundationException("Error in method test_exec_front_bids of ProviderEdgeMonopoly - Error 8")
 
     if (newBidOwn3 != None):
@@ -2104,13 +2171,16 @@ def test_provider_edge_monopoly_classes():
     '''
     The ProviderExecution starts the threads for the service provider agents.
     '''    
-
+    
+    logger.info('Starting test_provider_edge_monopoly_classes')
+    
     list_classes = {}
     # Load Provider classes
     load_classes(list_classes)
     
     # Open database connection
-    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+                            foundation.agent_properties.user_password,foundation.agent_properties.database_name)
     
     db.autocommit(1)    
     
@@ -2205,7 +2275,7 @@ def test_provider_edge_monopoly_classes():
         provider4 = providers[3]  # backhaul provider - Bid capacity. 
 
         # Verifies provider 1.
-        if (provider1._list_vars['Type'] != Agent.PROVIDER_ISP):
+        if ((provider1._list_vars['Type']).getType() != AgentType.PROVIDER_ISP):
             raise FoundationException("error in configure provider 1 - Error 1 ")
             
         if (provider1._list_vars['SellingAddres'] != foundation.agent_properties.addr_mktplace_isp):
@@ -2224,7 +2294,7 @@ def test_provider_edge_monopoly_classes():
             raise FoundationException("error in configure provider 1 - Error 6 ")
 
         # Verifies provider 2.
-        if (provider2._list_vars['Type'] != Agent.PROVIDER_BACKHAUL):
+        if ((provider2._list_vars['Type']).getType() != AgentType.PROVIDER_BACKHAUL):
             raise FoundationException("error in configure provider 2 - Error 1 ")
             
         if (provider2._list_vars['SellingAddres'] != foundation.agent_properties.addr_mktplace_backhaul):
@@ -2240,7 +2310,7 @@ def test_provider_edge_monopoly_classes():
             raise FoundationException("error in configure provider 2 - Error 5 ")
                     
         # Verifies provider 3.
-        if (provider3._list_vars['Type'] != Agent.PROVIDER_ISP):
+        if ((provider3._list_vars['Type']).getType() != AgentType.PROVIDER_ISP):
             raise FoundationException("error in configure provider 3 - Error 1 ")
             
         if (provider3._list_vars['SellingAddres'] != foundation.agent_properties.addr_mktplace_isp):
@@ -2259,7 +2329,7 @@ def test_provider_edge_monopoly_classes():
             raise FoundationException("error in configure provider 3 - Error 6 ")
 
         # Verifies provider 4.
-        if (provider4._list_vars['Type'] != Agent.PROVIDER_BACKHAUL):
+        if ((provider4._list_vars['Type']).getType() != AgentType.PROVIDER_BACKHAUL):
             raise FoundationException("error in configure provider 4 - Error 1 ")
             
         if (provider4._list_vars['SellingAddres'] != foundation.agent_properties.addr_mktplace_backhaul):
@@ -2277,13 +2347,13 @@ def test_provider_edge_monopoly_classes():
         # Verifies parameters for providers, so we can start from a established point.
         
 
-        provider1.start_listening()
+        provider1.start_agent()
         provider1.initialize()
-        provider2.start_listening()
+        provider2.start_agent()
         provider2.initialize()
-        provider3.start_listening()
+        provider3.start_agent()
         provider3.initialize()
-        provider4.start_listening()
+        provider4.start_agent()
         provider4.initialize()
         if (provider3.getNumberServices() != 2):
             raise FoundationException("error in the initialize method of class ProviderEdgeMonopoly")
@@ -2306,6 +2376,7 @@ def test_provider_edge_monopoly_classes():
         bid = createBidBackhaul(provider2.getProviderId(), serviceId, quality, price)
         provider2.sendBid(bid, fileResult1)
         
+        logger.info('test_provider_edge_monopoly_classes Step:1')
                 
         # creates bids for tranit provider with bulk capacity.
         quality = 0
@@ -2326,6 +2397,8 @@ def test_provider_edge_monopoly_classes():
         bid5 = createBidWithCapacity(provider4.getProviderId(), serviceId, quality, price, 10)
         provider4.sendBid(bid5, fileResult3)
 
+        logger.info('test_provider_edge_monopoly_classes Step:2')
+
         # test auxiliary functions for moving bids.        
         test_provider_edge_move_quality(provider3, fileResult3)
         test_provider_edge_move_price(provider3, fileResult3)
@@ -2333,7 +2406,9 @@ def test_provider_edge_monopoly_classes():
         test_purchase_bids_based_on_providers_bids(provider3, bid4, bid5, fileResult3)
         test_isNeighborhood_bid_to_staged(provider3, fileResult3)
         test_include_exploring_bid(currentPeriod, provider3, bid4, fileResult3)
-                        
+        
+        logger.info('test_provider_edge_monopoly_classes Step:3')
+        
         deleteDBPreviousInformation(cursor)
         insertDBDemandInformation(cursor, provider3)
         currentPeriod = 13
@@ -2342,7 +2417,9 @@ def test_provider_edge_monopoly_classes():
         test_exec_front_bids(provider3, provider2, currentPeriod, bid, fileResult3)        
         test_ask_backhaul_bids(provider3)
         test_exec_bid_update(provider3, currentPeriod, fileResult3)
-                
+        
+        logger.info('test_provider_edge_monopoly_classes Step:4')
+        
         # Delete all previous bids.
         provider3._list_vars['Bids'].clear()
         
@@ -2354,16 +2431,24 @@ def test_provider_edge_monopoly_classes():
         test_calculate_forecast( provider3, fileResult3 )
         test_update_closest_bid_forecast( provider3, fileResult3 )
         
+        logger.info('Ending test_provider_edge_monopoly_classes')
+        
         pass
 
     except FoundationException as e:
-        print e.__str__()
+        logger.error( e.__str__())
     except ProviderException as e:
-        print e.__str__()
+        logger.error( e.__str__())
     except Exception as e:
-        print e.__str__()
+        logger.error( e.__str__())
     finally:
         	# disconnect from server
+
+        provider1.stop_agent()
+        provider2.stop_agent()
+        provider3.stop_agent()
+        provider4.stop_agent()
+
         fileResult1.close()
         fileResult2.close()
         fileResult3.close()
@@ -2443,13 +2528,16 @@ def test_provider_edge_monopoly_current_bids():
     '''
     The ProviderExecution starts the threads for the service provider agents.
     '''    
-
+    
+    logger.info('Starting test_provider_edge_monopoly_current_bids')
+    
     list_classes = {}
     # Load Provider classes
     load_classes(list_classes)
     
     # Open database connection
-    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name )
     
     db.autocommit(1)    
     
@@ -2542,9 +2630,9 @@ def test_provider_edge_monopoly_current_bids():
         provider1 = providers[0]  # backhaul provider - Bulk capacity.
         provider2 = providers[1]  # isp monopoly provider 
 
-        provider1.start_listening()
+        provider1.start_agent()
         provider1.initialize()
-        provider2.start_listening()
+        provider2.start_agent()
         provider2.initialize()
 
         fileResult1 = open(provider1.getProviderId() + '.log',"a")
@@ -2824,7 +2912,8 @@ def test_provider_edge_monopoly_current_bids():
         if len(staged_bids) != 4:
             raise FoundationException("error in the method moveBid - 4") 
         
-        provider2._list_vars['Type'] = Agent.PROVIDER_BACKHAUL
+        prev_type = provider2._list_vars['Type']
+        provider2._list_vars['Type'] = AgentType(AgentType.PROVIDER_BACKHAUL)
         
         staged_bids = {}        
         marketShare = 3  
@@ -2840,6 +2929,8 @@ def test_provider_edge_monopoly_current_bids():
         if len(staged_bids) != 4:
             raise FoundationException("error in the method moveBid - 6") 
         
+        provider2._list_vars['Type'] = prev_type
+        logger.info('Ending test_provider_edge_monopoly_current_bids')
         
     except FoundationException as e:
         print e.__str__()
@@ -2850,8 +2941,10 @@ def test_provider_edge_monopoly_current_bids():
     except Exception as e:
         print e.__str__()
     finally:
-        	# disconnect from server
-        	db.close()
+        # disconnect from server
+        db.close()
+        provider1.stop_agent()
+        provider2.stop_agent()
 
 
 
@@ -2860,8 +2953,11 @@ def test_integrated_classes():
     # Load Provider classes
     load_classes(list_classes)
     
+    logger.info('Starting test_integrated_classes')
+    
     # Open database connection
-    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name )
     
     db.autocommit(1)    
     
@@ -2945,16 +3041,23 @@ def test_integrated_classes():
             providers.append(provider)
             i = i + 1
 
-        w = providers[1]
-        w.start()
-
-        provider1 = providers[0]        
-        provider1.start_listening()
-        provider1.initialize()
-        time.sleep(1)        
-        provider._list_vars['State'] == AgentServerHandler.BID_PERMITED
-        provider1.exec_algorithm()
-	
+        logger.info('Number of providers open: %d', len(providers) )
+        
+        k = 0
+        while (k < i - 1):
+            logger.info('Starting provider %d', k)
+            w = providers[k]
+            w.start_agent()
+            logger.info('After starting provider %d', k)
+            w.initialize()
+            w._list_vars['State'] == AgentServerHandler.BID_PERMITED
+            w.exec_algorithm()
+            w.stop_agent()
+            logger.info('Stopped provider %d', k)
+            k = k + 1
+                        
+        logger.info('Ending test_integrated_classes')
+        
     except FoundationException as e:
         print e.__str__()
     except ProviderException as e:
@@ -2971,7 +3074,7 @@ if __name__ == '__main__':
     #test_cost_functions()
     #test_marketplace_capacity_management()
     #test_provider_general_methods()
-    test_provider_database_classes()
+    #test_provider_database_classes()
     #test_provider_edge_monopoly_classes()
-    #test_provider_edge_monopoly_current_bids()
+    test_provider_edge_monopoly_current_bids()
     
