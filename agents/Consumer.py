@@ -2,11 +2,13 @@ from __future__ import division
 from foundation.Message import Message
 from foundation.Bid import Bid
 from foundation.Agent import Agent
-from foundation.Agent import AgentServerHandler
 from foundation.Service import Service
 from foundation.DecisionVariable import DecisionVariable
 from ProviderAgentException import ProviderException
 from foundation.FoundationException import FoundationException
+from foundation.AgentServer import AgentServerHandler
+from foundation.AgentType import AgentType
+
 import foundation.agent_properties
 import uuid
 import logging
@@ -15,22 +17,19 @@ import time
 import xml.dom.minidom
 from math import fabs
 import os
+import threading
 
 
 LOG_FILENAME = 'customer.log'
 # Check if log exists and should therefore be rolled
 needRoll = os.path.isfile(LOG_FILENAME)
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='(%(threadName)-10s) %(message)s',
-                    )
-
 logger = logging.getLogger('consumer_application')
 
 logger.setLevel(logging.DEBUG)
 fh = logging.handlers.RotatingFileHandler(LOG_FILENAME, backupCount=5)
 fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(threadName)-10s) - (asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 
@@ -48,11 +47,16 @@ class Consumer(Agent):
     agent, get the disutility function, and execute the buying
     algorithm. 
     '''
+
     
     def __init__(self, strID, Id, serviceId, customer_seed):
         try:
-        	    super(Consumer, self).__init__(strID, Id, 'consumer', serviceId, customer_seed,' ',' ', ' ', ' ')
-        	    logger.debug('Agent: %s - Consumer Created', self._list_vars['strId'])
+            
+            self.lock = threading.RLock()
+            agent_type = AgentType(AgentType.CONSUMER_TYPE)                                           
+            super(Consumer, self).__init__(strID, Id, agent_type, serviceId, customer_seed,' ',' ', ' ', ' ', self.lock)
+            
+            logger.debug('Agent: %s - Consumer Created', self._list_vars['strId'])
         except FoundationException as e:
             raise ProviderException(e.__str__())
 
@@ -65,8 +69,7 @@ class Consumer(Agent):
         uuidId = uuid.uuid1()	# make a UUID based on the host ID and current time
         idStr = str(uuidId)
         messagePurchase.setParameter('Id', idStr)
-        messagePurchase.setParameter('Service', self._service.getId())        
-        
+        messagePurchase.setParameter('Service', self._service.getId())
         return messagePurchase
      	
     ''' 
@@ -87,10 +90,9 @@ class Consumer(Agent):
         message.setParameter('Bid', bid.getId())        
         message.setParameter('Quantity', str(quantity))
         for decisionVariable in (self._service)._decision_variables:
-        	    value = ((self._service)._decision_variables[decisionVariable]).getSample(DecisionVariable.PDST_VALUE)
-        	    message.setParameter(decisionVariable, str(value))
-
-        messageResult = self._channelMarketPlace.sendMessage(message)
+            value = ((self._service)._decision_variables[decisionVariable]).getSample(DecisionVariable.PDST_VALUE)
+            message.setParameter(decisionVariable, str(value))
+        messageResult = self.sendMessageMarket(message)
 
         # Check if message was succesfully received by the marketplace
         if messageResult.isMessageStatusOk():
@@ -164,22 +166,22 @@ class Consumer(Agent):
             bidId = ' '
             evaluatedBids = {}
             numBids = 0 
-            
+
             # Get bids available for purchasing.
             for front in keys_sorted:
                 bidList = dic_return[front]
                 # logger.debug('Agent: %s - Period: %s - Front: %s - Nbr Bids: %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), str(front), str(len(bidList)))
-                
+
                 for bid in bidList:
                     disutility = self.getDisutility(bid)
                     if disutility < Threshold:
-                        numBids  = numBids + 1
-                        if disutility in evaluatedBids:
-                            evaluatedBids[disutility].append(bid)
-                        else:
-                            evaluatedBids[disutility] = [bid]
+                         numBids  = numBids + 1
+                         if disutility in evaluatedBids:
+                             evaluatedBids[disutility].append(bid)
+                         else:
+                             evaluatedBids[disutility] = [bid]
             disutilities_sorted = sorted(evaluatedBids)
-            
+
             # Purchase quantities requested.
             for disutility in disutilities_sorted:
                 # logger.debug('Agent: %s - Period: %s - Front: %s  disutility: %s Nbr Bids: %s Threshold %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), str(front), str(disutility), str(len(evaluatedBids[disutility]) ), str(Threshold) )
@@ -192,32 +194,31 @@ class Consumer(Agent):
                     # Register the bid as purchased.                    
                     if qtyPurchased > 0:
                         bidId = bidId + ',' + bid.getId()
-                    
+
                     # update quantities.
                     if (qtyPurchased >= quantity):
                         quantity = 0
                         break
                     else:
                         quantity = quantity - qtyPurchased
-                            
-                                
+
+
                     lenght = len(evaluatedBids[disutility])
                 if (quantity == 0):
                     break
-                            
+
             qtyPurchased = parameters['quantity'] - quantity
             logger.debug('Agent: %s - :Period: %s - :AvailBids: %s :initial qty:%s :qty_purchased:%s :Purchase the bid: %s', self._list_vars['strId'], str(self._list_vars['Current_Period']), str(numBids), str(parameters['quantity']), str(qtyPurchased), bidId )
         else:
             logger.debug(' Agent: %s - Period: %s - could not puchase', self._list_vars['strId'], str(self._list_vars['Current_Period']))
-        
-        # logger.debug('Agent: %s - Period: %s - Ending exec_algorithm',self._list_vars['strId'], str(self._list_vars['Current_Period']))
-		
+
+            # logger.debug('Agent: %s - Period: %s - Ending exec_algorithm',self._list_vars['strId'], str(self._list_vars['Current_Period']))
 	'''
 	The run method activates the avaiable consumer agents.
 	'''
     def run(self):
         proc_name = self.name
-        self.start_listening()
+        self.start_agent()
         while (True):
             if (self._list_vars['State'] == AgentServerHandler.TERMINATE):
                 break
@@ -233,11 +234,8 @@ class Consumer(Agent):
                     time.sleep(0.1)
         # logger.debug('Agent: %s - Shuting down', self._list_vars['strId'])
         # Close the sockets
-        self._server.stop()
-        self._channelMarketPlace.close()
-        self._channelClockServer.close()
-        return		
+        self.stop_agent()
+        return
 		
-	
-	
+
 # End of Provider class
