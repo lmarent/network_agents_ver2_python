@@ -23,7 +23,8 @@ class Bid(object):
         self._unitaryProfit = 0
         self._parent = None # Bids that origin this bid.
         self._creation_period = 0
-        self._providerBid = None # bid that generates this bid.        
+        self._providerBid = None # bid that generates this bid.
+        self._numAncestors = 0 # This indicates how many ancestors a bid have.
         
         # These are the specific requirements with respect to quality 
         # that providers should cover with own resources, 
@@ -305,3 +306,21 @@ class Bid(object):
                 raise FoundationException("The Decision variable is not part of the offer")
 
         	
+    ''' 
+    This method gets the number of predecessor that a bid has
+    '''
+    def getNumberPredecessor(self):
+        return self._numAncestors
+    
+    '''
+    This method increment by one the number of predecessor
+    '''
+    def incrementPredecessor(self):
+        self._numAncestors = self._numAncestors + 1
+    
+    '''
+    This method establishes the number of predecessor
+    '''
+    def setNumberPredecessor(self, numPredecessor):
+        self._numAncestors = numPredecessor
+    

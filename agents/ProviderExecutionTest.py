@@ -2467,6 +2467,7 @@ def test_sort_by_last_market_share(cursor, ispProvider, executionCount, fileResu
     bid4_12 = createBid(ispProvider.getProviderId(), serviceIdISP, delay, price)
     bid4_12.setUnitaryProfit(0.2)
     bid4_12.setCreationPeriod(10)
+    bid4_12.setNumberPredecessor(1)
     insertDBBid(cursor, 10, executionCount, bid4_12)
     insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_12, demand+4)        
     insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_12, demand+2)        
@@ -2479,6 +2480,7 @@ def test_sort_by_last_market_share(cursor, ispProvider, executionCount, fileResu
     bid4_13 = createBid(ispProvider.getProviderId(), serviceIdISP, delay, price)
     bid4_13.setUnitaryProfit(0.2)
     bid4_13.setCreationPeriod(10)
+    bid4_13.setNumberPredecessor(1)
     insertDBBid(cursor, 10, executionCount, bid4_13)
     insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_13, demand+4)        
     insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_13, demand+2)        
@@ -2491,6 +2493,7 @@ def test_sort_by_last_market_share(cursor, ispProvider, executionCount, fileResu
     bid4_14 = createBid(ispProvider.getProviderId(), serviceIdISP, delay, price)
     bid4_14.setUnitaryProfit(0.2)
     bid4_14.setCreationPeriod(10)
+    bid4_14.setNumberPredecessor(1)
     insertDBBid(cursor, 10, executionCount, bid4_14)
     insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_14, demand+4)        
     insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_14, demand+2)        
@@ -2503,6 +2506,7 @@ def test_sort_by_last_market_share(cursor, ispProvider, executionCount, fileResu
     bid4_15 = createBid(ispProvider.getProviderId(), serviceIdISP, delay, price)
     bid4_15.setUnitaryProfit(0.2)
     bid4_15.setCreationPeriod(10)
+    bid4_15.setNumberPredecessor(1)
     insertDBBid(cursor, 10, executionCount, bid4_15)
     insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_15, demand+4)        
     insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_15, demand+2)        
@@ -2662,6 +2666,7 @@ def test_provider_edge_monopoly_current_bids():
         bid4_16 = createBid(provider2.getProviderId(), serviceIdISP, delay, price)
         bid4_16.setUnitaryProfit(0.2)
         bid4_16.setCreationPeriod(10)
+        bid4_16.setNumberPredecessor(1)
         insertDBBid(cursor, 10, executionCount, bid4_16)
         insertDBBidPurchase(cursor, 10, serviceIdISP, executionCount, bid4_16, 0)        
 
@@ -2669,6 +2674,7 @@ def test_provider_edge_monopoly_current_bids():
         bid4_17.setUnitaryProfit(0.2)
         bid4_17.setCreationPeriod(11)
         bid4_17.insertParentBid(bid4_16)
+        bid4_17.setNumberPredecessor(2)
         insertDBBid(cursor, 11, executionCount, bid4_17)
         insertDBBidPurchase(cursor, 11, serviceIdISP, executionCount, bid4_17, 30)        
 
@@ -2676,6 +2682,7 @@ def test_provider_edge_monopoly_current_bids():
         bid4_18.setUnitaryProfit(0.2)
         bid4_18.setCreationPeriod(12)
         bid4_18.insertParentBid(bid4_17)
+        bid4_18.setNumberPredecessor(3)
         insertDBBid(cursor, 12, executionCount, bid4_18)
         insertDBBidPurchase(cursor, 12, serviceIdISP, executionCount, bid4_18, 20)        
         
@@ -2683,6 +2690,7 @@ def test_provider_edge_monopoly_current_bids():
         bid4_19.setUnitaryProfit(0.2)
         bid4_19.setCreationPeriod(13)
         bid4_19.insertParentBid(bid4_18)
+        bid4_19.setNumberPredecessor(4)
         insertDBBid(cursor, 13, executionCount, bid4_19)
         insertDBBidPurchase(cursor, 13, serviceIdISP, executionCount, bid4_19, 10)        
         
@@ -2694,6 +2702,9 @@ def test_provider_edge_monopoly_current_bids():
             
         if len(result_progression) != 4:
             raise FoundationException("Error in calculating method continueDirectionImprovingProfits of Provider")
+
+        logger.info('End test sortByLastMarketShare')
+
 
         #----------------------------------------        
         # test the method improveBidForProfits 
@@ -2778,6 +2789,8 @@ def test_provider_edge_monopoly_current_bids():
         if (((output2['2'])['Step'] >= 0) or ((output2['2'])['Step'] <= maxValueQualRange*-1) ):
             raise FoundationException("error in the method of improveBidForProfits")
 
+        logger.info('End test improveBidForProfits')
+
         # -----------------------------
         # Test the function generate direction between two bids.
         # -----------------------------
@@ -2855,6 +2868,7 @@ def test_provider_edge_monopoly_current_bids():
         if (((output2['3'])['Step'] >= 0)  ): # it is expected a negative step
             raise FoundationException("error in the method of improveBidForProfits")        
 
+        logger.info('End test generateDirectionBetweenTwoBids')
         
         #---------------------------------------
         # Test Move Bid method
@@ -2868,8 +2882,11 @@ def test_provider_edge_monopoly_current_bids():
         price3 = 17
         delay3 = 0.15       
         bid4_20 = createBid(provider2.getProviderId(), serviceIdISP, delay1, price1)
+        bid4_20.setNumberPredecessor(1)
         bid4_21 = createBid(provider2.getProviderId(), serviceIdISP, delay2, price2)
+        bid4_21.setNumberPredecessor(1)
         bid4_22 = createBid(provider2.getProviderId(), serviceIdISP, delay3, price3)
+        bid4_22.setNumberPredecessor(1)
 
         output1 = provider2.generateDirectionBetweenTwoBids( bid4_20, bid4_21, fileResult2)
         output2 = provider2.generateDirectionBetweenTwoBids( bid4_20, bid4_22, fileResult2)
@@ -2928,6 +2945,8 @@ def test_provider_edge_monopoly_current_bids():
 
         if len(staged_bids) != 4:
             raise FoundationException("error in the method moveBid - 6") 
+        
+        logger.info('End test MoveBid')
         
         provider2._list_vars['Type'] = prev_type
         logger.info('Ending test_provider_edge_monopoly_current_bids')
@@ -3068,9 +3087,691 @@ def test_integrated_classes():
         	# disconnect from server
         	db.close()
 
+def test_provider_exploration_functions():
+    logger.info('Starting test_provider_exploration_functions')
+
+    list_classes = {}
+    # Load Provider classes
+    load_classes(list_classes)
+    
+    # Open database connection
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name )
+    
+    db.autocommit(1)    
+    
+    # prepare a cursor object using cursor() method
+    cursor = db.cursor()
+
+    # Brings the general parameters from the database
+    bidPeriods, numberOffers, numAccumPeriods = getGeneralConfigurationParameters(cursor)
+    
+    # Verifies if they were configured, otherwise brings them from the agent properties.
+    if (numberOffers == 0):
+        numberOffers = foundation.agent_properties.initial_number_bids
+    
+    if (numAccumPeriods == 0):
+        numAccumPeriods = foundation.agent_properties.num_periods_market_share
+
+    # Prepare SQL query to SELECT providers from the database.
+    sql = "SELECT id, name, market_position, adaptation_factor \
+                  , monopolist_position, service_id, num_ancestors, debug \
+          , seed, year, month, day, hour, minute, second \
+          , microsecond, class_name, start_from_period, buying_marketplace_address \
+          , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
+         FROM simulation_provider \
+        WHERE id = 1"
+
+    try:
+        providers = []
+        # Execute the SQL command
+        cursor.execute(sql)
+        # Fetch all the rows in a list of lists.
+        results = cursor.fetchall()
+
+        serviceId = '1'            
+        adaptationFactor = 0
+        monopolistPosition = 0
+        marketPosition = 0
+
+        i = 1
+        for row in results:
+            providerId = row[0]
+            providerName = row[1]
+            marketPosition = row[2] 
+            adaptationFactor = row[3] 
+            monopolistPosition = row[4] 
+            serviceId = str(row[5])
+            numAncestors = row[6]
+            if (row[7] == 1):
+                debug = True
+            else:
+                debug = False
+            seed = row[8]
+            year = row[9]
+            month = row[10]
+            day = row[11]
+            hour = row[12]
+            minute = row[13]
+            second = row[14]
+            microsecond = row[15]
+            class_name = row[16]
+            startFromPeriod = row[17]
+            buyingAddress = row[18]
+            sellingAddress = row[19]            
+            capacityControl = 'G' # Bulk Capacity.
+            providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            purchase_service = row[21]
+            # Brings resources definition
+            cursor2 = db.cursor()
+            sql_resources = "SELECT resource_id, capacity, cost \
+                           FROM simulation_provider_resource \
+                          WHERE provider_id = '%d'" % (providerId)
+            cursor2.execute(sql_resources)
+            resourceRows = cursor2.fetchall()
+            resources = {}
+            for resourceRow in resourceRows:
+                resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
+            
+            capacityControl = 'G' # Bulk Capacity.
+            class_name = 'Provider'
+            sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
+            buyingAddress = ' '
+            providerId = 1
+            providerName = 'Provider' + str(providerId)
+            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
+                          providerSeed, marketPosition, adaptationFactor, 
+                          monopolistPosition, debug, resources, numberOffers, 
+                          numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, 
+                        buyingAddress, capacityControl, purchase_service)
+            providers.append(provider)
+            
+            i = i + 1
+            
+            class_name = 'Provider'
+            providerId = 2
+            providerName = 'Provider' + str(providerId)
+            serviceId = '2'
+            sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
+            buyingAddress = ' '
+            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
+                          providerSeed, marketPosition, adaptationFactor, 
+                          monopolistPosition, debug, resources, numberOffers, 
+                          numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, 
+                        buyingAddress, capacityControl, purchase_service)
+            providers.append(provider)
+
+            class_name = 'Provider'
+            serviceId = '3'
+            providerId = 3
+            providerName = 'Provider' + str(providerId)
+            
+            sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
+            buyingAddress = ' '
+            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
+                          providerSeed, marketPosition, adaptationFactor, 
+                          monopolistPosition, debug, resources, numberOffers, 
+                          numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, 
+                        buyingAddress, capacityControl, purchase_service)
+            providers.append(provider)
+
+            i = i + 1
+
+        # start the providers
+        provider1 = providers[0]  # backhaul provider - Bulk capacity.
+        provider2 = providers[1]
+        provider3 = providers[2]
+        
+        provider1.start_agent()
+        fileResult1 = open(provider1.getProviderId() + '.log',"a")
+
+        provider2.start_agent()
+        fileResult2 = open(provider2.getProviderId() + '.log',"a")
+
+        provider3.start_agent()
+        fileResult3 = open(provider3.getProviderId() + '.log',"a")
+
+        minBid = provider1.calculateBidMinimumQuality()
+        maxBid = provider1.calculateBidMaximumQuality()
+        
+        # Verifies the bid price of the lower bid.
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = minBid.getDecisionVariable(decisionVariable)
+                if price != 12:
+                    raise FoundationException("error in the method calculateBidMinimumQuality()")
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = minBid.getDecisionVariable(decisionVariable)
+                if quality != 0.2:
+                    raise FoundationException("error in the method calculateBidMinimumQuality()")
+        
+        # Verifies the bid price of the upper bid.
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = maxBid.getDecisionVariable(decisionVariable)
+                if price != 20:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() price != 20: - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = maxBid.getDecisionVariable(decisionVariable)
+                if quality != 0.14:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() quality!=0.14 - " + str(quality))
+
+        minBid = provider2.calculateBidMinimumQuality()
+        maxBid = provider2.calculateBidMaximumQuality()
+        
+        # Verifies the bid price of the lower bid.
+        for decisionVariable in (provider2._service)._decision_variables:
+            if ((provider2._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = minBid.getDecisionVariable(decisionVariable)
+                if price != 10:
+                    raise FoundationException("error in the method calculateBidMinimumQuality() price != 10 - " + str(price))
+                
+            if ((provider2._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = minBid.getDecisionVariable(decisionVariable)
+                if quality != 0:
+                    raise FoundationException("error in the method calculateBidMinimumQuality() quality != 0 - " + str(quality))
+
+        # Verifies the bid price of the upper bid.
+        for decisionVariable in (provider2._service)._decision_variables:
+            print 'here we are 10a'
+            if ((provider2._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = maxBid.getDecisionVariable(decisionVariable)
+                if price != 18:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() price != 18 - " + str(price))
+                
+            if ((provider2._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = maxBid.getDecisionVariable(decisionVariable)
+                if quality != 1:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() quality != 1 - " + str(quality))
+
+        minBid = provider3.calculateBidMinimumQuality()
+        maxBid = provider3.calculateBidMaximumQuality()
+
+        # Verifies the bid price of the lower bid.
+        for decisionVariable in (provider3._service)._decision_variables:
+            if ((provider3._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = minBid.getDecisionVariable(decisionVariable)
+                if price != 0:
+                    raise FoundationException("error in the method calculateBidMinimumQuality() price != 0 - " + str(price))
+                
+            if ((provider3._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = minBid.getDecisionVariable(decisionVariable)
+                if quality != 1:
+                    raise FoundationException("error in the method calculateBidMinimumQuality() quality != 1 - " + str(quality))
+        
+        # Verifies the bid price of the upper bid.
+        for decisionVariable in (provider3._service)._decision_variables:
+            if ((provider3._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = maxBid.getDecisionVariable(decisionVariable)
+                if price != 1:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() price != 1 - " + str(price))
+                
+            if ((provider3._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = maxBid.getDecisionVariable(decisionVariable)
+                if quality != 0:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() quality != 0 - " + str(quality))
+        
+
+        # test the creation of the lower actual quality bid given a set of bids.
+
+        # we create 5 bid, bid 3 is the lowest bid and bid 4 is the greatest bid.
+        # this bids are from service 1. 
+
+        bid1 = createBid(provider1.getProviderId(), provider1.getServiceId(), 0.147, 19.3)
+        bid2 = createBid(provider1.getProviderId(), provider1.getServiceId(), 0.15, 19)
+        bid3 = createBid(provider1.getProviderId(), provider1.getServiceId(), 0.18, 17)
+        bid4 = createBid(provider1.getProviderId(), provider1.getServiceId(), 0.145, 19.5)
+        bid5 = createBid(provider1.getProviderId(), provider1.getServiceId(), 0.16, 18)
+
+        provider1.lock.acquire()
+        (provider1._list_vars['Bids'])[bid1.getId()] = bid1
+        (provider1._list_vars['Bids'])[bid2.getId()] = bid2
+        (provider1._list_vars['Bids'])[bid3.getId()] = bid3
+        (provider1._list_vars['Bids'])[bid4.getId()] = bid4
+        (provider1._list_vars['Bids'])[bid5.getId()] = bid5
+        provider1.lock.release()
+
+        minBid = provider1.getBidMinimumQuality()
+        maxBid = provider1.getBidMaximumQuality()
+    
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = minBid.getDecisionVariable(decisionVariable)
+                if price != 17:
+                    raise FoundationException("error in the method calculateBidMinimumQuality() price != 17 - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = minBid.getDecisionVariable(decisionVariable)
+                if quality != 0.18:
+                    raise FoundationException("error in the method calculateBidMinimumQuality() price != 0.18 - " + str(quality))
+    
+        # test the creation of the greatest actual quality bid given a set of bids.
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = maxBid.getDecisionVariable(decisionVariable)
+                if price != 19.5:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() price!=19.5 - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = maxBid.getDecisionVariable(decisionVariable)
+                if quality != 0.145:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() quality!= 0.145 - " + str(quality))
+
+        minBid = provider1.calculateBidMinimumQuality()
+        maxBid = provider1.calculateBidMaximumQuality()
+        minCurBid = provider1.getBidMinimumQuality()
+        maxCurBid = provider1.getBidMaximumQuality()
+
+        minCurBid.incrementPredecessor()
+        maxCurBid.incrementPredecessor()
+
+        output = provider1.generateDirectionMiddleMinimum( minCurBid, minBid, fileResult1)
+        for decisionVariable in output:
+            direction = (output[decisionVariable])['Direction']
+            step = (output[decisionVariable])['Step']
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                stepTmp = (minBid.getDecisionVariable(decisionVariable) + minCurBid.getDecisionVariable(decisionVariable))/2
+                stepTmp = stepTmp - minCurBid.getDecisionVariable(decisionVariable)
+                if (step != stepTmp):
+                    raise FoundationException("error in the method generateDirectionMiddleMinimum()- price step:" + str(stepTmp) + "val_step:" + str(step))
+            else:
+                stepTmp = minBid.getDecisionVariable(decisionVariable) - minCurBid.getDecisionVariable(decisionVariable)
+                if (step != stepTmp):
+                    raise FoundationException("error in the method generateDirectionMiddleMinimum() - quality step:" + str(stepTmp) + "val_step:" + str(step))
+
+        output = provider1.generateDirectionMiddleMaximum( maxCurBid, maxBid, fileResult1)
+        for decisionVariable in output:
+            direction = (output[decisionVariable])['Direction']
+            step = (output[decisionVariable])['Step']
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                stepTmp = maxBid.getDecisionVariable(decisionVariable) -maxCurBid.getDecisionVariable(decisionVariable)
+                if (step != stepTmp):
+                    raise FoundationException("error in the method generateDirectionMiddleMaximum()- price step:" + str(stepTmp) + "val_step:" + str(step))
+            else:
+                stepTmp = (maxBid.getDecisionVariable(decisionVariable) + maxCurBid.getDecisionVariable(decisionVariable))/2
+                stepTmp = stepTmp - maxCurBid.getDecisionVariable(decisionVariable)
+                if (step != stepTmp):
+                    raise FoundationException("error in the method generateDirectionMiddleMaximum() - quality step:" + str(stepTmp) + "val_step:" + str(step))
+
+        minBid = provider2.calculateBidMinimumQuality()
+        maxBid = provider2.calculateBidMaximumQuality()
+        bid2_1 = createBidBackhaul(provider2.getProviderId(), provider2.getServiceId(), 0.5, 14)
+        output = provider2.generateDirectionMiddleMinimum( bid2_1, minBid, fileResult2)
+        for decisionVariable in output:
+            direction = (output[decisionVariable])['Direction']
+            step = (output[decisionVariable])['Step']
+            if ((provider2._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                stepTmp = (minBid.getDecisionVariable(decisionVariable) + bid2_1.getDecisionVariable(decisionVariable))/2
+                stepTmp = stepTmp - bid2_1.getDecisionVariable(decisionVariable)
+                if (step != stepTmp):
+                    raise FoundationException("error in the method generateDirectionMiddleMinimum()- price step:" + str(stepTmp) + "val_step:" + str(step))
+            else:
+                stepTmp = minBid.getDecisionVariable(decisionVariable) - bid2_1.getDecisionVariable(decisionVariable)
+                if (step != stepTmp):
+                    raise FoundationException("error in the method generateDirectionMiddleMinimum() - quality step:" + str(stepTmp) + "val_step:" + str(step))
+
+        output = provider2.generateDirectionMiddleMaximum( bid2_1, maxBid, fileResult2)
+        for decisionVariable in output:
+            direction = (output[decisionVariable])['Direction']
+            step = (output[decisionVariable])['Step']
+            if ((provider2._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                stepTmp = maxBid.getDecisionVariable(decisionVariable) -bid2_1.getDecisionVariable(decisionVariable)
+                if (step != stepTmp):
+                    raise FoundationException("error in the method generateDirectionMiddleMaximum()- price step:" + str(stepTmp) + "val_step:" + str(step))
+            else:
+                stepTmp = (maxBid.getDecisionVariable(decisionVariable) + bid2_1.getDecisionVariable(decisionVariable))/2
+                stepTmp = stepTmp - bid2_1.getDecisionVariable(decisionVariable)
+                if (step != stepTmp):
+                    raise FoundationException("error in the method generateDirectionMiddleMaximum() - quality step:" + str(stepTmp) + "val_step:" + str(step))
+
+        currentPeriod = 2
+        radius = 0.1
+        staged_bids = {}
+        minBid = provider1.calculateBidMinimumQuality()
+        maxBid = provider1.calculateBidMaximumQuality()
+
+        # test the creation of the new exploratory lowest quality with the alreay lowest quality bid.
+        newMinBid = provider1.calculateNewBidMinimumQuality(currentPeriod, radius, minBid, minBid, staged_bids, fileResult1)
+        if (newMinBid != None):
+            # No new bid should be generated as the current bid and the destin bid are equal
+            raise FoundationException("error in the method calculateNewBidMinimumQuality() - No new bid is possible" )
+        
+        if len(staged_bids) != 0:
+            raise FoundationException("error in the method calculateNewBidMinimumQuality() - No new bid is possible" )
+        
+        print 'MinCurBid:', minCurBid.__str__(), 'minBid:', minBid.__str__()
+        
+        # test the creation of the new exploratory lowest quality bid based on two bids.
+        newMinBid = provider1.calculateNewBidMinimumQuality(currentPeriod, radius, minCurBid, minBid, staged_bids, fileResult1)
+
+        if (newMinBid.getNumberPredecessor() != 1):
+            raise FoundationException("error in the method calculateNewBidMinimumQuality() - Wrong ancestor number !=1 -" + str(newMinBid.getNumberPredecessor()) )
+
+        # test the creation of the greatest actual quality bid given a set of bids.
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newMinBid.getDecisionVariable(decisionVariable)
+                if price != 14.5:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() price!=14.5 - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newMinBid.getDecisionVariable(decisionVariable)
+                if quality != 0.2:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() quality!= 0.2 - " + str(quality))
+
+
+        # test the creation of the new exploratory high quality with the alreay highest quality bid.
+        newMaxBid = provider1.calculateNewBidMaximumQuality(currentPeriod, radius, maxBid, maxBid, staged_bids, fileResult1)
+        if (newMaxBid != None):
+            # No new bid should be generated as the current bid and the destin bid are equal
+            raise FoundationException("error in the method calculateNewBidMaximumQuality() - No new bid is possible" )
+
+        if len(staged_bids) != 1:
+            raise FoundationException("error in the method calculateNewBidMaximumQuality() - No new bid is possible" )
+    
+        # test the creation of the new exploratory highest quality bid based on two bids.
+        newMaxBid = provider1.calculateNewBidMaximumQuality(currentPeriod, radius, maxCurBid, maxBid, staged_bids, fileResult1)
+        if (newMaxBid.getNumberPredecessor() != 1):
+            raise FoundationException("error in the method calculateNewBidMaximumQuality() - Wrong ancestor number !=1 -" + newMaxBid.getNumberPredecessor())
+
+        # test the creation of the greatest actual quality bid given a set of bids.
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newMaxBid.getDecisionVariable(decisionVariable)
+                if price != 20:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() price!=20 - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newMaxBid.getDecisionVariable(decisionVariable)
+                if round(quality,4) != 0.1425:
+                    raise FoundationException("error in the method calculateBidMaximumQuality() quality!= 0.1425 - " + str(quality))
+
+        if len(staged_bids) != 2:
+            raise FoundationException("error in the method calculateNewBidMaximumQuality() - bid not included in staged_bids" )
+
+        # Test the method with the delta update.
+        marketPosition = 0.5
+        initialNumberBids = 10
+        staged_bids = provider1.initializeBids(marketPosition, initialNumberBids, fileResult1)
+        for bidId in staged_bids:
+            bid = (staged_bids[bidId])['Object']
+            if bid.getNumberPredecessor() != 1:
+                raise FoundationException("error in the method initializeBids() - Incorrect num of predecessors" )
+
+        # Perfom the move of the bid towards the higest quality bid.
+        for bidId in staged_bids:
+            staged_bids2 = {}
+            bid = (staged_bids[bidId])['Object']
+            directions = []
+            output = provider1.generateDirectionBetweenTwoBids(bid, maxBid, fileResult1)
+            directions.append(output)
+            provider1.moveBid(currentPeriod, radius, bid, directions, 1, staged_bids2, Provider.MARKET_SHARE_ORIENTED, fileResult1)
+            assert len(staged_bids2) == 3, "Error in the number of bids created"
+            for bidId2 in staged_bids2:
+                bid2 = (staged_bids2[bidId2])['Object']
+                action = (staged_bids2[bidId2])['Action']
+                if (action != Bid.INACTIVE):
+                    if bid2.getNumberPredecessor() != (bid.getNumberPredecessor() + 1):
+                        raise FoundationException("error in the method moveBid() - Incorrect num of predecessors"  
+                                                + "NumResult:" + str(bid2.getNumberPredecessor()) 
+                                                    + "Numexpected:" + str(bid.getNumberPredecessor() + 1) )
+
+        # test the function moveBidOnDirection
+
+        bid6 = createBid(provider1.getProviderId(), provider1.getServiceId(), 0.18, 17)
+        # As the number of predecessors is 2 all steps are divided by 2.
+        bid6.setNumberPredecessor(2) 
+
+        # Test when the step is less than the maximum step.
+        output1 = {}
+        output1['1'] = {'Direction' : 1, 'Step': 0.5}
+        output1['2'] = {'Direction' : 1, 'Step': 0.02}
+        newBid1, bidPrice1, send1 = provider1.moveBidOnDirection(bid6, output1)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid1.getDecisionVariable(decisionVariable)
+                if round(price,2) != 17.25:
+                    raise FoundationException("error in the method moveBidOnDirection() -1- price!=17.25 - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid1.getDecisionVariable(decisionVariable)
+                if round(quality,2) != 0.19:
+                    raise FoundationException("error in the method moveBidOnDirection() -1- quality!= 0.19 - " + str(quality))
+
+        output2 = {}
+        output2['1'] = {'Direction' : -1, 'Step': -0.5}
+        output2['2'] = {'Direction' : 1, 'Step': 0.02}
+        newBid2, bidPrice2, send2 = provider1.moveBidOnDirection(bid6, output2)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid2.getDecisionVariable(decisionVariable)
+                if round(price,2) != 16.75:
+                    raise FoundationException("error in the method moveBidOnDirection() -2- price!=16.75 - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid2.getDecisionVariable(decisionVariable)
+                if round(quality,2) != 0.19:
+                    raise FoundationException("error in the method moveBidOnDirection() -2- quality!= 0.19 - " + str(quality))
+
+        output3 = {}
+        output3['1'] = {'Direction' : 1, 'Step': 0.5}
+        output3['2'] = {'Direction' : -1, 'Step': -0.02}
+        newBid3, bidPrice3, send3 = provider1.moveBidOnDirection(bid6, output3)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid3.getDecisionVariable(decisionVariable)
+                if round(price,2) != 17.25:
+                    raise FoundationException("error in the method moveBidOnDirection() -3- price!=17.25 - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid3.getDecisionVariable(decisionVariable)
+                if round(quality,2) != 0.17:
+                    raise FoundationException("error in the method moveBidOnDirection() -3- quality!= 0.17 - " + str(quality))
+
+        output4 = {}
+        output4['1'] = {'Direction' : -1, 'Step': -0.5}
+        output4['2'] = {'Direction' : -1, 'Step': -0.02}
+        newBid4, bidPrice4, send4 = provider1.moveBidOnDirection(bid6, output4)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid4.getDecisionVariable(decisionVariable)
+                if round(price,2) != 16.75:
+                    raise FoundationException("error in the method moveBidOnDirection() -4- price!=16.75 - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid4.getDecisionVariable(decisionVariable)
+                if round(quality,2) != 0.17:
+                    raise FoundationException("error in the method moveBidOnDirection() -4- quality!= 0.17 - " + str(quality))
+
+        output5 = {}
+        output5['1'] = {'Direction' : 1, 'Step': 0.5}
+        output5['2'] = {'Direction' : 0, 'Step': 0}
+        newBid5, bidPrice5, send5 = provider1.moveBidOnDirection(bid6, output5)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid5.getDecisionVariable(decisionVariable)
+                if round(price,2) != 17.25:
+                    raise FoundationException("error in the method moveBidOnDirection() -5- price!=17.25 - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid5.getDecisionVariable(decisionVariable)
+                if round(quality,2) != 0.18:
+                    raise FoundationException("error in the method moveBidOnDirection() -5- quality!= 0.18 - " + str(quality))
+
+        output6 = {}
+        output6['1'] = {'Direction' : 0, 'Step': 0}
+        output6['2'] = {'Direction' : 1, 'Step': 0.02}
+        newBid6, bidPrice6, send6 = provider1.moveBidOnDirection(bid6, output6)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid6.getDecisionVariable(decisionVariable)
+                if round(price,2) != 17:
+                    raise FoundationException("error in the method moveBidOnDirection() -6- price!=17 - " + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid6.getDecisionVariable(decisionVariable)
+                if round(quality,2) != 0.19:
+                    raise FoundationException("error in the method moveBidOnDirection() -6- quality!= 0.18 - " + str(quality))
+
+
+        # Test when the step is greater than the maximum step.
+        adapt_factor = 0.0001
+        provider1.lock.acquire()
+        provider1._used_variables['adaptationFactor'] = adapt_factor
+        provider1.lock.release()
+        max_step_price = 0
+        max_step_quality = 0
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                min_value = (provider1._service.getDecisionVariable(decisionVariable)).getMinValue()
+                max_value = (provider1._service.getDecisionVariable(decisionVariable)).getMaxValue()
+                max_step_price = (max_value - min_value)* adapt_factor
+                
+            else:
+                min_value = (provider1._service.getDecisionVariable(decisionVariable)).getMinValue()
+                max_value = (provider1._service.getDecisionVariable(decisionVariable)).getMaxValue()
+                max_step_quality = (max_value - min_value)* adapt_factor
+
+
+        output1 = {}
+        output1['1'] = {'Direction' : 1, 'Step': 0.5}
+        output1['2'] = {'Direction' : 1, 'Step': 0.02}
+        newBid1, bidPrice1, send1 = provider1.moveBidOnDirection(bid6, output1)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid1.getDecisionVariable(decisionVariable)
+                price_tmp = round((bid6.getDecisionVariable(decisionVariable) + max_step_price),4)
+                if round(price,4) != price_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -1- price!=" + str(price_tmp) + "-" + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid1.getDecisionVariable(decisionVariable)
+                quality_tmp = round((bid6.getDecisionVariable(decisionVariable) + max_step_quality),4)
+                if round(quality,4) != quality_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -1- quality!=" + str(quality_tmp) + "-" + str(quality))
+
+        output2 = {}
+        output2['1'] = {'Direction' : -1, 'Step': -0.5}
+        output2['2'] = {'Direction' : 1, 'Step': 0.02}
+        newBid2, bidPrice2, send2 = provider1.moveBidOnDirection(bid6, output2)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid2.getDecisionVariable(decisionVariable)
+                price_tmp = round((bid6.getDecisionVariable(decisionVariable) - max_step_price),4)
+                if round(price,4) != price_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -2- price!=" + str(price_tmp) + "-" + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid2.getDecisionVariable(decisionVariable)
+                quality_tmp = round((bid6.getDecisionVariable(decisionVariable) + max_step_quality),4)
+                if round(quality,4) != quality_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -2- quality!= " + str(quality_tmp) + "-" + str(quality))
+
+        output3 = {}
+        output3['1'] = {'Direction' : 1, 'Step': 0.5}
+        output3['2'] = {'Direction' : -1, 'Step': -0.02}
+        newBid3, bidPrice3, send3 = provider1.moveBidOnDirection(bid6, output3)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid3.getDecisionVariable(decisionVariable)
+                price_tmp = round((bid6.getDecisionVariable(decisionVariable) + max_step_price),4)
+                if round(price,4) != price_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -3- price!= " + str(price_tmp) + "-" + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid3.getDecisionVariable(decisionVariable)
+                quality_tmp = round((bid6.getDecisionVariable(decisionVariable) - max_step_quality),4)
+                if round(quality,4) != quality_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -3- quality!=" + str(quality_tmp) + "-" + str(quality))
+
+        output4 = {}
+        output4['1'] = {'Direction' : -1, 'Step': -0.5}
+        output4['2'] = {'Direction' : -1, 'Step': -0.02}
+        newBid4, bidPrice4, send4 = provider1.moveBidOnDirection(bid6, output4)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid4.getDecisionVariable(decisionVariable)
+                price_tmp = round((bid6.getDecisionVariable(decisionVariable) - max_step_price),4)
+                if round(price,4) != price_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -4- price!=" + str(price_tmp) + "-" + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid4.getDecisionVariable(decisionVariable)
+                quality_tmp = round((bid6.getDecisionVariable(decisionVariable) - max_step_quality),4)
+                if round(quality,4) != quality_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -4- quality!= 0.17" + str(quality_tmp) + "-" + str(quality))
+
+        output5 = {}
+        output5['1'] = {'Direction' : 1, 'Step': 0.5}
+        output5['2'] = {'Direction' : 0, 'Step': 0}
+        newBid5, bidPrice5, send5 = provider1.moveBidOnDirection(bid6, output5)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid5.getDecisionVariable(decisionVariable)
+                price_tmp = round((bid6.getDecisionVariable(decisionVariable) + max_step_price),4)
+                if round(price,4) != price_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -5- price!=" + str(price_tmp)+ "-" + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid5.getDecisionVariable(decisionVariable)
+                quality_tmp = bid6.getDecisionVariable(decisionVariable)
+                if round(quality,2) != quality_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -5- quality!= " + str(quality_tmp) + "-" + str(quality))
+
+        output6 = {}
+        output6['1'] = {'Direction' : 0, 'Step': 0}
+        output6['2'] = {'Direction' : 1, 'Step': 0.02}
+        newBid6, bidPrice6, send6 = provider1.moveBidOnDirection(bid6, output6)
+
+        for decisionVariable in (provider1._service)._decision_variables:
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                price = newBid6.getDecisionVariable(decisionVariable)
+                price_tmp = bid6.getDecisionVariable(decisionVariable)
+                if round(price,2) != price_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -6- price!=" + str(price_tmp) + "-" + str(price))
+                
+            if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                quality = newBid6.getDecisionVariable(decisionVariable)
+                quality_tmp = round((bid6.getDecisionVariable(decisionVariable) + max_step_quality),4)
+                if round(quality,4) != quality_tmp:
+                    raise FoundationException("error in the method moveBidOnDirection() -6- quality!=" + str(quality_tmp) + "-" + str(quality))
+
+        logger.info('Ending test_provider_exploration_functions')
+    
+    except FoundationException as e:
+        print e.__str__()
+    except ProviderException as e:
+        print e.__str__()
+    except Exception as e:
+        print e.__str__()
+    finally:
+        # disconnect from server
+        fileResult1.close()
+        fileResult2.close()
+        fileResult3.close()
+        provider1.stop_agent()
+        provider2.stop_agent()
+        provider3.stop_agent()
+        db.close()
+    
+
 
 if __name__ == '__main__':
     #test_integrated_classes()
+    #test_provider_exploration_functions()
     #test_cost_functions()
     #test_marketplace_capacity_management()
     #test_provider_general_methods()

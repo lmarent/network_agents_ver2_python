@@ -223,7 +223,6 @@ class Provider(Agent):
             monop_pos =  self._used_variables['monopolistPosition']
         finally:
             self.lock.release()
-        
         return monop_pos
 
     '''
@@ -236,7 +235,179 @@ class Provider(Agent):
             if (service._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
                 bidPrice =  bid.getDecisionVariable(decisionVariable)
         return bidPrice
+
+    def calculateBidMinimumQuality(self):  # TESTED: OK
+        '''
+        Get the bid with the minimal quality and minimum price
+        '''
+        logger.debug('Starting calculateBidMinimumQuality')
+        bid = Bid()
+        uuidId = uuid.uuid1()    # make a UUID based on the host ID and current time
+        idStr = str(uuidId)
+        bid.setValues(idStr,self._list_vars['strId'], (self._service).getId())
+
+        # Establish the bid price.
+        for decisionVariable in (self._service)._decision_variables:
+            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                min_val = (self._service)._decision_variables[decisionVariable].getMinValue()
+                bid.setDecisionVariable(decisionVariable, min_val)
         
+        # Establish the bid quality.
+        for decisionVariable in (self._service)._decision_variables:
+            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+                    optimum = 1 # Maximize
+                    val = (self._service)._decision_variables[decisionVariable].getMinValue()
+                else:
+                    optimum = 2 # Minimize
+                    val = (self._service)._decision_variables[decisionVariable].getMaxValue()
+                bid.setDecisionVariable(decisionVariable, val)
+        logger.debug('Ending calculateBidMinimumQuality')
+        return bid
+
+    def getQualityMetric(self, bid):  # TESTED: OK
+        ''' 
+        get the distance to the origin in terms of quality for the bid
+        '''
+        dist = 0
+        for decisionVariable in (self._service)._decision_variables:
+            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                max_value = (self._service)._decision_variables[decisionVariable].getMaxValue()
+                min_value = (self._service)._decision_variables[decisionVariable].getMinValue()
+                val_bid = bid.getDecisionVariable(decisionVariable)
+                if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+                    if (max_value - min_value != 0):
+                        perc = (val_bid - min_value) / (max_value - min_value)
+                    else:
+                        perc =  1
+                else:
+                    if (max_value - min_value != 0):
+                        perc = (max_value - val_bid) / (max_value - min_value)
+                    else:
+                        perc =  1
+                dist = dist + math.pow(perc,2)
+        return math.sqrt(dist)
+
+    def getBidMinimumQuality(self): # TESTED: OK
+        '''
+        Get the bid with the minimum quality among the actual bids.given in dict_bids
+        '''
+        minBid = None
+        self.lock.acquire()
+        try:
+            dist = 1 # distance is bounded between 0 and 1.
+            for bidId in self._list_vars['Bids']:
+                bid = (self._list_vars['Bids'])[bidId]
+                dist_tmp = self.getQualityMetric(bid)
+                if (dist_tmp <= dist):
+                    dist = dist_tmp
+                    minBid = bid
+        finally:
+            self.lock.release()
+        return minBid
+
+    def getBidMaximumQuality(self):  # TESTED: OK
+        '''
+        Get the bid with the maximum quality among the actual bids.given in dict_bids
+        '''
+        maxBid = None
+        self.lock.acquire()
+        try:
+            dist = 0 # distance is bounded between 0 and 1.
+            for bidId in self._list_vars['Bids']:
+                bid = (self._list_vars['Bids'])[bidId]
+                dist_tmp = self.getQualityMetric(bid)
+                if (dist_tmp >= dist):
+                    dist = dist_tmp
+                    maxBid = bid
+        finally:
+            self.lock.release()
+        return maxBid
+
+    def calculateBidMaximumQuality(self):  # TESTED: OK
+        ''' 
+        Get the bid with the maximum quality and maximum price
+        '''
+        logger.debug('Starting CalculateBidMaximumQuality')
+        bid = Bid()
+        uuidId = uuid.uuid1()    # make a UUID based on the host ID and current time
+        idStr = str(uuidId)
+        bid.setValues(idStr,self._list_vars['strId'], (self._service).getId())
+
+        # Establish the bid price.
+        for decisionVariable in (self._service)._decision_variables:
+            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                max_val = (self._service)._decision_variables[decisionVariable].getMaxValue()
+                bid.setDecisionVariable(decisionVariable, max_val)
+        
+        # Establish the bid quality.
+        for decisionVariable in (self._service)._decision_variables:
+            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
+                if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+                    optimum = 1 # Maximize
+                    val = (self._service)._decision_variables[decisionVariable].getMaxValue()
+                else:
+                    optimum = 2 # Minimize
+                    val = (self._service)._decision_variables[decisionVariable].getMinValue()
+            
+                bid.setDecisionVariable(decisionVariable, val)
+        logger.debug('Ending CalculateBidMaximumQuality')
+        return bid
+
+    def calculateNewBidMaximumQuality(self, currentPeriod, radius, currBid, PotentialMaxBid, staged_bids, fileResult):
+        '''
+        This procedure creates a new exploratory bid towards the maximum quality
+        '''
+        self.registerLog(fileResult, 'Starting calculateNewBidMaximumQuality')
+        orientation = Provider.MARKET_SHARE_ORIENTED
+        newBid = None
+        if currBid.isEqual(PotentialMaxBid):
+            newBid = None
+        else:
+            output = self.generateDirectionMiddleMaximum( currBid, PotentialMaxBid, fileResult)
+            newBid, bidPrice, send = self.moveBidOnDirectionUnconstrained(currBid, output)
+            if (send == True):
+                self.registerLog(fileResult,'Period:' + str(currentPeriod) + ' Bid moved:' + currBid.getId() + ' Bid created:' + newBid.getId() + ' Bid Price:' + str(bidPrice))
+                unitaryBidCost = self.completeNewBidInformation(newBid, bidPrice, fileResult)
+                if bidPrice >= unitaryBidCost:
+                    marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, currBid, newBid, orientation, fileResult)
+                    staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
+                    self.registerLog(fileResult, 'New bid created - ready to be send:' +  newBid.getId() + 'Forecast:' + str(forecast))
+                else:
+                    newBid = None
+            else:
+                newBid = None
+        self.registerLog(fileResult, 'Ending calculateNewBidMaximumQuality')
+        return newBid
+
+    def calculateNewBidMinimumQuality(self, currentPeriod, radius, currBid, PotentialMinBid, staged_bids, fileResult):
+        '''
+        This procedure creates a new exploratory bid towards the minimum quality
+        '''
+        self.registerLog(fileResult, 'Starting calculateNewBidMinimumQuality')
+        orientation = Provider.MARKET_SHARE_ORIENTED
+        newBid = None
+        if currBid.isEqual(PotentialMinBid):
+            newBid = None
+        else:
+            output = self.generateDirectionMiddleMinimum( currBid, PotentialMinBid, fileResult)
+            print output
+            newBid, bidPrice, send = self.moveBidOnDirectionUnconstrained(currBid, output)
+            self.registerLog(fileResult, 'Ending calculateNewBidMinimumQuality')
+            if (send == True):
+                self.registerLog(fileResult,'Period:' + str(currentPeriod) + ' Bid moved:' + currBid.getId() + ' Bid created:' + newBid.getId() + ' Bid Price:' + str(bidPrice))
+                unitaryBidCost = self.completeNewBidInformation(newBid, bidPrice, fileResult)
+                if bidPrice >= unitaryBidCost:
+                    marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, currBid, newBid, orientation, fileResult)
+                    staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
+                    self.registerLog(fileResult, 'New bid created - ready to be send:' +  newBid.getId() + 'Forecast:' + str(forecast))
+                else:
+                    newBid = None
+            else:
+                newBid = None
+        self.registerLog(fileResult, 'Ending calculateNewBidMinimumQuality')
+        return newBid
+
     def calculateIntervalsPrice(self, market_position, min_value, max_value):
         '''
         Compute the price interval where the offering will be placed.
@@ -316,13 +487,13 @@ class Provider(Agent):
             
         logger.debug('Ending calculateIntervals Quality- outputs' + str(min_val_adj) + ':' + str(max_val_adj))
         return min_val_adj, max_val_adj
-                
+
     def calculateBidUnitaryResourceRequirements(self, bid, fileResult):
         '''
         Calculates the resource requirement in order to execute the 
         service provided by the bid.
         '''    
-        self.registerLog(fileResult, 'Starting calculateBidUnitaryResourceRequirements')        
+        self.registerLog(fileResult, 'Starting calculateBidUnitaryResourceRequirements')
         resourceConsumption = {}
         resources = self._used_variables['resources']
         for decisionVariable in (self._service)._decision_variables:
@@ -330,7 +501,7 @@ class Provider(Agent):
             maxValue = ((self._service)._decision_variables[decisionVariable]).getMaxValue()
             resourceId = ((self._service)._decision_variables[decisionVariable]).getResource() 
             if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_QUALITY):
-                # Bring the cost function associated to the decision variable.                
+                # Bring the cost function associated to the decision variable.
                 decisionVar = (self._service)._decision_variables[decisionVariable]
                 costFun = decisionVar.getCostFunction() # None if not defined.
 
@@ -387,7 +558,7 @@ class Provider(Agent):
         '''
         Method to initialize offers. It receives a signal from the 
         simulation environment (demand server) with its position 
-        in the market. The argument position serve to understand 
+        in the market. The argument position serves to understand 
         if the provider at the beginning is oriented towards low 
         price (0) or high quality (1).  - tested:OK
         '''
@@ -775,7 +946,8 @@ class Provider(Agent):
         # Insert the demand for the bid only when the sql found data.
         if (len(bidProfit) > 0):
                 profitZone[bid.getId()] = bidProfit
-
+        
+        self.registerLog(fileResult, 'getDBProfitZone 2- Id:' + bid.getId())
         # read the profit for related_bids.        
         for providerBidId in related_bids:
             cursor.execute(sql, (providerBidId, current_period, status ))
@@ -796,6 +968,8 @@ class Provider(Agent):
                 profitZone[providerBidId] = bidProfit2
                 
         db1.close()
+        
+        self.registerLog(fileResult, 'getDBProfitZone 3- Id:' + bid.getId())
         return profitZone, totProfit, numRelated
 
 
@@ -817,6 +991,7 @@ class Provider(Agent):
                         # Puts inactive the bid and copy the information for the competitor's bid 
                         staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.INACTIVE, 'MarketShare' : {}, 'Forecast' : 0 }
                         newBid = self.copyBid(providerBid)
+                        newBid.setNumberPredecessor(bid.getNumberPredecessor())
                         priceBid = newBid.getDecisionVariable((self._service).getPriceDecisionVariable())
                         unitaryBidCost = self.completeNewBidInformation(newBid,priceBid, fileResult) 
                         if priceBid >= unitaryBidCost:
@@ -873,15 +1048,17 @@ class Provider(Agent):
         
         return competitorBid
 
-    def generateDirectionBetweenTwoBids(self, bid1, bid2, fileResult):
+    def generateDirectionBetweenTwoBids(self, bid1, bid2, fileResult): #Tested Ok
         '''
         This method establishes the direction (the positive or negative) 
-        value in the decision variable cartesian space to goes from bid 1 to bid 2. Tested Ok
+        value in the decision variable cartesian space to goes from bid 1 to bid 2. 
+        In this procedure the sign is only used when the system have to use another step not
+        defined by this function. When the system uses this step, the sign is given in the step.
         '''
         output = {}
         self.lock.acquire()
         try:
-            #self.registerLog(fileResult, 'generateDirectionBetweenTwoBids:' + bid1.__str__())
+            self.registerLog(fileResult, 'generateDirectionBetweenTwoBids:' + bid1.__str__())
             #self.registerLog(fileResult, 'generateDirectionBetweenTwoBids:' + bid2.__str__())    
             for decisionVariable in (self._service)._decision_variables:
                 min_value = 1.0
@@ -894,7 +1071,7 @@ class Provider(Agent):
                         direction = 1
                     else:
                         direction = -1
-                else:            
+                else:
                     if (((self._service)._decision_variables[decisionVariable]).getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
                         if (bid2.getDecisionVariable(decisionVariable) > bid1.getDecisionVariable(decisionVariable)):
                             direction = 1
@@ -906,12 +1083,89 @@ class Provider(Agent):
                         else:
                             direction = 1
                 output[decisionVariable] = {'Direction' : direction, 'Step' : step }
-            #self.registerLog(fileResult, 'generateDirectionBetweenTwoBids output :' + str(output))
+            self.registerLog(fileResult, 'generateDirectionBetweenTwoBids output :' + str(output))
 
         finally:
-            self.lock.release()                
+            self.lock.release()
         
         return output
+
+    def generateDirectionMiddleMinimum(self, bid1, bid2, fileResult):
+        '''
+        This method establishes the direction (the positive or negative) 
+        value in the decision variable cartesian space to goes from bid 1 to the middle of bid 1 and bid 2
+        represents the bid with the minimum quality
+        '''
+        output = {}
+        self.lock.acquire()
+        try:
+            self.registerLog(fileResult, 'generateDirectionMiddleMinimum:' + bid1.__str__() + 'MinBid:' + bid2.__str__())
+            for decisionVariable in (self._service)._decision_variables:
+                if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                    val = (bid2.getDecisionVariable(decisionVariable) + bid1.getDecisionVariable(decisionVariable)) / 2
+                    step = val - bid1.getDecisionVariable(decisionVariable)
+                    if (step > 0):
+                        direction = 1
+                    else:
+                        direction = -1
+                else:
+                    step = bid2.getDecisionVariable(decisionVariable) - bid1.getDecisionVariable(decisionVariable)
+                    if (((self._service)._decision_variables[decisionVariable]).getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+                        if (step > 0):
+                            direction = 1
+                        else:
+                            direction = -1
+                    else:
+                        if (step < 0):
+                            direction = -1
+                        else:
+                            direction = 1
+                output[decisionVariable] = {'Direction' : direction, 'Step' : step }
+            self.registerLog(fileResult, 'generateDirectionMiddleMinimum output :' + str(output))
+
+        finally:
+            self.lock.release()
+        
+        return output
+
+    def generateDirectionMiddleMaximum(self, bid1, bid2, fileResult):
+        '''
+        This method establishes the direction (the positive or negative) 
+        value in the decision variable cartesian space to goes from bid 1 to the middle of bid 1 and bid 2, bid2 
+        represents the bid with the maxium quality
+        '''
+        output = {}
+        self.lock.acquire()
+        try:
+            self.registerLog(fileResult, 'generateDirectionMiddleMaximum:' + bid1.__str__())
+            for decisionVariable in (self._service)._decision_variables:
+                if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                    step = bid2.getDecisionVariable(decisionVariable) - bid1.getDecisionVariable(decisionVariable)
+                    if (bid2.getDecisionVariable(decisionVariable) > bid1.getDecisionVariable(decisionVariable)):
+                        direction = 1
+                    else:
+                        direction = -1
+                else:
+                    val = (bid2.getDecisionVariable(decisionVariable) + bid1.getDecisionVariable(decisionVariable)) / 2
+                    step = val - bid1.getDecisionVariable(decisionVariable)
+                    if (((self._service)._decision_variables[decisionVariable]).getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
+                        if (step > 0):
+                            direction = 1
+                        else:
+                            direction = -1
+                    else:
+                        if (step < 0):
+                            direction = -1
+                        else:
+                            direction = 1
+                output[decisionVariable] = {'Direction' : direction, 'Step' : step }
+            self.registerLog(fileResult, 'generateDirectionMiddleMaximum output :' + str(output))
+
+        finally:
+            self.lock.release()
+        
+        return output
+
         
     def followCompetitorsBid(self, mybidId, otherBidId, fileResult):
         '''
@@ -993,7 +1247,6 @@ class Provider(Agent):
             output[decisionVariable] = {'Direction' : direction, 'Step': step}
         return output
 
-        
     def improveBidForCompetence(self, fileResult):
         '''
         The bid does not have any competitor registered, so in case that has zero users
@@ -1002,7 +1255,6 @@ class Provider(Agent):
         output = {}
         self.lock.acquire()
         try:
-
             for decisionVariable in (self._service)._decision_variables:
                 min_value = (self._service.getDecisionVariable(decisionVariable)).getMinValue()
                 max_value = (self._service.getDecisionVariable(decisionVariable)).getMaxValue()
@@ -1177,6 +1429,11 @@ class Provider(Agent):
             distance = distance + ((distance_value)** 2)
         return math.sqrt(distance)
 
+    def MinimizingDelta(self, step, numPredecessors):
+        assert(numPredecessors >= 1), "The number of precessors is less than 1"
+        step = step / numPredecessors
+        return step
+
     def moveBidOnDirection(self, bid, directionMove ):
         # Create a new bid
         newBid = Bid()
@@ -1184,9 +1441,11 @@ class Provider(Agent):
         idStr = str(uuidId)
         newBid.setValues(idStr, bid.getProvider(), bid.getService())
         send = False
+        newBid.setNumberPredecessor(bid.getNumberPredecessor())
         for decisionVariable in directionMove:
             direction = (directionMove[decisionVariable])['Direction']
             step = (directionMove[decisionVariable])['Step']
+            step = self.MinimizingDelta(step, bid.getNumberPredecessor())
             min_value = (self._service.getDecisionVariable(decisionVariable)).getMinValue()
             max_value = (self._service.getDecisionVariable(decisionVariable)).getMaxValue()
             maximum_step = (max_value - min_value) * self._used_variables['adaptationFactor']
@@ -1207,8 +1466,44 @@ class Provider(Agent):
             if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
                 bidPrice = new_value
             newBid.setDecisionVariable(decisionVariable, new_value)
+            assert newBid.getNumberPredecessor() == bid.getNumberPredecessor(), "Incorrect number of predecessors in child"
         return newBid, bidPrice, send
     
+
+    def moveBidOnDirectionUnconstrained(self, bid, directionMove ):
+        # Create a new bid
+        newBid = Bid()
+        uuidId = uuid.uuid1()    # make a UUID based on the host ID and current time
+        idStr = str(uuidId)
+        newBid.setValues(idStr, bid.getProvider(), bid.getService())
+        send = False
+        newBid.setNumberPredecessor(0) # New bids can freely move.
+        for decisionVariable in directionMove:
+            direction = (directionMove[decisionVariable])['Direction']
+            step = (directionMove[decisionVariable])['Step']
+            min_value = (self._service.getDecisionVariable(decisionVariable)).getMinValue()
+            max_value = (self._service.getDecisionVariable(decisionVariable)).getMaxValue()
+            maximum_step = (max_value - min_value)
+            if ((direction == 1) or (direction == -1)):
+                if (abs(step) <= maximum_step):
+                    new_value = bid.getDecisionVariable(decisionVariable) + step
+                else:
+                    if (direction == 1):
+                        new_value = bid.getDecisionVariable(decisionVariable) + maximum_step
+                    else:
+                        step = self.MinimizingDelta(maximum_step, bid.getNumberPredecessor())
+                        new_value = bid.getDecisionVariable(decisionVariable) - maximum_step
+                send = True
+            else:
+                new_value = bid.getDecisionVariable(decisionVariable)
+            # Makes sure that the value is within the boundary.
+            new_value = max(min_value, new_value)
+            new_value = min(max_value, new_value)
+            if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                bidPrice = new_value
+            newBid.setDecisionVariable(decisionVariable, new_value)
+        return newBid, bidPrice, send
+
     '''
     Completes the costs of the bid, profit and period - Tested Ok
     '''    
@@ -1217,7 +1512,8 @@ class Provider(Agent):
         bid.setUnitaryCost(unitaryBidCost)
         bid.setUnitaryProfit(bidPrice - unitaryBidCost)
         bid.setCreationPeriod(self._list_vars['Current_Period'])
-        self.registerLog(fileResult, 'completeNewBidInformation' + 'Period:' + str(self._list_vars['Current_Period']) + ':Id:' + bid.getId() + ':Price:' + str(bidPrice) + ':cost:' + str(unitaryBidCost) + ':profit:' + str(bid.getUnitaryProfit()) )
+        bid.incrementPredecessor()
+        self.registerLog(fileResult, 'completeNewBidInformation' + 'Period:' + str(self._list_vars['Current_Period']) + ':Id:' + bid.getId() + ':Price:' + str(bidPrice) + ':cost:' + str(unitaryBidCost) + ':profit:' + str(bid.getUnitaryProfit()) + 'Predecessors:' + str(bid.getNumberPredecessor()) )
         return unitaryBidCost
     
     '''
@@ -1306,7 +1602,7 @@ class Provider(Agent):
         forecast = 0
         self.registerLog(fileResult, 'moveBid:' + bid.getId()) 
         for directionMove in moveDirections:
-            newBid, bidPrice, send = self.moveBidOnDirection( bid, directionMove )            
+            newBid, bidPrice, send = self.moveBidOnDirection( bid, directionMove )
             if (send == True):
                 self.registerLog(fileResult,'Period:' + str(currentPeriod) + ' Bid moved:' + bid.getId() + ' Bid created:' + newBid.getId() + ' Bid Price:' + str(bidPrice))
                 unitaryBidCost = self.completeNewBidInformation(newBid, bidPrice, fileResult)
@@ -1323,6 +1619,7 @@ class Provider(Agent):
         if (marketShare > 0): 
             copyB = self.copyBid(bid)
             copyB.insertParentBid(bid)
+            copyB.setNumberPredecessor(bid.getNumberPredecessor())
             bidPrice = self.getBidPrice(copyB)
             self.completeNewBidInformation(copyB, bidPrice, fileResult)
             marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, bid, copyB, orientation, fileResult)
@@ -1565,7 +1862,7 @@ class Provider(Agent):
             self.registerLog(fileResult, 'The Final Number of Staged offers is:' + str(len(staged_bids)) ) 
             self.sendBids(staged_bids, fileResult) #Pending the status of the bid.
             self.purgeBids(staged_bids, fileResult)
-            self.registerLog(fileResult, 'Ending executing algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(self.getCurrentPeriod()) )            
+            self.registerLog(fileResult, 'Ending executing algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(self.getCurrentPeriod()) )
             fileResult.close()
         self._list_vars['State'] = AgentServerHandler.IDLE
             
