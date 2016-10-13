@@ -87,7 +87,7 @@ class AgentServerHandler(asyncore.dispatcher):
         finally:
            if self.testThread == True:
                time.sleep(2)
-           lock.release()
+           self.lock.release()
 
     '''
     This method transform the object into XML.
@@ -466,8 +466,7 @@ class AgentDispacher(asyncore.dispatcher):
         self.set_reuse_addr()
         self.bind((self._address, self._port))
         self.listen(4)
-
-        print "[Server] Listening on {h}:{p}".format(h=self._address, p=self._port)
+        logger.debug("Server Listening on {h}:{p}".format(h=self._address, p=self._port))
 
     '''
     This method handles the acceptance of incoming socket connection.

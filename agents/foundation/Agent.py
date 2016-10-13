@@ -190,14 +190,21 @@ class Agent(Process):
         serviceId = self._list_vars['serviceId']
         self.getServiceFromServer(serviceId)
         self._service = self._services[serviceId]
-        
-        # Start the clock server
-        clockPort = agent_properties.l_port_provider + ( self._list_vars['Id'] * 3 )
-        self._serverClockServer = AgentListener(agent_properties.addr_agent_clock_server, clockPort, self._lock, self._testThread, self._list_vars)
-        self._serverClockServer.start()
-        
+
         agent_type = self._list_vars['Type']
         
+        # Given the agent type, the software chooses the port to listen.
+        if (agent_type.getType() == AgentType.CONSUMER_TYPE):
+            clockPort = agent_properties.l_port_consumer + ( self._list_vars['Id'] * 3 )
+        elif (agent_type.getType() == AgentType.PRESENTER_TYPE):
+            clockPort = agent_properties.l_port_presenter + ( self._list_vars['Id'] * 3 )
+        else:
+            clockPort = agent_properties.l_port_provider + ( self._list_vars['Id'] * 3 )
+            
+        # Start the clock server
+        self._serverClockServer = AgentListener(agent_properties.addr_agent_clock_server, clockPort, self._lock, self._testThread, self._list_vars)
+        self._serverClockServer.start()
+                
         if (agent_type.getType() == AgentType.PROVIDER_BACKHAUL):
             # Start the transit market place listening server
             mktPlaceTransit = clockPort + 1

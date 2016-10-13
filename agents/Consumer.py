@@ -229,7 +229,11 @@ class Consumer(Agent):
                     self._list_vars['State'] = AgentServerHandler.ACTIVATE
                     logger.debug('Agent: %s - Now in state %s' , self._list_vars['strId'], self._list_vars['State'])
                     self.exec_algorithm()
-                    self._list_vars['State'] = AgentServerHandler.IDLE
+                    self.lock.acquire()
+                    try:
+                        self._list_vars['State'] = AgentServerHandler.IDLE
+                    finally:
+                        self.lock.release() 
                 elif (self._list_vars['State'] == AgentServerHandler.IDLE):
                     time.sleep(0.1)
         # logger.debug('Agent: %s - Shuting down', self._list_vars['strId'])

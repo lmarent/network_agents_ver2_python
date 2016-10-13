@@ -5,6 +5,7 @@ import logging
 import MySQLdb
 import datetime
 import random
+import foundation.agent_properties
 
 logger = logging.getLogger('consumer_application')
 logger.setLevel(logging.DEBUG)
@@ -41,7 +42,8 @@ if __name__ == '__main__':
     '''
 	
     # Open database connection
-    db = MySQLdb.connect("localhost","root","password","Network_Simulation" )
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name)
 
     # prepare a cursor object using cursor() method
     cursor = db.cursor()
