@@ -26,9 +26,8 @@ needRoll = os.path.isfile(LOG_FILENAME)
 
 logger = logging.getLogger('consumer_application')
 
-logger.setLevel(logging.DEBUG)
 fh = logging.handlers.RotatingFileHandler(LOG_FILENAME, backupCount=5)
-fh.setLevel(logging.DEBUG)
+fh.setLevel(logging.INFO)
 formatter = logging.Formatter('%(threadName)-10s) - (asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)

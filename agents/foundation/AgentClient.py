@@ -18,9 +18,8 @@ import uuid
 import xml.dom.minidom
 
 logger = logging.getLogger('agent')
-logger.setLevel(logging.DEBUG)
 fh = logging.FileHandler('agent_logs.log')
-fh.setLevel(logging.DEBUG)
+fh.setLevel(logging.INFO)
 formatter = logging.Formatter('format="%(threadName)s:-%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
@@ -56,7 +55,7 @@ class AgentClient:
     This function connects the agent to servers ( clock server and markets places)
     '''
     def connect_servers(self, agent_type, strID, sellingAddress, buyingAddress, capacityControl):
-        logger.debug('Starting connect servers agent %s selling Address:%s buyingAddress:%s', strID, sellingAddress, buyingAddress) 
+        logger.info('Starting connect servers agent %s selling Address:%s buyingAddress:%s', strID, sellingAddress, buyingAddress) 
         if (agent_type.getType() == AgentType.PROVIDER_ISP):
             logger.debug('Agent Provider ISP %s', strID) 
             port = agent_properties.mkt_place_listening_port
@@ -101,7 +100,7 @@ class AgentClient:
         else:
             response2 = (self._channelMarketPlace).sendMessage(connect)
             if ( response2.isMessageStatusOk() ):
-                logger.debug('We could connect to both servers')
+                logger.info('We could connect servers')
             else:
                 logger.error('The agent could not connect to market place')
                 raise FoundationException("Agent: It could not connect to market place")
@@ -261,7 +260,6 @@ class AgentClient:
         messageAsk.setParameter('Service', serviceId)
         messageResult = self.sendMessageMarket(messageAsk)
         if messageResult.isMessageStatusOk():
-            #print 'Best bids' + messageResult.__str__()
             document = self.removeIlegalCharacters(messageResult.getBody())
             try:
                 dom = xml.dom.minidom.parseString(document)

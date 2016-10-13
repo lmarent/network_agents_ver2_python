@@ -44,14 +44,10 @@ import threading
 #    {Key : competitor bid Id, competitor bid}
 
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='(%(threadName)-10s) %(message)s',
-                    )
 logger = logging.getLogger('agent')
-logger.setLevel(logging.DEBUG)
 fh = logging.FileHandler('agent_logs.log')
-fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setLevel(logging.INFO)
+formatter = logging.Formatter('(%(threadName)-10s) %(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 

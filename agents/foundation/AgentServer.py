@@ -23,9 +23,8 @@ import threading
 
 
 logger = logging.getLogger('agent')
-logger.setLevel(logging.DEBUG)
 fh = logging.FileHandler('agent_logs.log')
-fh.setLevel(logging.DEBUG)
+fh.setLevel(logging.INFO)
 formatter = logging.Formatter('format="%(threadName)s:-%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
@@ -507,7 +506,7 @@ class AgentListener(threading.Thread):
         self._testThread = testThread
         self._list_args = list_args
         self._agentDispacher = AgentDispacher(self._address, self._port, self._lock, self._testThread, self._thread_sockets, self._list_args)
-        logger.debug('initiating with address:%s port:%d arg:%s', address, port, list_args)
+        logger.info('initiating with address:%s port:%d arg:%s', address, port, list_args)
         return
     
     '''
@@ -515,13 +514,13 @@ class AgentListener(threading.Thread):
     '''
     def run(self):
         asyncore.loop(map=self._thread_sockets)
-        logger.debug('asyncore ends Agent:%s address:%s port:%s', self._list_args['Id'], self._address, self._port)
+        logger.info('asyncore ends Agent:%s address:%s port:%s', self._list_args['Id'], self._address, self._port)
         return
 
     def stop(self):
         logger.debug('Start Stop thread address:%s port:%s', self._address, self._port)
         self._agentDispacher.close()
-        logger.debug('close the dispatcher Agent Id:%s - Address:%s port:%s', self._list_args['Id'], self._address, self._port)
+        logger.info('close the dispatcher Agent Id:%s - Address:%s port:%s', self._list_args['Id'], self._address, self._port)
 
     '''
     This method stops listening the port.
