@@ -103,12 +103,40 @@ def createBid(strProv, serviceId, delay, price):
     message = bid.to_message()
     return message, idStr
 
+def createCapacitatedBid(strProv, serviceId, delay, price, capacity):
+    bid = Bid()
+    uuidId = uuid.uuid1()   # make a UUID based on the host ID and current time
+    idStr = str(uuidId)
+    bid.setValues(idStr, strProv, serviceId)
+    bid.setDecisionVariable("1", price)     # Price
+    bid.setDecisionVariable("2", delay)  # Delay
+    bid.setCapacity(capacity)
+    bid.setStatus(Bid.ACTIVE)
+    message = bid.to_message()
+    return message, idStr
+
+def inactiveBid(bidId, strProv, serviceId, delay, price):
+    bid = Bid()
+    bid.setValues(bidId, strProv, serviceId)
+    bid.setDecisionVariable("1", price)     # Price
+    bid.setDecisionVariable("2", delay)  # Delay
+    bid.setStatus(Bid.INACTIVE)
+    message = bid.to_message()
+    return message, bidId
+
 def verifyBid(sock2):
     received = sock2.recv(16800)
     messageBid= Message(received)
     if (not messageBid.isMessageStatusOk()):
         raise FoundationException("error in creating bid")
 
+def getAvailability(strProvider, serviceStr, bidId):
+    messageGetAvailability = Message('')
+    messageGetAvailability.setMethod(Message.GET_AVAILABILITY)
+    messageGetAvailability.setParameter('Provider', strProvider)       
+    messageGetAvailability.setParameter('Service', serviceId)
+    messageGetAvailability.setParameter('Bid', bidId)
+    return messageGetAvailability
 
 def purchase(serviceId, bidId, quantity, delay, price):
     messagePurchase = Message('')
@@ -134,7 +162,21 @@ def verifyPurchase(sock2, qty):
         qtyPurchasedStr = messagePurchase.getParameter('Quantity_Purchased')
         qtyPurchased = float(qtyPurchasedStr)
         if (qtyPurchased <> qty):
-            raise FoundationException("error in creating purchase - Qty purchased not equal to " + str(qty))
+            raise FoundationException("error in creating purchase - Qty purchased" + str(qtyPurchased)+ " not equal to " + str(qty))
+
+def verifyAvailability(sock2, qty):
+    received = sock2.recv(16800)
+    messageAvail= Message(received)
+    print messageAvail.__str__()
+    if (not messageAvail.isMessageStatusOk()):
+        raise FoundationException("error in the availability message")
+    else:
+        # verify that the quantity purchased.
+        qtyStr = messageAvail.getParameter('Quantity')
+        qtyAvail = float(qtyStr)
+        qtyAvail = round(qtyAvail,2)
+        if (qtyAvail <> qty):
+            raise FoundationException("error in the quantity available" + str(qtyAvail)+ "- Qty not equal to " + str(qty))
 
 
 # Sends the availability for the provider
@@ -147,165 +189,304 @@ def send_availability(strProv,strResource, quantity):
     return messageAvail
 
 
-try:
-    # Connect to Clock server and send data
-    print 'Connecting Host:', HOST, ' Port:', PORT
-    sock.connect((HOST, PORT))
-    sock.sendall(message1.__str__())
-    
-    received = ""
-    received = sock.recv(4096)
-    recMsg = Message(received)
-    if (recMsg.isMessageStatusOk()):
-        connect = Message("")
-        connect.setMethod(Message.GET_SERVICES)
-        connect.setParameter("Service",serviceId)
-        sock.sendall(connect.__str__())
+def test_bulk_capacity():
+    try:
+        # Connect to Clock server and send data
+        print 'Connecting Host:', HOST, ' Port:', PORT
+        sock.connect((HOST, PORT))
+        sock.sendall(message1.__str__())
+
+        received = ""
         received = sock.recv(4096)
-        serviceResponse = Message(received)
-        if (serviceResponse.isMessageStatusOk() == False):
-            print 'Service not received'
-        else:
-            print 'Successful Clock Server Connection'
-            #print "Sent:     {}".format(message1.__str__())
-            #print "Received: {}".format(received)
-            
-            # Connect to market Place server and send data
-            print 'Connecting Host:', HOST2, ' Port:', PORT2
-            sock2.connect((HOST2, PORT2))
-            sock2.sendall(message1.__str__())
-            received = sock2.recv(4096)
-            recMsg = Message(received)
-            if (recMsg.isMessageStatusOk()):            		
-                # sends the message with the port connect. This assumes that
-                # the program socket_server.py was previously executed.
-                print 'Successful Market Place Server Connection'
-                port_message = Message("")
-                port_message.setMethod(Message.SEND_PORT)
-                port_message.setParameter("Port", agent_properties.l_port_provider)
-                port_message.setParameter("Type", "provider")
-                port_message.setParameter("CapacityType","bulk")
-                sock2.sendall(port_message.__str__())
+        recMsg = Message(received)
+        if (recMsg.isMessageStatusOk()):
+            connect = Message("")
+            connect.setMethod(Message.GET_SERVICES)
+            connect.setParameter("Service",serviceId)
+            sock.sendall(connect.__str__())
+            received = sock.recv(4096)
+            serviceResponse = Message(received)
+            if (serviceResponse.isMessageStatusOk() == False):
+                print 'Service not received'
+            else:
+                print 'Successful Clock Server Connection'
+                #print "Sent:     {}".format(message1.__str__())
+                #print "Received: {}".format(received)
+
+                # Connect to market Place server and send data
+                print 'Connecting Host:', HOST2, ' Port:', PORT2
+                sock2.connect((HOST2, PORT2))
+                sock2.sendall(message1.__str__())
                 received = sock2.recv(4096)
                 recMsg = Message(received)
-                if (recMsg.isMessageStatusOk()):
-                    pass
-                time.sleep(1)    
+                if (recMsg.isMessageStatusOk()):            		
+                    # sends the message with the port connect. This assumes that
+                    # the program socket_server.py was previously executed.
+                    port_message = Message("")
+                    port_message.setMethod(Message.SEND_PORT)
+                    port_message.setParameter("Port", agent_properties.l_port_provider)
+                    port_message.setParameter("Type", "provider")
+                    port_message.setParameter("CapacityType","bulk")
 
-                # send the provider availability
-                message = send_availability(strProv,"1", str(100))
-                sock2.sendall(message.__str__())                
-                received = sock2.recv(16800)
-                messageAvail= Message(received)
-                if (not messageAvail.isMessageStatusOk()):
-                    raise FoundationException("error in sending availability")
-                
-                print "It is connected to the agent server"		
-                # creates bids for the service 01
-                message, bidId1 = createBid(strProv, serviceId, str(0.145), str(20))
-                sock2.sendall(message.__str__())
-                verifyBid(sock2)
-                
-                message = purchase(serviceId, bidId1, str(10), str(0.145), str(20))
-                sock2.sendall(message.__str__())
-                received = sock2.recv(16800)
-                messagePur1 = Message(received)
-                if (not messagePur1.isMessageStatusOk()):
-                    raise FoundationException("error in creating purchase")
+
+                    print 'recMsg', port_message.__str__()
+
+                    sock2.sendall(port_message.__str__())
+                    received = sock2.recv(4096)
+                    recMsg = Message(received)
+
+                    print 'recMsg', recMsg.__str__()
+
+                    if (recMsg.isMessageStatusOk()):
+                        pass
+                    time.sleep(1)    
+
+                    print 'Successful Market Place Server Connection'
+
+                    # send the provider availability
+                    message = send_availability(strProv,"1", str(100))
+                    print 'message to send:' + message.__str__()
+
+                    sock2.sendall(message.__str__())                
+                    received = sock2.recv(4096)
+                    print received
+                    recMsg= Message(received)
+                    if (not recMsg.isMessageStatusOk()):
+                        raise FoundationException("error in sending availability")
+
+                    print "It is connected to the agent server"		
+                    # creates bids for the service 01
+                    message, bidId1 = createBid(strProv, serviceId, str(0.145), str(20))
+                    sock2.sendall(message.__str__())
+                    verifyBid(sock2)
+
+                    # Number of resource used: 10*(0.4 + 1*(0.916666667)= 13.66
+                    message = purchase(serviceId, bidId1, str(10), str(0.145), str(20))
+                    sock2.sendall(message.__str__())
+                    received = sock2.recv(16800)
+                    messagePur1 = Message(received)
+                    if (not messagePur1.isMessageStatusOk()):
+                        raise FoundationException("error in creating purchase")
+
+                    message = getAvailability(strProv,serviceId,'')                
+                    sock2.sendall(message.__str__())
+                    qtyAvail = round(100 - 13.166,2)
+                    verifyAvailability(sock2, qtyAvail)
+
+                    message, bidId2 = createBid(strProv, serviceId, str(0.16), str(18))
+                    sock2.sendall(message.__str__())
+                    verifyBid(sock2)
+
+                    # Number of resource used: 5*(0.4 + 1*(0.6667))=5.333
+                    message = purchase(serviceId, bidId2, str(5), str(0.16), str(18))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,5)
+
+                    message = getAvailability(strProv,serviceId,'')                
+                    sock2.sendall(message.__str__())
+                    qtyAvail = round(qtyAvail - 5.333,2)
+                    verifyAvailability(sock2, qtyAvail)
+
+                    message, bidId3 = createBid(strProv, serviceId, str(0.15), str(21))
+                    sock2.sendall(message.__str__())
+                    verifyBid(sock2)
+
+                    # Number of resource used: 4*(0.4 + 1*(0.83333))=4.9333
+                    message = purchase(serviceId, bidId3, str(4), str(0.15), str(21))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,4)
+
+                    message = getAvailability(strProv,serviceId,'')                
+                    sock2.sendall(message.__str__())
+                    qtyAvail = round(qtyAvail - 4.9333,2)
+                    verifyAvailability(sock2, qtyAvail)
+
+                    message, bidId4 = createBid(strProv, serviceId, str(0.15), str(19.5))
+                    sock2.sendall(message.__str__())
+                    verifyBid(sock2)
+
+                    # Number of resource used: 3*(0.4 + 1*(0.83333))=3.7
+                    message = purchase(serviceId, bidId4, str(3), str(0.15), str(19.5))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,3)
+
+                    message = getAvailability(strProv,serviceId,'')                
+                    sock2.sendall(message.__str__())
+                    qtyAvail = round(qtyAvail - 3.7, 2)
+                    verifyAvailability(sock2, qtyAvail)
+
+                    message, bidId5 = createBid(strProv, serviceId, str(0.15), str(18))
+                    sock2.sendall(message.__str__())
+                    verifyBid(sock2)
+
+                    # Number of resource used: 2*(0.4 + 1*(0.83333))=2.46
+                    message = purchase(serviceId, bidId5, str(2), str(0.15), str(18))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,2)
+
+                    message = getAvailability(strProv,serviceId,'')                
+                    sock2.sendall(message.__str__())
+                    qtyAvail = round(qtyAvail - 2.466, 2)
+                    verifyAvailability(sock2, qtyAvail)
+
+                    message, bidId6 = createBid(strProv, serviceId, str(0.155), str(17.5))
+                    sock2.sendall(message.__str__())
+                    verifyBid(sock2)
+
+                    # Number of resource used: 1*(0.4 + 1*(0.75))=1.15
+                    message = purchase(serviceId, bidId6, str(1), str(0.155), str(17.5))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,1)
+
+                    message = getAvailability(strProv,serviceId,'')                
+                    sock2.sendall(message.__str__())
+                    qtyAvail = round(qtyAvail - 1.15, 2)
+                    verifyAvailability(sock2, qtyAvail)
+    #
+                    # Number of resource used: 10*(0.4 + 1*(1.066))=11.5
+                    message = purchase(serviceId, bidId6, str(10), str(0.16), str(17.5))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,10)
+
+                    message = getAvailability(strProv,serviceId,'')                
+                    sock2.sendall(message.__str__())
+                    qtyAvail = round(qtyAvail - 11.5, 2)
+                    verifyAvailability(sock2, qtyAvail)
+    #                    
+                    # Number of resource used: 10*(0.4 + 1*(0.833))=24.66
+                    message = purchase(serviceId, bidId4, str(20), str(0.125), str(20))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,20)
+
+                    message = getAvailability(strProv,serviceId,'')                
+                    sock2.sendall(message.__str__())
+                    qtyAvail = 33.08
+                    verifyAvailability(sock2, qtyAvail)
+
+                    # Number of resource used: 10*(0.4 + 1*(0.833))=12.333
+                    message = purchase(serviceId, bidId5, str(10), str(0.16), str(17))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,10)
+
+                    message = getAvailability(strProv,serviceId,'')                
+                    sock2.sendall(message.__str__())
+                    qtyAvail = round(qtyAvail - 12.33, 2)
+                    verifyAvailability(sock2, qtyAvail)
+
+                    # The quantity is not enough, so it could not purchase.
+                    message = purchase(serviceId, bidId4, str(30), str(0.16), str(17))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,0)
+
+
+                    #try to buy an inactive bid
+                    message, bidId6 = inactiveBid(bidId6, strProv, serviceId, str(0.155), str(17.5))
+                    sock2.sendall(message.__str__())
+                    received = sock2.recv(4096)
+                    messageBid6 = Message(received)
+                    if (messageBid6.isMessageStatusOk()):
+                        pass
+
+                    message = purchase(serviceId, bidId6, str(1), str(0.16), str(17))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,0)
+
+                    message = getAvailability(strProv,serviceId,'')                
+                    sock2.sendall(message.__str__())
+                    qtyAvail = round(qtyAvail - 1.15, 2)
+                    verifyAvailability(sock2, qtyAvail)
+
+    finally:
+        sock.shutdown(socket.SHUT_WR)
+        sock.close()
+        sock2.shutdown(socket.SHUT_WR)
+        sock2.close()
+
+
+def test_bid_capacity():
+    try:
+        # Connect to Clock server and send data
+        print 'Connecting Host:', HOST, ' Port:', PORT
+        sock.connect((HOST, PORT))
+        sock.sendall(message1.__str__())
+
+        received = ""
+        received = sock.recv(4096)
+        recMsg = Message(received)
+        if (recMsg.isMessageStatusOk()):
+            connect = Message("")
+            connect.setMethod(Message.GET_SERVICES)
+            connect.setParameter("Service",serviceId)
+            sock.sendall(connect.__str__())
+            received = sock.recv(4096)
+            serviceResponse = Message(received)
+            if (serviceResponse.isMessageStatusOk() == False):
+                print 'Service not received'
+            else:
+                print 'Successful Clock Server Connection'
+                #print "Sent:     {}".format(message1.__str__())
+                #print "Received: {}".format(received)
+
+                # Connect to market Place server and send data
+                print 'Connecting Host:', HOST2, ' Port:', PORT2
+                sock2.connect((HOST2, PORT2))
+                sock2.sendall(message1.__str__())
+                received = sock2.recv(4096)
+                recMsg = Message(received)
+                if (recMsg.isMessageStatusOk()):                    
+                    # sends the message with the port connect. This assumes that
+                    # the program socket_server.py was previously executed.
+                    port_message = Message("")
+                    port_message.setMethod(Message.SEND_PORT)
+                    port_message.setParameter("Port", agent_properties.l_port_provider)
+                    port_message.setParameter("Type", "provider")
+                    port_message.setParameter("CapacityType","bid")
+
+                    sock2.sendall(port_message.__str__())
+                    received = sock2.recv(4096)
+                    recMsg = Message(received)
+                    if (recMsg.isMessageStatusOk()):
+                        pass
+
+                    message, bidId1 = createCapacitatedBid(strProv, serviceId, str(0.155), str(17.5),str(10))
+                    sock2.sendall(message.__str__())
+                    verifyBid(sock2)
+
+                    message, bidId2 = createCapacitatedBid(strProv, serviceId, str(0.15), str(18),str(15))
+                    sock2.sendall(message.__str__())
+                    verifyBid(sock2)
+
+                    message, bidId3 = createCapacitatedBid(strProv, serviceId, str(0.145), str(19),str(20))
+                    sock2.sendall(message.__str__())
+                    verifyBid(sock2)
+
+                    # Number of units consumed: 5
+                    message = purchase(serviceId, bidId1, str(5), str(0.155), str(17.5))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,5)
                     
-                message, bidId2 = createBid(strProv, serviceId, str(0.16), str(18))
-                sock2.sendall(message.__str__())
-                verifyBid(sock2)
-                
-                message = purchase(serviceId, bidId2, str(5), str(0.16), str(18))
-                sock2.sendall(message.__str__())
-                verifyPurchase(sock2,5)
-                
-                message, bidId3 = createBid(strProv, serviceId, str(0.13), str(21))
-                sock2.sendall(message.__str__())
-                verifyBid(sock2)
+                    qtyAvail = 10
+                    message = getAvailability(strProv,serviceId, bidId1)
+                    sock2.sendall(message.__str__())
+                    qtyAvail = round(qtyAvail - 5, 2)
+                    verifyAvailability(sock2, qtyAvail)
 
-                message = purchase(serviceId, bidId3, str(4), str(0.13), str(21))
-                sock2.sendall(message.__str__())
-                verifyPurchase(sock2,4)
-                
-                message, bidId4 = createBid(strProv, serviceId, str(0.15), str(19.5))
-                sock2.sendall(message.__str__())
-                verifyBid(sock2)
-                
-                message = purchase(serviceId, bidId4, str(3), str(0.15), str(19.5))
-                sock2.sendall(message.__str__())
-                verifyPurchase(sock2,3)
-                
-                message, bidId5 = createBid(strProv, serviceId, str(0.155), str(18))
-                sock2.sendall(message.__str__())
-                verifyBid(sock2)
-                
-                message = purchase(serviceId, bidId5, str(2), str(0.155), str(18))
-                sock2.sendall(message.__str__())
-                verifyPurchase(sock2,2)
-                
-                message, bidId6 = createBid(strProv, serviceId, str(0.155), str(17.5))
-                sock2.sendall(message.__str__())
-                verifyBid(sock2)
-                                
-                message = purchase(serviceId, bidId6, str(1), str(0.155), str(17.5))
-                sock2.sendall(message.__str__())
-                verifyPurchase(sock2,1)
+                    # Number of units consumed: 5
+                    message = purchase(serviceId, bidId1, str(7), str(0.155), str(17.5))
+                    sock2.sendall(message.__str__())
+                    verifyPurchase(sock2,5)
 
-#
-                # Try to purchase without availability
-                message = purchase(serviceId, bidId6, str(10), str(0.16), str(17.5))
-                sock2.sendall(message.__str__())
-                verifyPurchase(sock2,10)
-#                    
-                message = purchase(serviceId, bidId4, str(20), str(0.125), str(20))
-                sock2.sendall(message.__str__())
-                verifyPurchase(sock2,20)
+                    message = getAvailability(strProv,serviceId, bidId1)
+                    sock2.sendall(message.__str__())
+                    qtyAvail = 0
+                    verifyAvailability(sock2, qtyAvail)
 
-#                    
-                message = purchase(serviceId, bidId5, str(10), str(0.16), str(17))
-                sock2.sendall(message.__str__())
-                verifyPurchase(sock2,10)
-#                    
-
-                message = purchase(serviceId, bidId4, str(30), str(0.16), str(17))
-                sock2.sendall(message.__str__())
-                verifyPurchase(sock2,30)
-
-                time.sleep(30)
-
-                #try to buy an inactive bid
-#                bid6.setStatus(Bid.INACTIVE)
-#                message = bid6.to_message()
-#                sock2.sendall(message.__str__())
-#                received = sock2.recv(4096)
-#                messageBid6 = Message(received)
-#                if (messageBid6.isMessageStatusOk()):
-#                    print "Bid 6 Inactivated"
-#                    
-#                messagePurchase = Message('')
-#                messagePurchase.setMethod(Message.RECEIVE_PURCHASE)
-#                uuidId = uuid.uuid1()	# make a UUID based on the host ID and current time
-#                idStr = str(uuidId)
-#                messagePurchase.setParameter('Id', idStr)		
-#                messagePurchase.setParameter('Service', "Service_01")
-#                messagePurchase.setParameter('Bid', bid6.getId())
-#                messagePurchase.setParameter('Quantity', "30")
-#                messagePurchase.setParameter('Delay', '0.16')
-#                messagePurchase.setParameter('Price', '17')
-#                sock2.sendall(messagePurchase.__str__())
-#                received = sock2.recv(16800)
-#                messagePur1 = Message(received)
-#                if (messagePur1.isMessageStatusOk()):
-#                    print bid6.getId() + 'Qua:' + messagePur1.getParameter("Quantity_Purchased")
-
-	    
-    # Receive data from the server and shut down
+    finally:
+        sock.shutdown(socket.SHUT_WR)
+        sock.close()
+        sock2.shutdown(socket.SHUT_WR)
+        sock2.close()
     
     
-finally:
-    sock.shutdown(socket.SHUT_WR)
-    sock.close()
-    sock2.shutdown(socket.SHUT_WR)
-    sock2.close()
+#test_bulk_capacity()
+test_bid_capacity()

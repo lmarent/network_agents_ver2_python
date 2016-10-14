@@ -235,7 +235,8 @@ class ProviderEdge(Provider):
             for resourceId in resourceConsumption:
                 resourceAvail = self.getAvailableCapacity(resourceId) / resourceConsumption[resourceId]
                 qtyBidToPurchase = min (qtyBidToPurchase, resourceAvail)
-                
+            
+            self.registerLog(fileResult, 'Bid: ' + bid.getId() + '- Qty to purchase:'+ str(qtyBidToPurchase) )
             # purchase the quantity
             if (qtyBidToPurchase > 0):
                 qtyPurchased = self.purchase(messagePurchase, providerServiceId, bid.getProviderBid(), qtyBidToPurchase, fileResult)

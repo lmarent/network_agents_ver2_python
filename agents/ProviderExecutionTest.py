@@ -3518,7 +3518,29 @@ def test_provider_exploration_functions():
                                                 + "NumResult:" + str(bid2.getNumberPredecessor()) 
                                                     + "Numexpected:" + str(bid.getNumberPredecessor() + 1) )
 
-        # test the function moveBidOnDirection
+        
+        #-------------------------------------
+        # test the method exploreMarket
+        #-------------------------------------
+        staged_bids3 = {}
+        provider1.exploreMarket(currentPeriod, radius, staged_bids3, fileResult1)
+        if len(staged_bids3) != 0: # In this case the calculated probability is: 0.763531544593
+            raise FoundationException("error in the method exploreMarket()" )
+
+        provider1.lock.acquire()
+        provider1._used_variables['adaptationFactor'] = 0.6
+        provider1.lock.release()
+        
+        provider1.exploreMarket(currentPeriod, radius, staged_bids3, fileResult1)
+        if len(staged_bids3) != 2: # In this case the calculated probability is: 0.403569183284
+            raise FoundationException("error in the method exploreMarket()" )
+
+        
+        
+        
+        #-------------------------------------
+        # test the method moveBidOnDirection
+        #-------------------------------------
 
         bid6 = createBid(provider1.getProviderId(), provider1.getServiceId(), 0.18, 17)
         # As the number of predecessors is 2 all steps are divided by 2.
@@ -3771,11 +3793,11 @@ def test_provider_exploration_functions():
 
 if __name__ == '__main__':
     #test_integrated_classes()
-    #test_provider_exploration_functions()
+    test_provider_exploration_functions()
     #test_cost_functions()
     #test_marketplace_capacity_management()
     #test_provider_general_methods()
     #test_provider_database_classes()
     #test_provider_edge_monopoly_classes()
-    test_provider_edge_monopoly_current_bids()
+    #test_provider_edge_monopoly_current_bids()
     

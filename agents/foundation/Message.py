@@ -26,6 +26,7 @@ class Message(object):
     GET_PROVIDER_CHANNEL = 17
     GET_UNITARY_COST = 18
     ACTIVATE_PRESENTER = 19
+    GET_AVAILABILITY = 30
     
     # define the separator
     LINE_SEPARATOR = '\r\n'
@@ -80,6 +81,8 @@ class Message(object):
                     self._method = Message.GET_UNITARY_COST
                 elif (methodParam[1] == 'activate_presenter'):
                     self._method = Message.ACTIVATE_PRESENTER
+                elif (methodParam[1] == 'get_availability'):
+                    self._method = Message.GET_AVAILABILITY
                 else:
                     self._method = Message.UNDEFINED
             else:
@@ -176,6 +179,8 @@ class Message(object):
             self._method = Message.GET_UNITARY_COST
         elif (method == Message.ACTIVATE_PRESENTER):
             self._method = Message.ACTIVATE_PRESENTER
+        elif (method == Message.GET_AVAILABILITY):
+            self._method = Message.GET_AVAILABILITY
         else:
             self._method = Message.UNDEFINED
 
@@ -224,6 +229,8 @@ class Message(object):
             return "get_unitary_cost"
         elif (self._method == Message.ACTIVATE_PRESENTER):
             return "activate_presenter"
+        elif (self._method == Message.GET_AVAILABILITY):
+            return "get_availability"
         else:
             return "invalid_method"
 

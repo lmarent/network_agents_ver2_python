@@ -11,7 +11,7 @@ class CostFunction(object):
     
     The range should be [0, + infty)
     
-    In case of 0, the system puts the minimal resource usage defined in the resource. 
+    In case of 0, the system sets the per unit cost resource usage defined in the resource. 
     For other values the final cost will be: 
         
         unitaryCost = 1 + getEvaluation(variables))

@@ -507,12 +507,12 @@ class Provider(Agent):
 
                 value = float(bid.getQualityRequirement(decisionVariable))
                 if ((self._service)._decision_variables[decisionVariable].getOptimizationObjective() == DecisionVariable.OPT_MAXIMIZE):
-                    if (minValue == 0): 
+                    if ((maxValue - minValue) != 0): 
                         percentage = ((value - minValue) / ( maxValue - minValue ))
                     else:
                         percentage = ((value - minValue) / minValue)
                 else:
-                    if (maxValue == 0):
+                    if ((maxValue - minValue) != 0):
                         percentage = ((maxValue - value) / ( maxValue - minValue ))
                     else:
                         percentage = ((maxValue - value) / maxValue)
@@ -524,7 +524,7 @@ class Provider(Agent):
                         costValue = costValue + costFun.getEvaluation(percentage)
                     else:
                         # linear relationship with 1 to 1 relationship.                        
-                        costValue + percentage
+                        costValue = 1 + percentage
                     
                     resourceConsumption.setdefault(resourceId, 0) 
                     resourceConsumption[resourceId] += costValue
@@ -1826,6 +1826,32 @@ class Provider(Agent):
                 bidDemand, marketShare = self.getDBBidMarketShare( bid.getId(), currentPeriod-1, self._used_variables['numPeriodsMarketShare'], fileResult) 
                 self.moveBid(currentPeriod, radius, bid, moveDirections, marketShare, staged_bids, Provider.MARKET_SHARE_ORIENTED, fileResult)
         self.registerLog(fileResult, 'Finish moveForMarketShare Nbr staged_bids:' + str(len(staged_bids)))
+
+    def exploreMarket(self, currentPeriod, radius, staged_bids, fileResult):
+        '''
+        This method creates bids to explore the quality-price space that has been not studied yet.
+            The procedure followed is to put bids with greater quality than the greatest quality actually offered 
+            and to maintain the lowest quality and decrease prices. 
+        This procedure is perfomed every time that the probability is found to be within the adaptation factor. 
+        '''
+        self.registerLog(fileResult, 'Starting exploreMarket Nbr staged_bids:' + str(self.countByStatus(staged_bids)) )
+        self.lock.acquire()
+        try:        
+            adapt_factor = self._used_variables['adaptationFactor']
+            value = self._list_vars['Random'].uniform(0,1)
+            self.registerLog(fileResult, 'exploreMarket adapt_factor:' + str(adapt_factor)+ ' prob value:' + str(value) )
+            if (value <= adapt_factor):        
+                minBid = self.calculateBidMinimumQuality()
+                minCurBid = self.getBidMinimumQuality()        
+                self.calculateNewBidMinimumQuality(currentPeriod, radius, minCurBid, minBid, staged_bids, fileResult)
+
+                maxBid = self.calculateBidMaximumQuality()
+                maxCurBid = self.getBidMaximumQuality()
+                self.calculateNewBidMaximumQuality(currentPeriod, radius, maxCurBid, maxBid, staged_bids, fileResult)
+        finally:
+            self.lock.release()
+        self.registerLog(fileResult, 'Finish exploreMarket Nbr staged_bids:' + str(self.countByStatus(staged_bids)) )
+
                  
     def exec_algorithm(self):
         '''
@@ -1857,6 +1883,8 @@ class Provider(Agent):
                     self.moveBetterProfits(currentPeriod, radius, staged_bids, fileResult)
                 else:
                     self.moveForMarketShare(currentPeriod, radius, staged_bids, fileResult)
+                # Creates other bids in sectors not explored
+                self.exploreMarket(currentPeriod, radius, staged_bids, fileResult)
             
             self.eliminateNeighborhoodBid(staged_bids, fileResult)
             self.registerLog(fileResult, 'The Final Number of Staged offers is:' + str(len(staged_bids)) ) 

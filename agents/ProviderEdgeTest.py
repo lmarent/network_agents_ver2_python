@@ -257,70 +257,72 @@ def test_swap_purchased_bid(provider, currentPeriod, fileResult):
 
 def test_calculate_bid_unitary_cost(ispProvider,transitProvider, fileResult):
 
-    ownBid1a = createBid(provider.getProviderId(), provider.getServiceId(), 0.194, 0)
+    # a unit of resource has a cost of 10. 
+    
+    ownBid1a = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.194, 0)
     totUnitValue = ispProvider.calculateBidUnitaryCost(ownBid1a, fileResult)
     totUnitValue = round(totUnitValue,2)
-    if (totUnitValue != 10.45):
+    if (totUnitValue != 5.0):
         logger.error('totUnitValue:%s', str(totUnitValue))
         raise FoundationException("error in test_calculate_bid_unitary_cost - Error:1")
 
-    ownBid1b = createBid(provider.getProviderId(), provider.getServiceId(), 0.188, 0)
+    ownBid1b = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.188, 0)
     totUnitValue = ispProvider.calculateBidUnitaryCost(ownBid1b, fileResult)
     totUnitValue = round(totUnitValue,2)
-    if (totUnitValue != 10.90):
+    if (totUnitValue != 6.0):
         logger.error('totUnitValue:%s', str(totUnitValue))
-        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:1")
+        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:2")
 
-    ownBid1c = createBid(provider.getProviderId(), provider.getServiceId(), 0.182, 0)
+    ownBid1c = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.182, 0)
     totUnitValue = ispProvider.calculateBidUnitaryCost(ownBid1c, fileResult)
     totUnitValue = round(totUnitValue,2)
-    if (totUnitValue != 11.35):
+    if (totUnitValue != 7.0):
         logger.error('totUnitValue:%s', str(totUnitValue))
-        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:1")
+        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:3")
 
-    ownBid1d = createBid(provider.getProviderId(), provider.getServiceId(), 0.176, 0)
+    ownBid1d = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.176, 0)
     totUnitValue = ispProvider.calculateBidUnitaryCost(ownBid1d, fileResult)
     totUnitValue = round(totUnitValue,2)
-    if (totUnitValue != 11.8):
+    if (totUnitValue != 8.0):
         logger.error('totUnitValue:%s', str(totUnitValue))
-        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:1")
+        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:4")
     
-    ownBid1 = createBid(provider.getProviderId(), provider.getServiceId(), 0.2, 0)
+    ownBid1 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.2, 0)
     totUnitValue = ispProvider.calculateBidUnitaryCost(ownBid1, fileResult)
     totUnitValue = round(totUnitValue,0)
-    if (totUnitValue != 10.0):
+    if (totUnitValue != 4.0):
         logger.error('totUnitValue:%s', str(totUnitValue))
-        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:1")
+        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:5")
     
     providerBid1 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.1, 10)
     
-    ownBid2 = createBid(provider.getProviderId(), provider.getServiceId(), 0.18, 0)
+    ownBid2 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.18, 0)
     ownBid2.setProviderBid(providerBid1)
     totUnitValue = ispProvider.calculateBidUnitaryCost(ownBid2, fileResult)
-    totUnitValue = round(totUnitValue,0)
-    if (totUnitValue != 21.5):
+    totUnitValue = round(totUnitValue,2)
+    if (totUnitValue != 17.33):
         logger.error('totUnitValue:%s', str(totUnitValue))
-        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:2")
+        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:6")
         
-    ownBid3 = createBid(provider.getProviderId(), provider.getServiceId(), 0.16, 0)
+    ownBid3 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.16, 0)
     providerBid2 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.1, 6)
     ownBid3.setProviderBid(providerBid2)
     totUnitValue = ispProvider.calculateBidUnitaryCost(ownBid3, fileResult)
-    totUnitValue = round(totUnitValue,1)
-    if (totUnitValue != 19.0):
+    totUnitValue = round(totUnitValue,2)
+    if (totUnitValue != 16.67):
         logger.error('totUnitValue:%s', str(totUnitValue))
-        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:3")
+        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:7")
     
     # test the resources assignment by quality requirement
-    ownBid4 = createBid(provider.getProviderId(), provider.getServiceId(), 0.16, 0)
+    ownBid4 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.16, 0)
     providerBid3 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.1, 6)
     ownBid4.setProviderBid(providerBid3)
     ownBid4.setQualityRequirement('2',0.18)
     totUnitValue = ispProvider.calculateBidUnitaryCost(ownBid4, fileResult)
-    totUnitValue = round(totUnitValue,1)
-    if (totUnitValue != 17.5):
+    totUnitValue = round(totUnitValue,2)
+    if (totUnitValue != 13.33):
         logger.error('totUnitValue:%s', str(totUnitValue))
-        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:4")
+        raise FoundationException("error in test_calculate_bid_unitary_cost - Error:8")
        
 def test_replicate_bids(ispProvider, transitProvider, fileResult):
     # create the own bid    
@@ -365,6 +367,7 @@ def test_replicate_bids(ispProvider, transitProvider, fileResult):
     if (len(newOwnBids2) != 0):
         raise FoundationException("error in test_replicate_bids - Error:2")
     # Verify costs of returned bids. - cost function is linear
+        
     for bidTuple in newOwnBids:
         profit = bidTuple[0]
         bid = bidTuple[1]
@@ -377,24 +380,24 @@ def test_replicate_bids(ispProvider, transitProvider, fileResult):
             providerBids.remove( (bid.getProviderBid().getId()) )
             
         if ((bid.getProviderBid()).getId() == providerBid1.getId()):
-            if (round(profit,2) != 79.55):
+            if (round(profit,2) != 85.0):
                 raise FoundationException("error in test_replicate_bids - Error:5")
 
         if ((bid.getProviderBid()).getId() == providerBid2.getId()):
             profit = round(profit,2)
-            if (profit != 78.10):
+            if (profit != 83.0):
                 logger.error('profit:%s', str(profit))
                 raise FoundationException("error in test_replicate_bids - Error:6")
 
         if ((bid.getProviderBid()).getId() == providerBid3.getId()):
             profit = round(profit,2)
-            if (profit != 76.65):
+            if (profit != 81.0):
                 logger.error('profit:%s', str(profit))
                 raise FoundationException("error in test_replicate_bids - Error:7")
 
         if ((bid.getProviderBid()).getId() == providerBid4.getId()):
             profit = round(profit,2)
-            if (profit != 75.20):
+            if (profit != 79.0):
                 logger.error('profit:%s', str(profit))
                 raise FoundationException("error in test_replicate_bids - Error:7")
     # Finally test that all bids from the provider were replicated.        
@@ -734,31 +737,29 @@ def test_purchase_bid(currentPeriod, ispProvider, transitProvider, fileResult):
     dic_bids = {}    
 
     transitProvider.send_capacity()
-    
-    print '0'    
-    
+        
     # create a bid for the provider
     providerBid1 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.03, 11)
     sendBid(providerBid1, Bid.ACTIVE, transitProvider)
 
-    print '1'    
-
     providerBid2 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.025, 10.3)
     sendBid(providerBid2, Bid.ACTIVE, transitProvider)
 
-    print 'a'    
     providerBid3 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.028, 10.5)
     sendBid(providerBid3, Bid.ACTIVE, transitProvider)
     
     providerBid4 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.02, 10)
     sendBid(providerBid4, Bid.ACTIVE, transitProvider)
-    
-    print 'b'    
-    
+        
     dic_bids[2] = [providerBid1, providerBid2]
     dic_bids[3] = [providerBid3, providerBid4]
 
     dic_return = ispProvider.getPurchasableBid(ownBid, dic_bids, fileResult)
+    
+    #
+    # The quantity to purchase is 10 (the availability of the ISP provider) / resource requirement (1.23)   
+    # This value is because to buy the most profitable bid that results from the provider's bid 
+    # we need to put a bid requiring 1.23 unit of resource by every unit being sell. 
     
     # The following lines test purchasing for what we don't have enough capacity.
     totPurchased, purchasedBids = ispProvider.purchaseBid(ownBid, transitProvider.getServiceId(), 10, 30, dic_return, fileResult)
@@ -767,12 +768,9 @@ def test_purchase_bid(currentPeriod, ispProvider, transitProvider, fileResult):
         raise FoundationException("error in test_purchase_bid - Error 1")
 
     val = round(totPurchased,1)
-    if val != 7.3:
+    if val != 8.1:
         logger.error('Val %s', str(val))
         raise FoundationException("error in test_purchase_bid - Error 2")
-
-    print 'c'    
-
 
     # The following lines test purchasing for what we have enough capacity.
     resources = provider1._used_variables['resources']
@@ -798,8 +796,6 @@ def test_purchase_bid(currentPeriod, ispProvider, transitProvider, fileResult):
         provider1.updateAvailability(resourceId, 300)
 
     transitProvider.send_capacity()
-
-    print 'd'    
 
     ownBid3 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.17, 14)
     dic_return = ispProvider.getPurchasableBid(ownBid3, dic_bids, fileResult)
@@ -849,7 +845,7 @@ def test_purchase_bids(currentPeriod, ispProvider, transitProvider, fileResult):
     staged_bids = ispProvider.purchaseBids(currentPeriod, staged_bids, fileResult)
     
     if len(staged_bids) != 3:
-        raise FoundationException("error in test_purchase_bids - Error 1")
+        raise FoundationException("error in test_purchase_bids - Number staged:" + len(staged_bids) +  " - Error 1")
         
     pass
 
@@ -999,8 +995,8 @@ if __name__ == '__main__':
         currentPeriod = 1
         test_swap_purchased_bid(provider1, currentPeriod, fileResult1)
         test_get_related_decision_variable(provider1, provider2)        
-        #test_calculate_bid_unitary_cost(provider1, provider2, fileResult1)
-        #test_replicate_bids(provider1, provider2, fileResult1)
+        test_calculate_bid_unitary_cost(provider1, provider2, fileResult1)
+        test_replicate_bids(provider1, provider2, fileResult1)
         test_calculate_own_quality_for_purchasable_bid( provider1, provider2, fileResult1 )
         test_get_purchased_front(provider1, provider2, fileResult1)
 
@@ -1010,100 +1006,17 @@ if __name__ == '__main__':
 
         logger.info('Starting test providers created - Step:1b')
 
-        #test_purchase_bid(currentPeriod, provider1, provider2, fileResult1)
+        test_purchase_bid(currentPeriod, provider1, provider2, fileResult1)
 
         logger.info('Starting test providers created - Step:1c')
 
-        #test_purchase_bids(currentPeriod, provider1, provider2, fileResult1)
+        test_purchase_bids(currentPeriod, provider1, provider2, fileResult1)
         
         logger.info('Starting test providers created - Step:2')
         
         test_capacity_update(provider1)
         test_purchase_from_previous_bids(provider1, provider2, fileResult1)
-                
-
-        # 50 units remanining
-        dic_return = provider1.AskBackhaulBids(serviceId)
-        if (len(dic_return) != 1):
-            raise FoundationException("Invalid number of bids in the server") 
-        
-        resources = provider1._used_variables['resources']
-        resourceIds = resources.keys()
-        resourceId = resourceIds[0]
-            
-        purchased = 0
-        quantityReq = 20   
-        quality =  0.8
-        keys_sorted = sorted(dic_return,reverse=True)
-        for front in keys_sorted:
-            bidList = dic_return[front]
-            evaluatedBids = {}
-            for bid in bidList:
-                disutility, totPercentage = provider1.getDisutility(resourceId, serviceId, bid)
-                if disutility in evaluatedBids:
-                    evaluatedBids[disutility].append({'object' : bid, 'overPercentage' : totPercentage })
-                else:
-                    evaluatedBids[disutility] = [{'Object' : bid, 'OverPercentage' : totPercentage }]
-            
-            # Purchase based on the disutility order.
-            disutilities_sorted = sorted(evaluatedBids)        
-            unitaryCost = float((resources[resourceId])['Cost'])
-            purchased = provider1.purchaseResource(front, serviceId, unitaryCost, quantityReq, quality, evaluatedBids, disutilities_sorted)
-            break
-        
-        if (purchased != 21.25):
-            raise FoundationException("Invalid purchase")
-
-        logger.info('Starting test providers created - Step:3')
-
-        # The quantities remaining are 28.75
-        quantityReq = 10
-        quality = 1.0
-        purchased = provider1.execServicePurchase(resourceId, serviceId, quantityReq, quality)
-        if (purchased < 10):
-            raise FoundationException("Invalid purchase")
-        
-        quantityReq = 50
-        quality = 1.0
-        purchased = provider1.execResourcePurchase( resourceId, quantityReq, quality, 40)
-        if (purchased < 10):
-            raise FoundationException("Invalid purchase")
-
-        delay = 0.14 
-        price = 20 
-        bidProvider1_1 = createBid( provider1.getProviderId(), provider1.getServiceId(), delay, price)
-                
-        availability = {}
-        resources = provider1.calculateBidResources(bidProvider1_1)
-        purchased = provider1.purchaseResourceForBid(bidProvider1_1, 10, resources, availability)
-        if (purchased < 10):
-            raise FoundationException("Invalid purchase")
-
-        delay = 0.16
-        price = 18 
-        bidProvider1_2 = createBid( provider1.getProviderId(), provider1.getServiceId(), delay, price)
-        purchased = provider1.purchaseResourceForBid(bidProvider1_1, 10, resources, availability)
-        if (purchased < 10):
-            raise FoundationException("Invalid purchase")
-        
-        staged_bids = {}        
-
-        delay = 0.14 
-        price = 20 
-        bidProvider1_3 = createBid( provider1.getProviderId(), provider1.getServiceId(), delay, price)
-
-        delay = 0.16
-        price = 18 
-        bidProvider1_4 = createBid( provider1.getProviderId(), provider1.getServiceId(), delay, price)
-
-        staged_bids[bidProvider1_3.getId()] = {'Object': bidProvider1_3, 'Action': Bid.ACTIVE, 'MarketShare' : {}, 'Forecast': 10 }        
-        staged_bids[bidProvider1_4.getId()] = {'Object': bidProvider1_4, 'Action': Bid.ACTIVE, 'MarketShare' : {}, 'Forecast': 10 }        
-        provider1.purchaseBids(currentPeriod, staged_bids, availability)        
-        
-        logger.info('Starting test providers created - Step:4')
-        
-        print availability        
-                
+                                     
         pass        
 	
     except FoundationException as e:
