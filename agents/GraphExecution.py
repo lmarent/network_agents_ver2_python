@@ -1,5 +1,4 @@
 import multiprocessing
-from Presenter import Presenter
 from UnitaryTest import Presenter_Test
 from ProviderAgentException import ProviderException
 import MySQLdb
