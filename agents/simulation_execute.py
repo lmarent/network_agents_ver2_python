@@ -58,17 +58,9 @@ def execute_process(exec_dir):
         				    stderr=consumer_stderr,  
         				    shell=True)
         	
-        	presenter_command = '/usr/bin/python ' + exec_dir + '/agents/PresenterExecution.py'
-        	presenter_stdout = open('presenterexecution_stdout.log', "w")
-        	presenter_stderr = open('presenterexecution_stderr.log', "w")
-        	presenter = subprocess.Popen(presenter_command, 
-        				     stdout=presenter_stdout, 
-        				     stderr=presenter_stderr, 
-        				     shell=True)
 
         	provider_status = provider.wait()
         	consumer_status = consumer.wait()
-        	presenter_status = presenter.wait()
 	
         	provider_stdout.close()
         	provider_stderr.close()
@@ -76,11 +68,8 @@ def execute_process(exec_dir):
         	consumer_stdout.close()
         	consumer_stderr.close()
         	
-        	presenter_stdout.close()
-        	presenter_stderr.close()
         	print 'Command exit Status/Return Code  provider_execution ' +  str(provider_status) + '\n'
         	print 'Command exit Status/Return Code  consumer_execution ' +  str(consumer_status) + '\n'
-        	print 'Command exit Status/Return Code  presenter_execution ' +  str(presenter_status) + '\n'
     except Exception as e:
        	print e
 
