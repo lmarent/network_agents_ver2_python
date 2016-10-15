@@ -15,7 +15,6 @@ import random
 import agent_properties
 import asyncore
 import logging
-import matplotlib.pyplot as plt
 import re
 import socket
 import SocketServer
