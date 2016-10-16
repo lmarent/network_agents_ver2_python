@@ -77,7 +77,7 @@ class InformationExtracter:
         line ='period,'
         if (decisionVariableX.get('type') == 'D'):
             idVariable = decisionVariableX.get('decision_variable')
-            label, min_value, max_value = self.obtainDecisionParameters(cursor, idVariable)
+            label, min_value, max_value = self.obtainDecisionParameters(idVariable)
             if (label == None): # The decision variable is not configured in the DB server
                 return None
             line = line + label + ',' + '{0}'.format(min_value) 
@@ -88,7 +88,7 @@ class InformationExtracter:
 
         if  (decisionVariableY.get('type') == 'D'):
             idVariable = decisionVariableY.get('decision_variable')
-            label, min_value, max_value = self.obtainDecisionParameters(cursor, idVariable)
+            label, min_value, max_value = self.obtainDecisionParameters(idVariable)
             if (label == None): # The decision variable is not configured in the DB server
                 return None
             line = line + ',' + label + ',' + '{0}'.format(min_value) 
@@ -190,6 +190,9 @@ class InformationExtracter:
 
     def getId(self, bid):
         return bid.getId()
+    
+    def getParentId(self, bid):
+        return bid.getParentBid()
 
     def obtainOfferedValue(self, bid, offeredValue):
         logger.debug('Initializing obtainOfferedValue' + offeredValue.__str__())
@@ -332,27 +335,12 @@ class InformationExtracter:
         logger.debug('Ending constructLineDetail' + line)
         return line, printed
 
-    def initializeFileResults(self):
-        logger.debug('Starting initializeFileResults')
-        currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-        currentdir = currentdir + '/' + foundation.agent_properties.result_directory
-        print currentdir
-        for graphic in self._graphics:
-            filenameNew = self.contructNewName( (self._graphics[graphic]).get('name') )
-            filenameNew = currentdir + filenameNew
-            try:
-                fileResult = open(filenameNew,"w")
-                # Establish the file header.
-                variable_x = (self._graphics[graphic]).get('x_axis')
-                variable_y = (self._graphics[graphic]).get('y_axis')
-                line = self.setHeaderLine( variable_x, variable_y )
-                fileResult.write(line)
-            except FoundationException as e:
-                print e.__str__()
-            except Exception as e:
-                print e.__str__()
-            finally:
-                fileResult.close()
+    def initializeFileResults(self, graphic, fileResult):
+        # Establish the file header.
+        variable_x = (self._graphics[graphic]).get('x_axis')
+        variable_y = (self._graphics[graphic]).get('y_axis')
+        line = self.setHeaderLine( variable_x, variable_y )
+        fileResult.write(line)
         logger.debug('Starting initializeFileResults')
 
     def createBid(self, bidId, strProv, serviceId, period, unitary_cost, unitary_profit, capacity ):
@@ -373,9 +361,13 @@ class InformationExtracter:
                   from simulation_bid a \
                   where a.execution_count = %s \
                     and a.status = %s \
-                    and a.bidId = %s\
+                    and a.providerId in ( select concat( name, cast(b.id as char(60))) \
+                                                                from simulation_provider b, \
+                                                                     simulation_provider_graphic c \
+                                                               where c.graphic_id = %s \
+                                             and c.class_name = b.class_name ) \
                   order by a.period'
-        cursor.execute(sql, (self._execution_count, '1','da3b04e8-922d-11e6-a762-02cc991d7c17'))
+        cursor.execute(sql, (self._execution_count, '1', graphic))
         results = cursor.fetchall()
         for row in results:
             period = int(row[0]) 
@@ -393,17 +385,23 @@ class InformationExtracter:
             fileResult.write(line + os.linesep)
         logger.debug('Ending animate_detail')
 
-    def animate_aggregate(self, graphic, fileResult):
-        logger.debug('Starting animate_aggregate')
-        cursor = self._db.cursor()
+    def animate_aggregate_period(self, graphic, period, fileResult):
+        logger.debug('Starting animate_aggregate_period')
+        cursor3 = self._db.cursor()
         sql =  'select a.period, a.providerId, a.bidId, a.unitary_profit, \
                        a.parentBidId, a.unitary_cost, a.init_capacity \
                   from simulation_bid a \
                   where a.execution_count = %s \
                     and a.status = %s \
-                    and a.bidId = %s'
-        cursor.execute(sql, (self._execution_count, '1','da3b04e8-922d-11e6-a762-02cc991d7c17'))
-        results = cursor.fetchall()
+                    and a.period = %s \
+                    and a.providerId in ( select concat( name, cast(b.id as char(60))) \
+                                            from simulation_provider b, \
+                                                 simulation_provider_graphic c \
+                                           where c.graphic_id = %s \
+                                             and c.class_name = b.class_name ) \
+                   order by a.period'
+        cursor3.execute(sql, (self._execution_count, '1', period, graphic))
+        results = cursor3.fetchall()
         for row in results:
             period = int(row[0]) 
             providerId = row[1]
@@ -419,10 +417,36 @@ class InformationExtracter:
                 aggregation.setdefault(xValue,0)
                 aggregation[xValue] += yValue
 
-            # Print aggregations.
-            for xValue in aggregation:
-                line, printed = self.constructLineDetail(0, xValue, aggregation[xValue], 0, '', '','','','')
+        # Print aggregations.
+        for xValue in aggregation:
+            line, printed = self.constructLineDetail(period, xValue, aggregation[xValue], 0, '', '','','','')
             fileResult.write(line + os.linesep)
+        logger.debug('Ending animate_aggregate_period')
+
+    def animate_aggregate(self, graphic, fileResult):
+        logger.debug('Starting animate_aggregate')
+        cursor2 = self._db.cursor()
+        sql =  'select min(a.period), max(a.period) \
+                  from simulation_bid a \
+                  where a.execution_count = %s \
+                    and a.status = %s \
+                    and a.providerId in ( select concat( name, cast(b.id as char(60))) \
+                                            from simulation_provider b, \
+                                                 simulation_provider_graphic c \
+                                           where c.graphic_id = %s \
+                                             and c.class_name = b.class_name )'
+        print sql
+        cursor2.execute(sql, (self._execution_count, '1', graphic))
+        results = cursor2.fetchall()
+        periodFound = False
+        for row in results:
+            minPeriod = int(row[0]) 
+            maxPeriod = int(row[1]) 
+        
+        period = minPeriod
+        while (period <= maxPeriod):
+            self.animate_aggregate_period(graphic, period, fileResult)
+            period = period + 1
         logger.debug('Ending animate_aggregate')
 
     def animate(self):
@@ -433,8 +457,9 @@ class InformationExtracter:
         for graphic in self._graphics:
             filenameNew = self.contructNewName( (self._graphics[graphic]).get('name') )
             filenameNew = currentdir + filenameNew
-            fileResult = open(filenameNew,"a")
             try: 
+                fileResult = open(filenameNew,"w")
+                self.initializeFileResults(graphic, fileResult)
                 if ((self._graphics[graphic]).get('detail') == True):
                     self.animate_detail(graphic, fileResult)
                 else:
