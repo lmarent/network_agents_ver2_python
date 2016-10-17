@@ -164,7 +164,6 @@ class InformationExtracter:
         cursor.execute(sql, (self._execution_count, 1, bid.getId(), decisionVariable))
         results = cursor.fetchall()
         for row in results:
-            print 'here we are'
             value = value + float(row[0])
         logger.debug('Ending getDecisionVariable' + str(value) )
         return value
@@ -191,7 +190,7 @@ class InformationExtracter:
     def getId(self, bid):
         return bid.getId()
     
-    def getParentId(self, bid):
+    def getParentBid(self, bid):
         return bid.getParentBid()
 
     def obtainOfferedValue(self, bid, offeredValue):
@@ -343,7 +342,7 @@ class InformationExtracter:
         fileResult.write(line)
         logger.debug('Starting initializeFileResults')
 
-    def createBid(self, bidId, strProv, serviceId, period, unitary_cost, unitary_profit, capacity ):
+    def createBid(self, bidId, strProv, serviceId, period, unitary_cost, unitary_profit, capacity, parent_bid_Id ):
         bid = Bid()
         bid.setValues(bidId, strProv, serviceId)
         bid.setStatus(Bid.ACTIVE)
@@ -351,6 +350,7 @@ class InformationExtracter:
         bid.setUnitaryCost(unitary_cost)
         bid.setCreationPeriod(period)
         bid.setCapacity(capacity)
+        bid.insertParentBid(parent_bid_Id)
         return bid        
 
     def animate_detail(self, graphic, fileResult):
@@ -377,7 +377,7 @@ class InformationExtracter:
             parentBidId = row[4]
             unitary_cost = row[5]
             init_capacity = float(row[5])
-            bid = self.createBid(bidId, providerId, '', period, unitary_cost, unitary_profit, init_capacity )
+            bid = self.createBid(bidId, providerId, '', period, unitary_cost, unitary_profit, init_capacity, parentBidId )
             xValue, yValue, colorValue, labelValue, column1, column2, column3, column4 = self.setBidInformationToShow(bid, self._graphics[graphic])
             line, printed = self.constructLineDetail(period,xValue, yValue, colorValue, labelValue, column1, column2, column3, column4)
             if printed == False:
@@ -410,7 +410,7 @@ class InformationExtracter:
             parentBidId = row[4]
             unitary_cost = row[5]
             init_capacity = float(row[5])
-            bid = self.createBid(bidId, providerId, '', period, unitary_cost, unitary_profit, init_capacity )
+            bid = self.createBid(bidId, providerId, '', period, unitary_cost, unitary_profit, init_capacity, parentBidId )
             aggregation = {}
             xValue, yValue, colorValue, labelValue, column1, column2, column3, column4 = self.setBidInformationToShow(bid, self._graphics[graphic])
             if ((xValue is not None) and (yValue is not None)):
@@ -435,7 +435,6 @@ class InformationExtracter:
                                                  simulation_provider_graphic c \
                                            where c.graphic_id = %s \
                                              and c.class_name = b.class_name )'
-        print sql
         cursor2.execute(sql, (self._execution_count, '1', graphic))
         results = cursor2.fetchall()
         periodFound = False
