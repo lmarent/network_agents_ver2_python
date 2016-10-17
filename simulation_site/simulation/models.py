@@ -297,6 +297,12 @@ class Axis_Graphic(models.Model):
     column2 = models.ForeignKey(offeringData, related_name='column2', blank=True, null=True)
     column3 = models.ForeignKey(offeringData, related_name='column3', blank=True, null=True)
     column4 = models.ForeignKey(offeringData, related_name='column4', blank=True, null=True)
+
+class Provider_Graphic(models.Model):
+    id = models.AutoField(primary_key=True)
+    graphic = models.ForeignKey(Graphic)
+    class_name = models.CharField(max_length=60)
+
 	
 class Presenter(models.Model):
     id =  models.AutoField(primary_key=True)
