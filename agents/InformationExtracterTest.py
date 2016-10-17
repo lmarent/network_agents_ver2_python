@@ -38,7 +38,13 @@ if __name__ == '__main__':
         for graphic in graphics:
             print graphics[graphic], '\n'
         logger.info('Graphics loaded')
-        execution_count = 1697
+        
+        sql = 'select execution_count from simulation_generalparameters'
+        cursor5 = db.cursor()
+        cursor5.execute(sql)
+        results = cursor5.fetchall()
+        for row in results:
+            execution_count = row[0]
         test_information_extracter(execution_count, graphics)
 
     except ProviderException as e:

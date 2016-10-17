@@ -455,7 +455,7 @@ class ProviderEdgeMonopoly(ProviderEdge):
             marketZoneDemand, totQuantity, numRelated = self.getDBMarketShareZone(bid, related_bids, currentPeriod -1, numPeriods, fileResult)
             marketZoneBacklog, totQtyBacklog, numRelatedBacklog = self.getDBMarketShareZone(bid, related_bids, currentPeriod -1, numPeriods, fileResult, Provider.BACKLOG)
             (staged_bids[bidId])['MarketShare'] = marketZoneDemand
-            totQtyBacklog = totQtyBacklog * 0.1
+            totQtyBacklog = totQtyBacklog * 0.05
             totForecast = totForecast + (totQuantity + totQtyBacklog) / (numRelated + 1)
             (staged_bids[bidId])['Forecast'] = (totQuantity + totQtyBacklog) / (numRelated + 1)
         

@@ -123,13 +123,15 @@ def eliminateLinesNotPurchased(tableData, maxPeriod, vendors):
 def generate_figure(directory, input_file, output_file):
 
     input_file = directory + '/' + agent_properties.result_directory + input_file
-    data = np.genfromtxt(input_file, delimiter=",", usecols=(0,1,2,3,4,5), 
+    print input_file
+    data = np.genfromtxt(input_file, skip_header=1, delimiter=",", usecols=(0,1,2,3,4,5), 
                          dtype=[('Period', np.float64),('Delay',np.float64),
                                 ('Price',np.float64),('Quantity',np.float64),
                                 ('Color',np.float64),('Provider',np.str_,16) 
                                 ])
 
     maxPeriod = np.max(data['Period'])
+    print 'maxPeriod', maxPeriod
     minDelay = np.min(data['Delay'])
     maxDelay = np.max(data['Delay'])
     minPrice = np.min(data['Price'])

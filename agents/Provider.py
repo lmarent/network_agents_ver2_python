@@ -822,8 +822,8 @@ class Provider(Agent):
         bidDemand = {}
         totQuantity = 0
         for row in results:
-            bidDemand[int(row[0])] = float(row[1]) + (float(row[2]) * 0.1)
-            totQuantity = totQuantity + float(row[1]) + (float(row[2]) * 0.1)
+            bidDemand[int(row[0])] = float(row[1]) + (float(row[2]) * 0.05)
+            totQuantity = totQuantity + float(row[1]) + (float(row[2]) * 0.05)
         db1.close()
         self.registerLog(fileResult, 'Ending getDBBidMarketShare' + 'bidId:' + bidId + 'totQuantity:' + str(totQuantity))
         return bidDemand, totQuantity
