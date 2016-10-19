@@ -488,7 +488,7 @@ class ProviderEdgeMonopoly(ProviderEdge):
         for bidId in staged_bids:
             if (staged_bids[bidId])['Action'] == Bid.ACTIVE:
                 bidToCompare = (staged_bids[bidId])['Object']
-                distance = self.distance(bid,bidToCompare)
+                distance = self.distance(bid,bidToCompare, fileResult)
                 if finalDistance == -1:
                     finalDistance = distance
                     bidIdToIncrease = bidId        

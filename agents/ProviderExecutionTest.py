@@ -881,12 +881,7 @@ def test_marketplace_capacity_management():
             quantityPur = quantityPur + customer.purchase( messagePurchase11, bidIsp_2, quantity - quantityPur)
             quantityPur = quantityPur + customer.purchase( messagePurchase11, bidIsp_3, quantity - quantityPur)
             quantityPur = quantityPur + customer.purchase( messagePurchase11, bidIsp_4, quantity - quantityPur)
-            
-            customer.stop_agent()
-
-        provider1.stop_agent()
-        provider2.stop_agent()
-        provider3.stop_agent()
+           
         
         logger.info('ending test_marketplace_capacity_management')
         pass
@@ -902,6 +897,10 @@ def test_marketplace_capacity_management():
         db.close()
         fileResult1.close()
         fileResult2.close()
+        provider1.stop_agent()
+        provider2.stop_agent()
+        provider3.stop_agent()
+        customer.stop_agent()
 
 def test_provider_general_methods():
 
@@ -1176,6 +1175,190 @@ def test_replace_dominated_bids(cursor, executionCount, provider2, fileResult2):
         raise FoundationException("Error in method test_replace_dominated_bids")
     
 
+def test_eliminateNeighborhoodBid():
+
+    '''
+    The ProviderExecution starts the threads for the service provider agents.
+    '''    
+
+    logger.info('Starting test_eliminateNeighborhoodBid')
+
+    list_classes = {}
+    # Load Provider classes
+    load_classes(list_classes)
+    
+    # Open database connection
+    db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+        foundation.agent_properties.user_password,foundation.agent_properties.database_name )
+    
+    db.autocommit(1)    
+    
+    # prepare a cursor object using cursor() method
+    cursor = db.cursor()
+
+    # Brings the general parameters from the database
+    bidPeriods, numberOffers, numAccumPeriods = getGeneralConfigurationParameters(cursor)
+    
+    # Verifies if they were configured, otherwise brings them from the agent properties.
+    if (numberOffers == 0):
+        numberOffers = foundation.agent_properties.initial_number_bids
+    
+    if (numAccumPeriods == 0):
+        numAccumPeriods = foundation.agent_properties.num_periods_market_share
+
+    # Prepare SQL query to SELECT providers from the database.
+    sql = "SELECT id, name, market_position, adaptation_factor \
+                  , monopolist_position, service_id, num_ancestors, debug \
+          , seed, year, month, day, hour, minute, second \
+          , microsecond, class_name, start_from_period, buying_marketplace_address \
+          , selling_marketplace_address, capacity_controlled_at, purchase_service_id \
+         FROM simulation_provider \
+        WHERE id = 1"
+
+    try:
+        providers = []
+        # Execute the SQL command
+        cursor.execute(sql)
+        # Fetch all the rows in a list of lists.
+        results = cursor.fetchall()
+
+        serviceIdISP = '1'            
+        serviceIdBackhaul = '2'
+        adaptationFactor = 0
+        monopolistPosition = 0
+        marketPosition = 0
+
+        i = 1
+        for row in results:
+            providerId = row[0]
+            providerName = row[1]
+            marketPosition = row[2] 
+            adaptationFactor = row[3] 
+            monopolistPosition = row[4] 
+            serviceId = str(row[5])
+            numAncestors = 4 # For testing we left four.
+            if (row[7] == 1):
+                debug = True
+            else:
+                debug = False
+            seed = row[8]
+            year = row[9]
+            month = row[10]
+            day = row[11]
+            hour = row[12]
+            minute = row[13]
+            second = row[14]
+            microsecond = row[15]
+            class_name = row[16]
+            startFromPeriod = row[17]
+            buyingAddress = row[18]
+            sellingAddress = row[19]
+            capacityControl = 'B' # Bid Capacity.
+            providerSeed = getSeed(seed, year, month, day, hour, minute, second, microsecond)
+            purchase_service = row[21]
+            # Brings resources definition
+            cursor2 = db.cursor()
+            sql_resources = "SELECT resource_id, capacity, cost \
+                           FROM simulation_provider_resource \
+                          WHERE provider_id = '%d'" % (providerId)
+            cursor2.execute(sql_resources)
+            resourceRows = cursor2.fetchall()
+            resources = {}
+            for resourceRow in resourceRows:
+                resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
+                        
+            capacityControl = 'B' # Bid Capacity.
+            class_name = 'Provider'
+            sellingAddress = foundation.agent_properties.addr_mktplace_backhaul
+            buyingAddress = ' '
+            provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceIdISP, 
+                          providerSeed, marketPosition, adaptationFactor, 
+                          monopolistPosition, debug, resources, numberOffers, 
+                          numAccumPeriods, numAncestors, startFromPeriod, sellingAddress, 
+                       buyingAddress, capacityControl, purchase_service)
+            providers.append(provider)
+
+            i = i + 1
+
+            break
+
+        # start the providers
+        provider1 = providers[0]  # provider - Bid capacity.
+        
+        provider1.start_agent()
+        provider1.initialize()
+        
+        fileResult1 = open(provider1.getProviderId() + '.log',"a")     
+        
+        staged_bids = {}
+        delay = 0.15
+        price = 17
+        bid1 = createBid(provider1.getProviderId(), provider1.getServiceId(),  delay, price)
+        bid1.setCapacity(10)
+        bid2 = createBid(provider1.getProviderId(), provider1.getServiceId(),  delay, price)
+        bid2.setCapacity(8)
+        bid3 = createBid(provider1.getProviderId(), provider1.getServiceId(),  delay, price)
+        bid3.setCapacity(8.3)
+        bid4 = createBid(provider1.getProviderId(), provider1.getServiceId(),  delay, price)
+        bid4.setCapacity(4.5)
+        bid5 = createBid(provider1.getProviderId(), provider1.getServiceId(),  delay, price)
+        bid5.setCapacity(6.0)
+        bid5.setStatus(Bid.INACTIVE)
+        
+        bid6 = createBid(provider1.getProviderId(), provider1.getServiceId(),  0.2, 12)
+        bid6.setCapacity(7.0)
+        
+        staged_bids[bid1.getId()] = {'Object': bid1, 'Action': Bid.ACTIVE, 'MarketShare' : {}, 'Forecast' : 10 }
+        staged_bids[bid2.getId()] = {'Object': bid2, 'Action': Bid.ACTIVE, 'MarketShare' : {}, 'Forecast' : 8 }
+        staged_bids[bid3.getId()] = {'Object': bid3, 'Action': Bid.ACTIVE, 'MarketShare' : {}, 'Forecast' : 8.3 }
+        staged_bids[bid4.getId()] = {'Object': bid4, 'Action': Bid.ACTIVE, 'MarketShare' : {}, 'Forecast' : 4.5 }
+        staged_bids[bid5.getId()] = {'Object': bid5, 'Action': Bid.INACTIVE, 'MarketShare' : {}, 'Forecast' : 6 }
+        staged_bids[bid6.getId()] = {'Object': bid6, 'Action': Bid.ACTIVE, 'MarketShare' : {}, 'Forecast' : 7 }
+        
+        provider1.eliminateNeighborhoodBid(staged_bids, fileResult1)
+        
+        # verifies that neigboorhood bids has been eliminated
+        if len(staged_bids) != 3:
+            raise FoundationException("Error in eliminate neighborhood bids Nbr Expected:3 found:" + str(len(staged_bids)))
+        
+        # Verifies the capacity
+        for  bidId in staged_bids:
+            if bidId == bid1.getId():
+                bidTmp = ((staged_bids[bidId])['Object'])
+                if bidTmp.getCapacity() != 30.8:
+                    raise FoundationException("Error in eliminate neighborhood bids CapacityExpected:30.8" + "value:" + str(bidTmp.getCapacity()))
+
+            if bidId == bid6.getId():
+                bidTmp = ((staged_bids[bidId])['Object'])
+                if bidTmp.getCapacity() != 7:
+                    raise FoundationException("Error in eliminate neighborhood bids CapacityExpected:7" + "value:" + str(bidTmp.getCapacity()))
+
+        # Verifies the forecast
+        for  bidId in staged_bids:
+            if bidId == bid1.getId():
+                forecast = ((staged_bids[bidId])['Forecast'])
+                if forecast != 30.8:
+                    raise FoundationException("Error in eliminate neighborhood bids CapacityExpected:30.8" + "value:" + str(forecast))
+
+            if bidId == bid6.getId():
+                forecast = ((staged_bids[bidId])['Forecast'])
+                if forecast != 7:
+                    raise FoundationException("Error in eliminate neighborhood bids CapacityExpected:7" + "value:" + str(forecast))
+
+        logger.info('Ending test_eliminateNeighborhoodBid')
+
+    except FoundationException as e:
+        print e.__str__()
+    except ProviderException as e:
+        print e.__str__()
+    except Exception as e:
+        print e.__str__()
+    finally:
+        # disconnect from server
+        db.close()
+        fileResult1.close()
+        provider1.stop_agent()
+
 
 def test_provider_database_classes():
     '''
@@ -1385,7 +1568,8 @@ def test_provider_database_classes():
             raise FoundationException("error in getNumAncestors")
 
         
-        bid6 = createBid( provider2.getProviderId(), serviceId, delay, price)        
+        bid6 = createBid( provider2.getProviderId(), serviceId, delay, price)
+        bid6.setId('e86298e6-9562-11e6-843d-02b51fdd81c5')
                         
         # verifies getDBBidMarketShare
         bidDemand, totQuantity = provider2.getDBBidMarketShare(bid5.getId(),  10, 1, fileResult2)
@@ -1416,19 +1600,27 @@ def test_provider_database_classes():
         
         # include in related bids in order to test the function getRelatedBids ( bid7 - bid 14)
         bid7 = createBid( provider2.getProviderId(), serviceId, delay, price)
-        bid7.setCreationPeriod(7)        
+        bid7.setCreationPeriod(7)
+        bid7.setId('e86a99d8-9562-11e6-843d-02b51fdd81c5')
+        
         (provider2._list_vars['Related_Bids'])[bid7.getId()] = bid7
         bid8 = createBid( provider2.getProviderId(), serviceId, delay, price)
         bid8.setCreationPeriod(7)
+        bid8.setId('e87239f4-9562-11e6-843d-02b51fdd81c5')
+        
         (provider2._list_vars['Related_Bids'])[bid8.getId()] = bid8
         bid9 = createBid( provider2.getProviderId(), serviceId, delay, price)
         bid9.setCreationPeriod(8)
+        bid9.setId('e879e910-9562-11e6-843d-02b51fdd81c5')
+        
         (provider2._list_vars['Related_Bids'])[bid9.getId()] = bid9
         bid10 = createBid( provider2.getProviderId(), serviceId, delay, price)
-        bid10.setCreationPeriod(8)        
+        bid10.setCreationPeriod(8)
+        bid10.setId('Bid10')
         (provider2._list_vars['Related_Bids'])[bid10.getId()] = bid10
         bid11 = createBid(provider2.getProviderId(), serviceId, delay, price)
-        bid11.setCreationPeriod(9)        
+        bid11.setCreationPeriod(9)
+        bid10.setId('Bid11')
         (provider2._list_vars['Related_Bids'])[bid11.getId()] = bid11
 
         insertDBBid(cursor, 9, executionCount, bid11)
@@ -1436,13 +1628,15 @@ def test_provider_database_classes():
 
         bid12 = createBid(provider2.getProviderId(), serviceId, delay, price)
         bid12.setCreationPeriod(9)
+        bid12.setId('Bid12')
         (provider2._list_vars['Related_Bids'])[bid12.getId()] = bid12
 
         insertDBBid(cursor, 9, executionCount, bid12)
         insertDBBidPurchase(cursor, 9, serviceId, executionCount, bid12, 8)
 
         bid13 = createBid(provider2.getProviderId(), serviceId, delay, price)
-        bid13.setCreationPeriod(10)        
+        bid13.setCreationPeriod(10)
+        bid13.setId('Bid13')
         (provider2._list_vars['Related_Bids'])[bid13.getId()] = bid13
 
         insertDBBid(cursor, 10, executionCount, bid13)
@@ -1450,6 +1644,7 @@ def test_provider_database_classes():
 
         bid14 = createBid(provider2.getProviderId(), serviceId, delay, price)
         bid14.setCreationPeriod(10)
+        bid14.setId('Bid14')
         (provider2._list_vars['Related_Bids'])[bid14.getId()] = bid14
 
         insertDBBid(cursor, 10, executionCount, bid14)
@@ -1496,14 +1691,14 @@ def test_provider_database_classes():
         # verifies calculateMovedBidForecast
         marketZoneDemand1, forecast1 = provider2.calculateMovedBidForecast(currentPeriod, radius, bid5, bid6, Provider.MARKET_SHARE_ORIENTED, fileResult2)
         # The forecast is 6.4549. which is ( the forecast for bid5:5.3648 plus forecast of competitorBid:13 + fforecast of competitorBid:14) / 3
-        # that comes from demand competitor bids:bid13,bid14 and bid: bid5 
+        # that comes from demand competitor bids:bid13,bid14 and bid5 
         marketZoneDemand2, forecast2 = provider2.calculateMovedBidForecast(currentPeriod, radius, bid5, bid6, Provider.PROFIT_ORIENTED, fileResult2)
 
         if (forecast1 < 6) or (forecast1 > 7):
-            raise FoundationException("error in calculateMovedBidForecast MARKET_SHARE")
+            raise FoundationException("error in calculateMovedBidForecast MARKET_SHARE - value" + str(forecast1) )
 
         if (forecast2 < 5) or (forecast2 > 6):
-            raise FoundationException("error in calculateMovedBidForecast PROFIT_ORIENTED")
+            raise FoundationException("error in calculateMovedBidForecast PROFIT_ORIENTED" + str(forecast2))
 
 
         logger.info('test_provider_database_classes step:3')
@@ -1535,11 +1730,6 @@ def test_provider_database_classes():
         # --------------------------------------------
         test_replace_dominated_bids(cursor, executionCount, provider2, fileResult2)
         
-        logger.info('test_provider_database_classes step:4')
-        
-        provider1.stop_agent()
-        provider2.stop_agent()
-
         logger.info('Ending test_provider_database_classes')
 
     except FoundationException as e:
@@ -1552,6 +1742,8 @@ def test_provider_database_classes():
         # disconnect from server
         db.close()
         fileResult2.close()
+        provider1.stop_agent()
+        provider2.stop_agent()
 
 def test_provider_edge_move_quality(provider, fileResult):
     # variable initialization
@@ -1726,7 +1918,7 @@ def test_include_exploring_bid(currentPeriod, provider, bid4, fileResult):
     staged_bids_resp = {}         
     provider.includeExploringBid( currentPeriod, numAncestors, serviceProvider, adaptationFactor, marketPosition, bidTest4_01, bid4, serviceIsp, radius, staged_bids_resp, staged_bids_test, fileResult)
     if len(staged_bids_resp) != 1:
-        raise FoundationException("Error in method includeExploringBid of ProviderEdgeMonopoly - Error:1 ")
+        raise FoundationException("Error in method includeExploringBid of ProviderEdgeMonopoly - Error:1 expecting:1 len:" + str(len(staged_bids_resp)) )
 
     staged_bids_test[bidTest4_02.getId()] = {'Object': bidTest4_02, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 0 }
     
@@ -3550,7 +3742,7 @@ def test_provider_exploration_functions():
         output1 = {}
         output1['1'] = {'Direction' : 1, 'Step': 0.5}
         output1['2'] = {'Direction' : 1, 'Step': 0.02}
-        newBid1, bidPrice1, send1 = provider1.moveBidOnDirection(bid6, output1)
+        newBid1, bidPrice1, send1 = provider1.moveBidOnDirection(bid6, output1, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3566,7 +3758,7 @@ def test_provider_exploration_functions():
         output2 = {}
         output2['1'] = {'Direction' : -1, 'Step': -0.5}
         output2['2'] = {'Direction' : 1, 'Step': 0.02}
-        newBid2, bidPrice2, send2 = provider1.moveBidOnDirection(bid6, output2)
+        newBid2, bidPrice2, send2 = provider1.moveBidOnDirection(bid6, output2, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3582,7 +3774,7 @@ def test_provider_exploration_functions():
         output3 = {}
         output3['1'] = {'Direction' : 1, 'Step': 0.5}
         output3['2'] = {'Direction' : -1, 'Step': -0.02}
-        newBid3, bidPrice3, send3 = provider1.moveBidOnDirection(bid6, output3)
+        newBid3, bidPrice3, send3 = provider1.moveBidOnDirection(bid6, output3, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3598,7 +3790,7 @@ def test_provider_exploration_functions():
         output4 = {}
         output4['1'] = {'Direction' : -1, 'Step': -0.5}
         output4['2'] = {'Direction' : -1, 'Step': -0.02}
-        newBid4, bidPrice4, send4 = provider1.moveBidOnDirection(bid6, output4)
+        newBid4, bidPrice4, send4 = provider1.moveBidOnDirection(bid6, output4, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3614,7 +3806,7 @@ def test_provider_exploration_functions():
         output5 = {}
         output5['1'] = {'Direction' : 1, 'Step': 0.5}
         output5['2'] = {'Direction' : 0, 'Step': 0}
-        newBid5, bidPrice5, send5 = provider1.moveBidOnDirection(bid6, output5)
+        newBid5, bidPrice5, send5 = provider1.moveBidOnDirection(bid6, output5, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3630,7 +3822,7 @@ def test_provider_exploration_functions():
         output6 = {}
         output6['1'] = {'Direction' : 0, 'Step': 0}
         output6['2'] = {'Direction' : 1, 'Step': 0.02}
-        newBid6, bidPrice6, send6 = provider1.moveBidOnDirection(bid6, output6)
+        newBid6, bidPrice6, send6 = provider1.moveBidOnDirection(bid6, output6, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3666,7 +3858,7 @@ def test_provider_exploration_functions():
         output1 = {}
         output1['1'] = {'Direction' : 1, 'Step': 0.5}
         output1['2'] = {'Direction' : 1, 'Step': 0.02}
-        newBid1, bidPrice1, send1 = provider1.moveBidOnDirection(bid6, output1)
+        newBid1, bidPrice1, send1 = provider1.moveBidOnDirection(bid6, output1, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3684,7 +3876,7 @@ def test_provider_exploration_functions():
         output2 = {}
         output2['1'] = {'Direction' : -1, 'Step': -0.5}
         output2['2'] = {'Direction' : 1, 'Step': 0.02}
-        newBid2, bidPrice2, send2 = provider1.moveBidOnDirection(bid6, output2)
+        newBid2, bidPrice2, send2 = provider1.moveBidOnDirection(bid6, output2, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3702,7 +3894,7 @@ def test_provider_exploration_functions():
         output3 = {}
         output3['1'] = {'Direction' : 1, 'Step': 0.5}
         output3['2'] = {'Direction' : -1, 'Step': -0.02}
-        newBid3, bidPrice3, send3 = provider1.moveBidOnDirection(bid6, output3)
+        newBid3, bidPrice3, send3 = provider1.moveBidOnDirection(bid6, output3, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3720,7 +3912,7 @@ def test_provider_exploration_functions():
         output4 = {}
         output4['1'] = {'Direction' : -1, 'Step': -0.5}
         output4['2'] = {'Direction' : -1, 'Step': -0.02}
-        newBid4, bidPrice4, send4 = provider1.moveBidOnDirection(bid6, output4)
+        newBid4, bidPrice4, send4 = provider1.moveBidOnDirection(bid6, output4, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3738,7 +3930,7 @@ def test_provider_exploration_functions():
         output5 = {}
         output5['1'] = {'Direction' : 1, 'Step': 0.5}
         output5['2'] = {'Direction' : 0, 'Step': 0}
-        newBid5, bidPrice5, send5 = provider1.moveBidOnDirection(bid6, output5)
+        newBid5, bidPrice5, send5 = provider1.moveBidOnDirection(bid6, output5, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3756,7 +3948,7 @@ def test_provider_exploration_functions():
         output6 = {}
         output6['1'] = {'Direction' : 0, 'Step': 0}
         output6['2'] = {'Direction' : 1, 'Step': 0.02}
-        newBid6, bidPrice6, send6 = provider1.moveBidOnDirection(bid6, output6)
+        newBid6, bidPrice6, send6 = provider1.moveBidOnDirection(bid6, output6, fileResult1)
 
         for decisionVariable in (provider1._service)._decision_variables:
             if ((provider1._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
@@ -3793,11 +3985,12 @@ def test_provider_exploration_functions():
 
 if __name__ == '__main__':
     #test_integrated_classes()
-    test_provider_exploration_functions()
+    #test_provider_exploration_functions()
     #test_cost_functions()
     #test_marketplace_capacity_management()
     #test_provider_general_methods()
+    #test_eliminateNeighborhoodBid()
     #test_provider_database_classes()
     #test_provider_edge_monopoly_classes()
-    #test_provider_edge_monopoly_current_bids()
+    test_provider_edge_monopoly_current_bids()
     

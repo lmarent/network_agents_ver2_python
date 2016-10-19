@@ -59,9 +59,14 @@ def generate_figure(directory, input_file, output_file):
 
     maxPeriod = np.max(data['Period'])
     minDelay = np.min(data['Delay'])
-    maxDelay = np.max(data['Delay'])
+    maxDelay = np.max(data['Delay']) 
+    minDelay = minDelay - ((maxDelay - minDelay) / 10)
+    maxDelay = maxDelay + ((maxDelay - minDelay) / 10)
+
     minPrice = np.min(data['Price'])
     maxPrice = np.max(data['Price'])
+    minPrice = minPrice - ((maxPrice - minPrice) / 10) 
+    maxPrice = maxPrice + ((maxPrice - minPrice) / 10)
 
     figure = plt.figure()
     figure.set_size_inches(6, 3)

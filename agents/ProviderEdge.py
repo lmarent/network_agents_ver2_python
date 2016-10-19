@@ -462,9 +462,7 @@ class ProviderEdge(Provider):
     def restartAvailableCapacity(self):
         self.lock.acquire()
         try:
-            db1 = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
-            foundation.agent_properties.user_password,foundation.agent_properties.database_name )
-            cursor2 = db1.cursor()
+            cursor2 = self._db.cursor()
             sql_resources = "SELECT resource_id, capacity, cost \
                                FROM simulation_provider_resource \
                               WHERE provider_id = '%s'" % (self._list_vars['Id'])
@@ -478,7 +476,6 @@ class ProviderEdge(Provider):
                 if resourceId in resources.keys():
                     (resources[resourceId])['Cost'] = ((self._used_variables['resources'])[resourceId])['Cost']
 
-            db1.close()
             # replace resource variables
             self._used_variables['resources'] = resources
         finally:

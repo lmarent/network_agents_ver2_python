@@ -16,6 +16,7 @@ import math
 import time
 import uuid
 import MySQLdb
+from datetime import datetime
 from time import gmtime, strftime
 from operator import itemgetter
 import threading
@@ -80,6 +81,9 @@ class Provider(Agent):
             self._used_variables['numAncestors'] =numAncestors
             self._used_variables['startPeriod'] = startFromPeriod
             logger.info('Ending Initialization provider:' + strID)
+            self._db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
+                                foundation.agent_properties.user_password,foundation.agent_properties.database_name )
+            self._db.autocommit(1)    
         except FoundationException as e:
             raise ProviderException(e.__str__())
     
@@ -138,7 +142,8 @@ class Provider(Agent):
     def registerLog(self, fileResult, message):
         self.lock.acquire()
         try:
-            timeNow = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+            now = datetime.now()
+            timeNow = now.strftime("%H:%M:%S.%f")
             if (self._used_variables['debug'] == True):
                 fileResult.write(timeNow + ':' + message + '\n')
         finally:
@@ -148,9 +153,7 @@ class Provider(Agent):
     Get the maxium period register for a purchase - Not Tested
     '''    
     def getDBMaxPeriod(self):
-        db1 = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
-                                foundation.agent_properties.user_password,foundation.agent_properties.database_name )
-        cursor = db1.cursor() 
+        cursor = self._db.cursor() 
         sql = 'select max(a.period) from Network_Simulation.simulation_bid_purchases a, \
                 Network_Simulation.simulation_generalparameters b \
                 where a.execution_count = b.execution_count'
@@ -160,7 +163,6 @@ class Provider(Agent):
         period = 0
         for row in results:
             period = row[0]
-        db1.close()
         return period
 
     
@@ -706,7 +708,7 @@ class Provider(Agent):
     '''
     def areNeighborhoodBids(self, radius, bid1, bid2, fileResult):
         val_return = False        
-        distance = self.distance(bid1,bid2)
+        distance = self.distance(bid1,bid2, fileResult)
         radiusTmp = radius * len(bid1._decision_variables)
         if distance <= radiusTmp:
             val_return = True            
@@ -741,19 +743,38 @@ class Provider(Agent):
         self.registerLog(fileResult, 'Starting - eliminateNeighborhoodBid - output:' + str(len(staged_bids)))
         self.lock.acquire()
         try:
+            # Copy the active bids
+
+            compared = {}
+            # lopp throuhg bids and compare with those in to_compare dictionary
             for bidId in staged_bids:
                 bid = (staged_bids[bidId])['Object']
                 action = (staged_bids[bidId])['Action']
                 if (action == Bid.ACTIVE):
-                    for bidIdComp in self._list_vars['Bids']:
-                        if bidIdComp not in staged_bids:
-                            bidComp = (self._list_vars['Bids'])[bidIdComp]
-                            distance = self.distance(bid,bidComp)
-                            self.registerLog(fileResult, 'New Bid:' + bidId + 'Actual Bid:' + bidIdComp + 'Distance:' + str(distance))
-                            radius = foundation.agent_properties.own_neighbor_radius * len(bid._decision_variables)
-                            if distance <= radius:
-                                to_delete[bidId] = bid
-                                break
+                    to_compare = []
+                    for bidId2 in staged_bids:
+                        action2 = (staged_bids[bidId2])['Action']
+                        if (action2 == Bid.ACTIVE) and (bidId2 != bidId):
+                            if (bidId2 not in compared) and (bidId2 not in to_delete):
+                                to_compare.append(bidId2)
+                        
+                    for bidIdComp in to_compare:
+                        bidComp = (staged_bids[bidIdComp])['Object']
+                        self.registerLog(fileResult, 'We are going fine :')
+                        distance = self.distance(bid,bidComp, fileResult)
+                        self.registerLog(fileResult, 'New Bid:' + bidId + 'Actual Bid:' + bidIdComp + 'Distance:' + str(distance))
+                        radius = foundation.agent_properties.own_neighbor_radius * len(bid._decision_variables)
+                        if distance <= radius:
+                            to_delete[bidIdComp] = bidIdComp
+                            # transfer capacity
+                            newCapacity =  ((staged_bids[bidId])['Object']).getCapacity()
+                            newCapacity += bidComp.getCapacity()
+                            ((staged_bids[bidId])['Object']).setCapacity(newCapacity)
+                            # transfer Forecast
+                            newForecast = (staged_bids[bidId])['Forecast']
+                            newForecast += (staged_bids[bidIdComp])['Forecast']
+                            ((staged_bids[bidId])['Forecast']) = newForecast
+                    compared[bidId] = bid
             for bidId in to_delete:
                 del staged_bids[bidId]
         finally:
@@ -806,10 +827,8 @@ class Provider(Agent):
     - tested:OK    
     '''
     def getDBBidMarketShare(self, bidId,  current_period, num_periods, fileResult ):
-        #self.registerLog(fileResult, 'Starting getDBBidMarketShare' + 'bidId:' + bidId + 'CurrentPeriod:' + str(current_period) + 'num_periods:' + str(num_periods))
-        db1 = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
-                                foundation.agent_properties.user_password,foundation.agent_properties.database_name )
-        cursor = db1.cursor() 
+        self.registerLog(fileResult, 'Starting getDBBidMarketShare' + 'bidId:' + bidId + 'CurrentPeriod:' + str(current_period) + 'num_periods:' + str(num_periods))
+        cursor = self._db.cursor() 
         sql = 'select a.period, a.quantity, a.qty_backlog from \
                      Network_Simulation.simulation_bid_purchases a, \
                      Network_Simulation.simulation_generalparameters b \
@@ -822,9 +841,9 @@ class Provider(Agent):
         bidDemand = {}
         totQuantity = 0
         for row in results:
+            self.registerLog(fileResult, 'Entre:' + bidId + 'CurrentPeriod:' + str(current_period) + 'num_periods:' + str(num_periods))
             bidDemand[int(row[0])] = float(row[1]) + (float(row[2]) * 0.05)
             totQuantity = totQuantity + float(row[1]) + (float(row[2]) * 0.05)
-        db1.close()
         self.registerLog(fileResult, 'Ending getDBBidMarketShare' + 'bidId:' + bidId + 'totQuantity:' + str(totQuantity))
         return bidDemand, totQuantity
     
@@ -857,10 +876,8 @@ class Provider(Agent):
     '''    
     def getDBMarketShareZone(self, bid, related_bids, current_period, num_periods, fileResult, infoType=PURCHASE):
         self.registerLog(fileResult, 'Initializating getDBMarketShareZone - Id:' + bid.getId() + 'Period:' + str(current_period) + 'Num_periods:' + str(num_periods))
-        db1 = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
-                            foundation.agent_properties.user_password,foundation.agent_properties.database_name )
-        cursor = db1.cursor() 
         
+        cursor = self._db.cursor() 
         if infoType == Provider.PURCHASE: 
             sql = 'select a.period, a.quantity from \
                          Network_Simulation.simulation_bid_purchases a, \
@@ -908,7 +925,6 @@ class Provider(Agent):
             # Insert the demand for the bid only when the sql found data.
             if (len(bidDemand2) > 0):
                 marketZoneDemand[providerBidId] = bidDemand2
-        db1.close()
         self.registerLog(fileResult, 'Ending getDBMarketShareZone - Id:' + bid.getId() +  ' totQuantity:' + str(totQuantity) + 'numRelated:' + str(numRelated) )
         return marketZoneDemand, totQuantity, numRelated
 
@@ -920,9 +936,7 @@ class Provider(Agent):
     def getDBProfitZone(self, bid, related_bids, current_period, fileResult):
         self.registerLog(fileResult, 'Initializating getDBProfitZone - Id:' + bid.getId())
         status = '1'
-        db1 = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
-                            foundation.agent_properties.user_password,foundation.agent_properties.database_name )
-        cursor = db1.cursor() 
+        cursor = self._db.cursor() 
         sql = 'select a.period, a.quantity, c.unitary_profit \
                 from Network_Simulation.simulation_bid_purchases a, \
                      Network_Simulation.simulation_generalparameters b, \
@@ -966,9 +980,7 @@ class Provider(Agent):
                 numRelated = numRelated + 1
                 self.registerLog(fileResult, 'relatedBid getDBProfitZone - Id:' + providerBidId + 'profit:' + str(bidProf))
                 profitZone[providerBidId] = bidProfit2
-                
-        db1.close()
-        
+                        
         self.registerLog(fileResult, 'getDBProfitZone 3- Id:' + bid.getId())
         return profitZone, totProfit, numRelated
 
@@ -1411,10 +1423,11 @@ class Provider(Agent):
         self.registerLog(fileResult, 'Ending evaluateDirectionalDerivate - Nbr directions:' + str(len(direction)))
         return direction
 
-    def distance(self, bid1, bid2):
+    def distance(self, bid1, bid2, fileResult):
         '''
         Method to calculate the distance from a bid to another. Tested Ok.
         '''
+        self.registerLog(fileResult, 'Starting Distance')
         distance = 0
         for decisionVariable in (self._service)._decision_variables:
             min_value = (((self._service)._decision_variables)[decisionVariable]).getMinValue()
@@ -1427,15 +1440,18 @@ class Provider(Agent):
             else:
                 distance_value = 0
             distance = distance + ((distance_value)** 2)
-        return math.sqrt(distance)
+        distance = math.sqrt(distance)
+        self.registerLog(fileResult, 'Ending Distance ' + str(distance))
+        return distance
 
     def MinimizingDelta(self, step, numPredecessors):
         assert(numPredecessors >= 1), "The number of precessors is less than 1"
         step = step / numPredecessors
         return step
 
-    def moveBidOnDirection(self, bid, directionMove ):
+    def moveBidOnDirection(self, bid, directionMove, fileResult):
         # Create a new bid
+        self.registerLog(fileResult, 'Starting moveBidOnDirection')
         newBid = Bid()
         uuidId = uuid.uuid1()    # make a UUID based on the host ID and current time
         idStr = str(uuidId)
@@ -1467,6 +1483,7 @@ class Provider(Agent):
                 bidPrice = new_value
             newBid.setDecisionVariable(decisionVariable, new_value)
             assert newBid.getNumberPredecessor() == bid.getNumberPredecessor(), "Incorrect number of predecessors in child"
+        self.registerLog(fileResult, 'Ending moveBidOnDirection')
         return newBid, bidPrice, send
     
 
@@ -1576,6 +1593,7 @@ class Provider(Agent):
                 
         # Then if it is market share, it brings the demand for all related bids.
         if (orientation == Provider.MARKET_SHARE_ORIENTED):
+            self.registerLog(fileResult, 'Provider Market Share Oriented')
             competitorBids = self.getRelatedBids(bid, currentPeriod - 1 , 0, radius, fileResult)
             for compBidId in competitorBids:
                 competitorBid = competitorBids[compBidId]
@@ -1600,9 +1618,10 @@ class Provider(Agent):
         logger.debug("Initiating moveBid")
         send = False
         forecast = 0
-        self.registerLog(fileResult, 'moveBid:' + bid.getId()) 
+        staged_bids_tmp = []
+        self.registerLog(fileResult, 'moveBid:' + bid.getId() + 'NumBids:' + str(len(staged_bids))) 
         for directionMove in moveDirections:
-            newBid, bidPrice, send = self.moveBidOnDirection( bid, directionMove )
+            newBid, bidPrice, send = self.moveBidOnDirection( bid, directionMove, fileResult)
             if (send == True):
                 self.registerLog(fileResult,'Period:' + str(currentPeriod) + ' Bid moved:' + bid.getId() + ' Bid created:' + newBid.getId() + ' Bid Price:' + str(bidPrice))
                 unitaryBidCost = self.completeNewBidInformation(newBid, bidPrice, fileResult)
@@ -1612,9 +1631,10 @@ class Provider(Agent):
                         marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, bid, newBid, orientation, fileResult)
                         self.registerLog(fileResult, 'New bid created - ready to be send:' +  newBid.getId() + 'Forecast:' + str(forecast))
                         staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
+                        staged_bids_tmp.append(newBid.getId())
             else:
-                self.registerLog(fileResult, 'Bid not moved:' + bid.getId())     
-        
+                self.registerLog(fileResult, 'Bid not moved:' + bid.getId())
+
         # In any case inactive the current bid, if it has purchases copy it.
         if (marketShare > 0): 
             copyB = self.copyBid(bid)
@@ -1623,10 +1643,30 @@ class Provider(Agent):
             bidPrice = self.getBidPrice(copyB)
             self.completeNewBidInformation(copyB, bidPrice, fileResult)
             marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, bid, copyB, orientation, fileResult)
-            staged_bids[copyB.getId()] = {'Object': copyB, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
-            
+            self.registerLog(fileResult, 'newBids:' + ', '.join(staged_bids_tmp))
+            # If the bid that is being moved is close to any new bid, then we share their forecast.
+            for newBidId in staged_bids_tmp:
+                newBid = (staged_bids[newBidId])['Object']
+                if (self.areNeighborhoodBids(radius, copyB, newBid, fileResult)):
+                    forecast = (staged_bids[newBidId])['Forecast']
+                    (staged_bids[newBidId])['Forecast'] = forecast * 0.3
+                    if copyB.getId() in staged_bids:
+                        (staged_bids[copyB.getId()])['Forecast'] = (staged_bids[copyB.getId()])['Forecast'] + (forecast * 0.7)
+                    else:
+                        staged_bids[copyB.getId()] = {'Object': copyB, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast *0.7 }
+
+            # None of the new bid is a neighborhood bids
+            if copyB.getId() not in staged_bids:
+                staged_bids[copyB.getId()] = {'Object': copyB, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
+        
+        # Inactive the bid being moved.
         staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.INACTIVE, 'MarketShare' : {}, 'Forecast': 0 }
-        logger.debug("Ending moveBid")
+        # print the results
+        for bidId in staged_bids:
+            forecast = (staged_bids[bidId])['Forecast']
+            action = (staged_bids[bidId])['Action']
+            self.registerLog(fileResult,"BidId:" + bidId + "Forecast:" + str(forecast) + "Action:" + str(action) )
+        self.registerLog(fileResult, 'Ending moveBid:' + str(len(staged_bids))) 
     
     ''' 
     returns the available capacity for a specic resource.
@@ -1953,6 +1993,7 @@ class Provider(Agent):
             # Close the sockets
             fileResult.close()
             self.stop_agent()
+            self._db.close()
             return        
         
         
