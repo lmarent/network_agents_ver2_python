@@ -64,6 +64,7 @@ class Provider(Agent):
                   
             self.lock = threading.RLock()
             if (providerType == None):
+                logger.info('Type of provider not specified -using by default backhaul')
                 providerType = AgentType(AgentType.PROVIDER_BACKHAUL)
             
             super(Provider, self).__init__(strID, Id, providerType, serviceId, providerSeed, sellingAddress, buyingAddress, capacityControl, purchase_service, self.lock) 
@@ -172,18 +173,17 @@ class Provider(Agent):
     Tested: Ok
     '''    
     def getRelatedBids(self, bid, currentPeriod, numPeriods, radius, fileResult):
-        logger.debug('start getRelatedBids')
         ret_relatedBids = {}
         self.lock.acquire()
         logger.debug('After acquiring lock')
         try:
+            self.registerLog(fileResult,'start getRelatedBids')
             for bidId in self._list_vars['Related_Bids']:
                 bidCompetitor = (self._list_vars['Related_Bids'])[bidId]
-                self.registerLog(fileResult, 'competitorBidId:' + bidId + 'creationPeriod:' + str(bidCompetitor.getCreationPeriod()) )
                 if (bidCompetitor.getCreationPeriod()>= (currentPeriod - numPeriods)) and (bidCompetitor.getCreationPeriod() <= (currentPeriod)):
                     if (self.areNeighborhoodBids(radius, bid, bidCompetitor, fileResult)):
                         ret_relatedBids[bidId] = bidCompetitor
-            logger.debug('End getRelatedBids')
+            self.registerLog(fileResult, 'Ending getRelatedBids - Numrelated:' + str(len(ret_relatedBids)))
         finally:
             self.lock.release()
         logger.debug('end getRelatedBids')
@@ -761,10 +761,8 @@ class Provider(Agent):
                     for bidIdComp in to_compare:
                         bidComp = (staged_bids[bidIdComp])['Object']
                         self.registerLog(fileResult, 'We are going fine :')
-                        distance = self.distance(bid,bidComp, fileResult)
-                        self.registerLog(fileResult, 'New Bid:' + bidId + 'Actual Bid:' + bidIdComp + 'Distance:' + str(distance))
-                        radius = foundation.agent_properties.own_neighbor_radius * len(bid._decision_variables)
-                        if distance <= radius:
+                        radius = foundation.agent_properties.own_neighbor_radius
+                        if (self.areNeighborhoodBids( radius, bid,bidComp, fileResult) == True):
                             to_delete[bidIdComp] = bidIdComp
                             # transfer capacity
                             newCapacity =  ((staged_bids[bidId])['Object']).getCapacity()
@@ -842,8 +840,11 @@ class Provider(Agent):
         totQuantity = 0
         for row in results:
             self.registerLog(fileResult, 'Entre:' + bidId + 'CurrentPeriod:' + str(current_period) + 'num_periods:' + str(num_periods))
-            bidDemand[int(row[0])] = float(row[1]) + (float(row[2]) * 0.05)
-            totQuantity = totQuantity + float(row[1]) + (float(row[2]) * 0.05)
+            if int(row[0]) in bidDemand:
+                bidDemand[int(row[0])] = bidDemand[int(row[0])] + float(row[1]) + (float(row[2]) * 0.1)
+            else:
+                bidDemand[int(row[0])] = float(row[1]) + (float(row[2]) * 0.1)
+            totQuantity = totQuantity + float(row[1]) + (float(row[2]) * 0.1)
         self.registerLog(fileResult, 'Ending getDBBidMarketShare' + 'bidId:' + bidId + 'totQuantity:' + str(totQuantity))
         return bidDemand, totQuantity
     
@@ -851,6 +852,7 @@ class Provider(Agent):
     Get the Ancestor Market Share from a parent Bid, results are put in bidDemand and totQuantity - tested Ok
     '''    
     def getDBBidAncestorsMarketShare(self, bid, currentPeriod, numPeriods, fileResult):
+        self.registerLog(fileResult, 'Start getDBBidAncestorsMarketShare:' + bid.getId())
         bidDemand = {}
         totQuantity = 0
         nbrAncestors = 0
@@ -867,6 +869,7 @@ class Provider(Agent):
                 if (bidParent.getCreationPeriod() >= period):
                     bidParent = bidParent._parent
                 nbrAncestors = nbrAncestors + 1
+        self.registerLog(fileResult, 'Ending getDBBidAncestorsMarketShare:' + str(totQuantity) )
         return bidDemand, totQuantity
     
     '''
@@ -955,7 +958,10 @@ class Provider(Agent):
         cursor.execute(sql, (bid.getId(), current_period, status ))
         results = cursor.fetchall()
         for row in results:
-            bidProfit[int(row[0])] = float(row[1]) * float(row[2])
+            if int(row[0]) in bidProfit:
+                bidProfit[int(row[0])] = bidProfit[int(row[0])] + float(row[1]) * float(row[2])
+            else:
+                bidProfit[int(row[0])] = float(row[1]) * float(row[2])
             totProfit = totProfit + ( float(row[1]) * float(row[2]))
         # Insert the demand for the bid only when the sql found data.
         if (len(bidProfit) > 0):
@@ -970,7 +976,10 @@ class Provider(Agent):
             bidProfit2 = {}
             found = False
             for row in results2:
-                bidProfit2[int(row[0])] = float(row[1]) * float(row[2])
+                if int(row[0]) in bidProfit2:
+                    bidProfit2[int(row[0])] = bidProfit2[int(row[0])] + float(row[1]) * float(row[2])
+                else:
+                    bidProfit2[int(row[0])] = float(row[1]) * float(row[2])
                 totProfit = totProfit + ( float(row[1]) * float(row[2]))
                 bidProf = bidProf + ( float(row[1]) * float(row[2]))
                 found = True            
@@ -1568,11 +1577,16 @@ class Provider(Agent):
     Calculate the any bid forecast, the bid plus ancestors
     '''
     def calculateBidForecast(self, currentPeriod, bid, fileResult):
+        self.registerLog(fileResult, 'starting calculateBidForecast')
         bidDemand, bidQuantity = self.getDBBidMarketShare(bid.getId(), currentPeriod - 1 , 1, fileResult)        
         bidDemand2, bidQuantity2 = self.getDBBidAncestorsMarketShare( bid, currentPeriod - 1, self.getNumAncestors(), fileResult )
         bidDemand3, bidQuantity3 = self.consolidateDemand(bidDemand, bidQuantity, bidDemand2, bidQuantity2)
+        self.registerLog(fileResult, 'calculateBidForecast included numPeriods:' + str(len(bidDemand3)))
+        for period in bidDemand3:
+            self.registerLog(fileResult, 'calculateBidForecast - period'+ str(period)+ 'Qty:' + str(bidDemand3[period]))
         progression =self.calculateForecastProgression(bidDemand3)
         forecast = self.movingAverage(progression)
+        self.registerLog(fileResult, 'Ending calculateBidForecast:' + str(forecast))
         return bidDemand3, forecast
         
     '''
@@ -1603,7 +1617,7 @@ class Provider(Agent):
                     marketZoneDemand[compBidId] = bidDemand
                 totForecast = totForecast + forecast
                 
-                self.registerLog(fileResult, 'Competitor BidId:'+ compBidId + 'forecast:' + str(forecast))
+            self.registerLog(fileResult, 'End numRelated'+  str(numRelated))
             totForecast = totForecast / ( numRelated + 1 )
                 
         self.registerLog(fileResult, 'Ending calculateMovedBidForecast - Period: ' + str(currentPeriod) + ' Forecast:' + str(totForecast))

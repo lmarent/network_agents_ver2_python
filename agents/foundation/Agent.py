@@ -65,7 +65,7 @@ class Agent(Process):
         # state means: 0 can not create bids, 
         #              1 the process can create and ask for bids.
         #              2 disconnect
-        logger.debug('Init agent %s Agent Type:%s', strID, agent_type.getType()) 
+        logger.info('Init agent %s Agent Type:%s', strID, agent_type.getType()) 
         self._used_variables = {}
         self._list_vars = {}
         self._list_vars['Id'] = Id

@@ -68,7 +68,7 @@ def load_classes(list_classes):
     currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     sys.path.append(currentdir)
     agents_directory = currentdir
-    black_list = ['ProviderExecution', 'ProviderAgentException', 'ProviderExecutionTest', 'ProviderEdgeTest']
+    black_list = ['ProviderExecution', 'ProviderAgentException', 'ProviderExecutionTest', 'ProviderEdgeTest', 'ProviderPublicTest']
     for filename in os.listdir (agents_directory):
         	# Ignore subfolders
         	if os.path.isdir (os.path.join(agents_directory, filename)):
@@ -3989,8 +3989,8 @@ if __name__ == '__main__':
     #test_cost_functions()
     #test_marketplace_capacity_management()
     #test_provider_general_methods()
-    #test_eliminateNeighborhoodBid()
+    test_eliminateNeighborhoodBid()
     #test_provider_database_classes()
     #test_provider_edge_monopoly_classes()
-    test_provider_edge_monopoly_current_bids()
+    #test_provider_edge_monopoly_current_bids()
     

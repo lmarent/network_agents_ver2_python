@@ -58,7 +58,7 @@ def load_classes(list_classes):
     currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     sys.path.append(currentdir)
     agents_directory = currentdir
-    black_list = ['ProviderExecution', 'ProviderAgentException','ProviderExecutionTest', 'ProviderEdgeTest']
+    black_list = ['ProviderExecution', 'ProviderAgentException','ProviderExecutionTest', 'ProviderEdgeTest', 'ProviderPublicTest']
     for filename in os.listdir (agents_directory):
         	# Ignore subfolders
         	if os.path.isdir (os.path.join(agents_directory, filename)):
