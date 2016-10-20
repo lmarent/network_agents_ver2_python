@@ -391,10 +391,19 @@ def test_bulk_capacity():
                     sock2.sendall(message.__str__())
                     verifyPurchase(sock2,0)
 
+                    #message = getAvailability(strProv,serviceId,'')                
+                    #sock2.sendall(message.__str__())
+                    #qtyAvail = round(qtyAvail - 1.15, 2)
+                    #verifyAvailability(sock2, qtyAvail)
+
+                    
+                    # this part test the restart of the capacity in the provider.
+                    time.sleep(10)
                     message = getAvailability(strProv,serviceId,'')                
                     sock2.sendall(message.__str__())
-                    qtyAvail = round(qtyAvail - 1.15, 2)
+                    qtyAvail = round(100, 2)
                     verifyAvailability(sock2, qtyAvail)
+                    
 
     finally:
         sock.shutdown(socket.SHUT_WR)
@@ -488,5 +497,5 @@ def test_bid_capacity():
         sock2.close()
     
     
-#test_bulk_capacity()
-test_bid_capacity()
+test_bulk_capacity()
+#test_bid_capacity()
