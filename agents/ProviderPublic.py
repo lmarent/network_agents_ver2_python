@@ -238,7 +238,7 @@ class ProviderPublic(Provider):
 
                 staged_bids = {}
                 if (len(self._list_vars['Bids']) == 0):
-                    self.initializeBids(radius, fileResult)
+                    staged_bids = self.initializeBids(radius, fileResult)
                 else:
                     # By assumption providers at this point have the bid usage updated.
                     self.maintainBids(self, currentPeriod, radius, serviceOwn, staged_bids, fileResult)

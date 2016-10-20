@@ -586,19 +586,31 @@ class ProviderEdgeMonopoly(ProviderEdge):
                 staged_bids_result = self.updateCurrentBids(currentPeriod, radius, serviceOwn, staged_bids, availability, fileResult)
                 self.sendBids(staged_bids_result, fileResult)
                 staged_bids = staged_bids_result
-    
+                
+                totResourceConsumption = self.calculate_capacity(staged_bids, fileResult)
+                for resource in totResourceConsumption:
+                    self.registerLog(fileResult, 'calculate_capacity update-bids - Resource:' + str(resource) + 'Consuption:' + str(totResourceConsumption[resource]) )
+                
                 # Try to search for other parts of the quality-price spectrum given by the providers' bids.
                 for resourceId in self._list_vars['Resource_Service']:
                     services = (self._list_vars['Resource_Service'])[resourceId]
+                    explore_staged_bids = {}
                     for serviceId in services:      
                         serviceProvider = self._services[serviceId]
-                        explore_staged_bids = {}
+                        
                         self.exploreOtherSegments(currentPeriod, numAncestors, radius, initialQtyByBid,  serviceOwn, serviceProvider, adaptationFactor, marketPosition, staged_bids, explore_staged_bids, fileResult)
                         self.sendBids(explore_staged_bids, fileResult) 
                         # purge the bids.                        
-                        self.purgeBids(staged_bids, fileResult)
+
+                        totResourceConsumption = self.calculate_capacity(explore_staged_bids, fileResult)
+                        for resource in totResourceConsumption:
+                            self.registerLog(fileResult, 'calculate_capacity explore - Resource:' + str(resource) + 'Consuption:' + str(totResourceConsumption[resource]) )
+                        
                         self.purgeBids(explore_staged_bids, fileResult)
-                        self.registerLog(fileResult, 'Nbr bids after method purgeBids:' + str(len(self._list_vars['Bids'])) )
+                self.purgeBids(staged_bids, fileResult)        
+                self.registerLog(fileResult, 'Nbr bids after method purgeBids:' + str(len(self._list_vars['Bids'])) )
+                
+                self.sendCapacityEdgeProvider()
             except ProviderException as e:
                 self.registerLog(fileResult, e.message)
             except Exception as e:

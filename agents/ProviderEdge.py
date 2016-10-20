@@ -404,7 +404,6 @@ class ProviderEdge(Provider):
         self.registerLog(fileResult, 'The initial number of bids is:' + str(initialNumberBids) + 'market pos:' + str(marketPosition)) 
         return self.initializeBids(marketPosition, initialNumberBids, fileResult) 
     
-    
     def updateAvailability(self, resourceId, newAvailability):
         self.lock.acquire()
         try:
@@ -427,18 +426,19 @@ class ProviderEdge(Provider):
         else:
             self.moveForMarketShare(currentPeriod, radius, staged_bids, fileResult)        
 
-    def sendCapacityEdgeProvider(self, availability):
+    def sendCapacityEdgeProvider(self):
         '''
-        Sends the provider edge availability capacity to the market server.
+        Sends the capacity to the market server.
         '''
-        logger.info("Initializing send provider edge capacity")    
-        for resourceId in availability:
-            qtyAvailable = availability[resourceId]
+        logger.info("Initializing send capacity")    
+        for resourceId in self._used_variables['resources']:
+            resourceNode = (self._used_variables['resources'])[resourceId]
             message = Message('')
             message.setMethod(Message.SEND_AVAILABILITY)
             message.setParameter("Provider", self._list_vars['strId'])
             message.setParameter("Resource", resourceId)
-            message.setParameter("Quantity",str(qtyAvailable))
+            availableQty = resourceNode['InitCapacity'] - resourceNode['Capacity']
+            message.setParameter("Quantity",str(availableQty))
             messageResult = self.sendMessageMarket(message)
             if messageResult.isMessageStatusOk():
                 logger.info("Capacity tranmitted sucessfully")
@@ -458,7 +458,6 @@ class ProviderEdge(Provider):
         finally:
             self.lock.release()
 
-
     def restartAvailableCapacity(self):
         self.lock.acquire()
         try:
@@ -470,7 +469,7 @@ class ProviderEdge(Provider):
             resourceRows = cursor2.fetchall()
             resources = {}
             for resourceRow in resourceRows:
-                resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
+                resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2], 'InitCapacity' : resourceRow[1]}
             # Replace the current cost
             for resourceId in self._used_variables['resources']:
                 if resourceId in resources.keys():
@@ -480,7 +479,28 @@ class ProviderEdge(Provider):
             self._used_variables['resources'] = resources
         finally:
             self.lock.release()
-        
+    
+    '''
+    This method calculates the total capacity able to sell by the provider given purchases
+    '''
+    def calculate_capacity(self, staged_bids, fileResult):
+        self.registerLog(fileResult, 'starting calculate_capacity' )
+        resources = self._used_variables['resources']
+        totResourceConsumption = {}
+        for bidId in staged_bids:
+            action = (staged_bids[bidId])['Action']
+            if (action == Bid.ACTIVE):
+                bid = (staged_bids[bidId])['Object']
+                resourceConsumption = self.calculateBidUnitaryResourceRequirements(bid, fileResult)
+                units = bid.getCapacity()
+                for resource in resources:
+                    totResourceConsumption[resource] = units*resourceConsumption[resource]
+
+        for resource in totResourceConsumption:
+            self.registerLog(fileResult, 'calculate_capacity - Resource:' + str(resource) + 'Consuption:' + str(totResourceConsumption[resource]) )
+        self.registerLog(fileResult, 'Ending calculate_capacity ')
+        return totResourceConsumption            
+    
 	'''
 	The exec_algorithm function finds available offerings and chooses
 	the one that fits the access provider needs the best, based on the prior 
@@ -503,17 +523,23 @@ class ProviderEdge(Provider):
                      staged_bids = self.setInitialBids(fileResult)
                      self.registerLog(fileResult, 'The Number of initial Staged offers is:' + str(len(staged_bids)) ) 
                 else:
-                    self.updateCurrentBids(currentPeriod, staged_bids, fileResult)
+                    self.updateCurrentBids(currentPeriod, radius, staged_bids, fileResult)
                     self.registerLog(fileResult, 'The Number of updated Staged offers is:' + str(len(staged_bids)) ) 
                 self.eliminateNeighborhoodBid(staged_bids, fileResult)
                 self.registerLog(fileResult, 'The Final Number of Staged offers is:' + str(len(staged_bids)) ) 
                 self.sendBids(staged_bids, fileResult) #Pending the status of the bid.
+                
                 # include active bids not staged. 
                 initial_staged_bids = staged_bids
                 self.includeActiveBidsNotStaged(currentPeriod, radius, staged_bids, fileResult)
                 staged_bids = self.purchaseBids(currentPeriod, staged_bids, fileResult)
+                
+                totResourceConsumption = self.calculate_capacity(staged_bids, fileResult)
+                for resource in totResourceConsumption:
+                    self.registerLog(fileResult, 'calculate_capacity - Resource:' + str(resource) + 'Consuption:' + str(totResourceConsumption[resource]) )
+                
                 self.purgeBids(initial_staged_bids, fileResult)
-                self.send_capacity()
+                self.sendCapacityEdgeProvider()
 
         except ProviderException as e:
             self.registerLog(fileResult, e.message)

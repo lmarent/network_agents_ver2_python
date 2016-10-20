@@ -141,14 +141,17 @@ def generate_figure(directory, input_file, output_file):
     figure.set_size_inches(6, 3)
     ax1 = figure.add_subplot(1,2,1)
 
-    colors = {1: 'b', 2: 'g', 3: 'r', 4: 'm', 5: 'orange', 6: 'c', 7: 'y', 8: 'd', 9: 's', 10: 'h'}
-    markers = {1: 'o', 2: 's', 3: 'D', 4: 'x', 5: '1', 6: '2', 7: '4', 8: '8', 9: 'H', 10: '*'}
+    colors = {0: 'b', 1: 'g', 2: 'r', 3: 'm', 4: 'orange', 5: 'c', 6: 'y', 7: 'd', 8: 'indigo', 9: 'h'}
+    markers = {0: 'o', 1: '+', 2: 'D', 3: 'x', 4: '1', 5: '2', 6: '4', 7: '8', 8: 'H', 9: '*'}
 
     tableData = getTableData(data)
     providers = np.unique(tableData[:,5])
     finalData = eliminateLinesNotPurchased(tableData, maxPeriod, providers)
     labels = []
     rects = []
+    for provider in providers:
+        print 'Provider:',  provider 
+        
     for provider in providers:
         labels.append('Provider '+ str(int(provider)))
         firstTime = True    
