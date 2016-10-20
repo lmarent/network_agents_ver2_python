@@ -14,7 +14,6 @@ import inspect
 
 
 logger = logging.getLogger('provider_application')
-logger.setLevel(logging.DEBUG)
 fh = logging.FileHandler('providers_logs.log')
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -164,7 +163,10 @@ if __name__ == '__main__':
             for resourceRow in resourceRows:
                 resources[str(resourceRow[0])] = {'Capacity': resourceRow[1], 'Cost' : resourceRow[2]}
             
+            print class_name 
+            print lst
             if (class_name in lst):
+                print 'before executing provider public'
                 provider = create(list_classes, class_name, providerName + str(providerId), providerId, serviceId, 
         			      providerSeed, marketPositon, adaptationFactor, 
         			      monopolistPosition, debug, resources, numberOffers, 

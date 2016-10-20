@@ -155,11 +155,11 @@ class ProviderPublic(Provider):
         price (0) or high quality (1). Providers innovators 
         can compite with offers with high quality and low price. 
         '''
-        logger.debug('Starting - initializeBids')
+        self.registerLog(fileResult,'Starting - initializeBids')
         output = self.initializeBidParameters(radius, fileResult)
         k = len(output)
         staged_bids = self.createInitialBids(k, output, fileResult)
-        logger.debug('Ending initializeBids - NumStaged' + str(len(staged_bids)))
+        self.registerLog(fileResult,'Ending initializeBids - NumStaged' + str(len(staged_bids)))
         return staged_bids
 
     def updateClosestBidForecast(self, currentPeriod, bid, staged_bids, forecast, fileResult):
@@ -241,7 +241,7 @@ class ProviderPublic(Provider):
                     staged_bids = self.initializeBids(radius, fileResult)
                 else:
                     # By assumption providers at this point have the bid usage updated.
-                    self.maintainBids(self, currentPeriod, radius, serviceOwn, staged_bids, fileResult)
+                    self.maintainBids(currentPeriod, radius, serviceOwn, staged_bids, fileResult)
                     self.eliminateNeighborhoodBid(staged_bids, fileResult)
                     self.registerLog(fileResult, 'The Final Number of Staged offers is:' + str(len(staged_bids)) ) 
                 self.sendBids(staged_bids, fileResult) #Pending the status of the bid.
