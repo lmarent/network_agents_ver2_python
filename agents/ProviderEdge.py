@@ -13,6 +13,7 @@ import MySQLdb
 import xml.dom.minidom
 import foundation.agent_properties
 import math
+import numpy as np
 
 
 
@@ -163,7 +164,7 @@ class ProviderEdge(Provider):
     Test: Implemented.
     '''
     def purchase(self, messagePurchase, serviceId, bid, quantity, fileResult):
-        self.registerLog(fileResult, 'Period:' + str(self.getCurrentPeriod()) + ' - bidId:' + bid.getId() + ' -qty to purchase:' + str(quantity))
+        self.registerLog(fileResult, 'Starting Purchase - Period:' + str(self.getCurrentPeriod()) + ' - bidId:' + bid.getId() + ' -qty to purchase:' + str(quantity))
 
         # Copy basic data from the purchase message given as parameter.
         message = Message('')
@@ -183,7 +184,7 @@ class ProviderEdge(Provider):
         # Check if message was succesfully received by the marketplace
         if messageResult.isMessageStatusOk():
             quantity = float(messageResult.getParameter("Quantity_Purchased"))
-            self.registerLog(fileResult,'Period:' + str(self.getCurrentPeriod()) + '- bidId:' + bid.getId() + 'qty_purchased:' + str(quantity))
+            self.registerLog(fileResult,'Ending Purchase - Period:' + str(self.getCurrentPeriod()) + '- bidId:' + bid.getId() + 'qty_purchased:' + str(quantity))
             return quantity
         else:
             self.registerLog(fileResult, 'Period: ' + str(self.getCurrentPeriod()) + '- Purchase not received! Communication failed - Message:' + messageResult.__str__())
@@ -375,10 +376,15 @@ class ProviderEdge(Provider):
         Test: 
         '''        
         self.registerLog(fileResult, 'Starting purchaseBids - Period:' + str(currentPeriod) + 'Nbr Staged_bids:' + str(self.countByStatus(staged_bids)) )
+        for bidId in staged_bids:
+            forecast = (staged_bids[bidId])['Forecast']
+            self.registerLog(fileResult, 'Period:' + str(currentPeriod) + 'BidId:' + bidId + 'Forecast:' + str(forecast) )
+            
+            
         staged_bids_result = {}
         purchaseServiceId = self.getPurchaseService()
         dic_return = self.AskBackhaulBids(purchaseServiceId)
-        for bidId in staged_bids:            
+        for bidId in staged_bids:
             action = (staged_bids[bidId])['Action']
             if (action == Bid.ACTIVE):
                 bid = (staged_bids[bidId])['Object']
@@ -394,6 +400,41 @@ class ProviderEdge(Provider):
                 staged_bids_result[bidId] = staged_bids[bidId]
         self.registerLog(fileResult, 'Ending purchaseBids - Period:' + str(currentPeriod) + 'bids included:' + str(self.countByStatus(staged_bids_result)) )
         return staged_bids_result
+
+    def set_price_markup(self, marketPosition, bidList):
+        # found the average price of the provider, which is the value used to update the bids.
+        prices = []
+        for bid in bidList
+            prices.append(self.getBidPrice(bid))
+            
+        nprices = np.array(prices)
+        sprices = np.sort(nprices)
+        l,m,u = np.array_split(sprices, 3)
+
+        shape = np.shape(l)
+        if shape[0] > 0:
+            la = np.average(l)
+
+        shape = np.shape(m)
+        if shape[0] > 0:
+            ma = np.average(m)
+        else:
+            ma = la
+                
+        shape = np.shape(u)
+        if shape[0] > 0:
+            ua = np.average(u)
+        else:
+            ua = ma
+        
+        if (marketPosition > 0.65):
+            priceUp = ua
+        elif ((market_position >= 0.35) and (market_position <= 0.65)):
+            priceUp = ma
+        else:
+            priceUp = la
+        
+        return priceUp
     
     def setInitialBids(self, fileResult):
         '''
@@ -402,7 +443,40 @@ class ProviderEdge(Provider):
         marketPosition = self._used_variables['marketPosition']
         initialNumberBids = self._used_variables['initialNumberBids']
         self.registerLog(fileResult, 'The initial number of bids is:' + str(initialNumberBids) + 'market pos:' + str(marketPosition)) 
-        return self.initializeBids(marketPosition, initialNumberBids, fileResult) 
+        staged_bids = self.initializeBids(marketPosition, initialNumberBids, fileResult) 
+        
+        # Ask the bids of the provider in order to update bid's price, so that we include the provider cost.
+        purchaseServiceId = self.getPurchaseService()
+        dic_return = self.AskBackhaulBids(purchaseServiceId)
+        bidsFound = False
+        if (len(dic_bids) > 0):
+            keys_sorted = sorted(dic_bids,reverse=True)
+            for front in keys_sorted:
+                bidList = dic_bids[front]
+                bidFound = True
+            if len(bidList) > 0:
+                priceUp = self.set_price_markup(marketPosition, bidList)
+                    
+                # The following establishes the price for each of the initial bids.
+                for decisionVariable in (self._service)._decision_variables:
+                    if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                        for bidId in staged_bids:
+                            action = (staged_bids[bidId])['Action']
+                            if (action == Bid.ACTIVE):
+                                currentPrice = ((staged_bids[bidId])['Object']).getDecisionVariable(decisionVariable) 
+                                newPrice = currentPrice + priceUp
+                                ((staged_bids[bidId])['Object']).setDecisionVariable(decisionVariable, newPrice) 
+                                (staged_bids[bidId])['Forecast'] = 10
+                
+            else:
+                # No bid can be bought.
+                staged_bids = {}
+
+        else:
+            # No bid can be bought.
+            staged_bids = {}
+        self.registerLog(fileResult, 'Ending setInitialBids - Period:' + str(self._list_vars['Current_Period']) + 'bids included:' + str(self.countByStatus(staged_bids)) )
+        return staged_bids
     
     def updateAvailability(self, resourceId, newAvailability):
         self.lock.acquire()
