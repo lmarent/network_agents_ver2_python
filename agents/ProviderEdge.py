@@ -454,20 +454,24 @@ class ProviderEdge(Provider):
             for front in keys_sorted:
                 bidList = dic_bids[front]
                 bidFound = True
-            if len(bidList) > 0:
-                priceUp = self.set_price_markup(marketPosition, bidList)
-                    
-                # The following establishes the price for each of the initial bids.
-                for decisionVariable in (self._service)._decision_variables:
-                    if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
-                        for bidId in staged_bids:
-                            action = (staged_bids[bidId])['Action']
-                            if (action == Bid.ACTIVE):
-                                currentPrice = ((staged_bids[bidId])['Object']).getDecisionVariable(decisionVariable) 
-                                newPrice = currentPrice + priceUp
-                                ((staged_bids[bidId])['Object']).setDecisionVariable(decisionVariable, newPrice) 
-                                (staged_bids[bidId])['Forecast'] = 10
-                
+            
+            if bidFound == True:
+                if len(bidList) > 0:
+                    priceUp = self.set_price_markup(marketPosition, bidList)
+
+                    # The following establishes the price for each of the initial bids.
+                    for decisionVariable in (self._service)._decision_variables:
+                        if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
+                            for bidId in staged_bids:
+                                action = (staged_bids[bidId])['Action']
+                                if (action == Bid.ACTIVE):
+                                    currentPrice = ((staged_bids[bidId])['Object']).getDecisionVariable(decisionVariable) 
+                                    newPrice = currentPrice + priceUp
+                                    ((staged_bids[bidId])['Object']).setDecisionVariable(decisionVariable, newPrice) 
+                                    (staged_bids[bidId])['Forecast'] = 10
+                else:
+                    # No bid can be bought.
+                    staged_bids = {}                
             else:
                 # No bid can be bought.
                 staged_bids = {}
