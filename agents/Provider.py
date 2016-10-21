@@ -2009,7 +2009,7 @@ class Provider(Agent):
                         numByProvider[bidCompetitor.getProvider()] = 1
             
             for providerId in numByProvider:
-                self.registerLog(fileResult, 'Period:' + str(currentPeriod-1) 'Provider:' + str(providerId) + 'NbrBids:' + str(numByProvider[providerId]) , Provider.INFO )         
+                self.registerLog(fileResult, 'Period:' + str(currentPeriod-1) + 'Provider:' + str(providerId) + 'NbrBids:' + str(numByProvider[providerId]) , Provider.INFO )         
         finally:
             self.lock.release()
     
