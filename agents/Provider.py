@@ -46,7 +46,9 @@ class Provider(Agent):
     PURCHASE = 3
     BACKLOG = 4
 
-    
+    DEBUG = 11
+    INFO = 10
+    ERROR = 9
 
     def __init__(self, strID, Id, serviceId, providerSeed, marketPosition, 
         adaptationFactor, monopolistPosition, debug, resources, 
@@ -81,6 +83,7 @@ class Provider(Agent):
             self._used_variables['numPeriodsMarketShare'] = numAccumPeriods
             self._used_variables['numAncestors'] =numAncestors
             self._used_variables['startPeriod'] = startFromPeriod
+            self._debug_level = self.INFO
             logger.info('Ending Initialization provider:' + strID)
             self._db = MySQLdb.connect(foundation.agent_properties.addr_database,foundation.agent_properties.user_database, \
                                 foundation.agent_properties.user_password,foundation.agent_properties.database_name )
@@ -140,13 +143,18 @@ class Provider(Agent):
     '''
     Register a log in the file for the provider - tested:OK
     '''
-    def registerLog(self, fileResult, message):
+    def registerLog(self, fileResult, message, level=None):
         self.lock.acquire()
         try:
-            now = datetime.now()
-            timeNow = now.strftime("%H:%M:%S.%f")
-            if (self._used_variables['debug'] == True):
-                fileResult.write(timeNow + ':' + message + '\n')
+            if (level == None):
+                level = self.DEBUG
+        
+            if (level <= self._debug_level):
+                now = datetime.now()
+                timeNow = now.strftime("%H:%M:%S.%f")
+                if (self._used_variables['debug'] == True):
+                    fileResult.write(timeNow + ':' + message + '\n')
+             
         finally:
             self.lock.release()
 
@@ -556,14 +564,7 @@ class Provider(Agent):
         self.registerLog(fileResult, 'Ending calculateBidUnitaryCost' + str(totalUnitaryCost))
         return totalUnitaryCost
 
-    def initializeBids(self, market_position, k, fileResult):
-        '''
-        Method to initialize offers. It receives a signal from the 
-        simulation environment (demand server) with its position 
-        in the market. The argument position serves to understand 
-        if the provider at the beginning is oriented towards low 
-        price (0) or high quality (1).  - tested:OK
-        '''
+    def initializeBidParameters(self, market_position, k, fileResult):
         output = {}
         #initialize the k points
         for i in range(0,k):
@@ -613,7 +614,18 @@ class Provider(Agent):
                         step_size = (max_val_adj - min_val_adj) / (k - 1)
                         for i in range(0,k):
                             (output[i])[decisionVariable] = max_val_adj - (step_size * i)
+        return output
+
+    def initializeBids(self, market_position, k, fileResult):
+        '''
+        Method to initialize offers. It receives a signal from the 
+        simulation environment (demand server) with its position 
+        in the market. The argument position serves to understand 
+        if the provider at the beginning is oriented towards low 
+        price (0) or high quality (1).  - tested:OK
+        '''
         logger.debug('Ranges created in bid initialization')
+        output = self.initializeBidParameters(market_position, k, fileResult)
         return self.createInitialBids(k, output, fileResult)
     
 
@@ -650,7 +662,7 @@ class Provider(Agent):
         if messageResult.isMessageStatusOk():
             pass
         else:
-            self.registerLog(fileResult, 'Bid not received! Communication failed Bid:' + bid.getId())
+            self.registerLog(fileResult, 'Bid not received! Communication failed Bid:' + bid.getId() + 'Original Message:' + message.__str__() + '\n' + 'Message:' + messageResult.__str__() )
             raise ProviderException('Bid not received! Communication failed')
         self.registerLog(fileResult, "ending sending bid:" + bid.getId())        
                 
@@ -660,11 +672,21 @@ class Provider(Agent):
         With sendBids method, provider sends offers to the Marketplace - tested:OK
         '''
         self.registerLog(fileResult, 'Starting sendBids - number to send:' + str(len(staged_bids)) + ' currentPeriod:' + str(self._list_vars['Current_Period']))
+        # First, the provider sends inactive bids. 
         for bidId in staged_bids:
             bid = (staged_bids[bidId])['Object']
             action = (staged_bids[bidId])['Action']
-            bid.setStatus(action)
-            self.sendBid(bid, fileResult)
+            if action == Bid.INACTIVE:
+                bid.setStatus(action)
+                self.sendBid(bid, fileResult)
+        
+        # Second, the provider sends active bids. 
+        for bidId in staged_bids:
+            bid = (staged_bids[bidId])['Object']
+            action = (staged_bids[bidId])['Action']
+            if action == Bid.ACTIVE:
+                bid.setStatus(action)
+                self.sendBid(bid, fileResult)
         
         self.registerLog(fileResult, 'Ending sendBids')
         
@@ -1296,8 +1318,8 @@ class Provider(Agent):
                     direction = -1
                     step = self._list_vars['Random'].uniform(min_val_adj, max_val_adj) * -1
                     if (self._used_variables['debug'] == True):
-                        fileResult.write('Price variable:' + str(min_val_adj) + str(max_val_adj) + '\n') 
-                        fileResult.write('Step variable:' + str(step)  + '\n') 
+                        self.registerLog(fileResult, 'Price variable:' + str(min_val_adj) + str(max_val_adj) + '\n') 
+                        self.registerLog(fileResult, 'Step variable:' + str(step)  + '\n') 
                 else:
                     min_val_adj, max_val_adj = self.calculateIntervalsQuality(market_position, 0, maximum_step, optimum)
                     if (optimum == 1):
@@ -1308,8 +1330,8 @@ class Provider(Agent):
                         direction = -1         
 
                     if (self._used_variables['debug'] == True):
-                        fileResult.write('Quality variable:' + str(min_val_adj) + str(max_val_adj) + '\n') 
-                        fileResult.write('Step variable:' + str(step)  + '\n') 
+                        self.registerLog(fileResult, 'Quality variable:' + str(min_val_adj) + str(max_val_adj) + '\n') 
+                        self.registerLog(fileResult, 'Step variable:' + str(step)  + '\n') 
                 output[decisionVariable] = {'Direction' : direction, 'Step': step}
             self.registerLog(fileResult, 'improveBidForCompetence:' + str(output)) 
             
@@ -1973,6 +1995,23 @@ class Provider(Agent):
         This method is run for Edge providers
         '''
         pass
+
+    def verifyBidQuantities(self, currentPeriod, fileResult):
+        self.lock.acquire()
+        try:
+            numByProvider = {}
+            for bidId in self._list_vars['Related_Bids']:
+                bidCompetitor = (self._list_vars['Related_Bids'])[bidId]
+                if (bidCompetitor.getCreationPeriod() == currentPeriod - 1):
+                    if bidCompetitor.getProvider() in numByProvider:
+                        numByProvider[bidCompetitor.getProvider()] = numByProvider[bidCompetitor.getProvider()] + 1
+                    else:
+                        numByProvider[bidCompetitor.getProvider()] = 1
+            
+            for providerId in numByProvider:
+                self.registerLog(fileResult, 'Period:' + str(currentPeriod-1) 'Provider:' + str(providerId) + 'NbrBids:' + str(numByProvider[providerId]) , Provider.INFO )         
+        finally:
+            self.lock.release()
     
     '''
     The run method is responsible for activate the socket to send 

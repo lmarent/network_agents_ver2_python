@@ -131,17 +131,21 @@ def generate_figure(directory, input_file, output_file):
                                 ])
 
     maxPeriod = np.max(data['Period'])
-    print 'maxPeriod', maxPeriod
     minDelay = np.min(data['Delay'])
-    maxDelay = np.max(data['Delay'])
+    maxDelay = np.max(data['Delay']) 
+    minDelay = minDelay - ((maxDelay - minDelay) / 10)
+    maxDelay = maxDelay + ((maxDelay - minDelay) / 10)
+
     minPrice = np.min(data['Price'])
     maxPrice = np.max(data['Price'])
-
+    minPrice = minPrice - ((maxPrice - minPrice) / 10) 
+    maxPrice = maxPrice + ((maxPrice - minPrice) / 10)    
+    
     figure = plt.figure()
     figure.set_size_inches(6, 3)
     ax1 = figure.add_subplot(1,2,1)
 
-    colors = {0: 'b', 1: 'g', 2: 'r', 3: 'm', 4: 'orange', 5: 'c', 6: 'y', 7: 'd', 8: 'indigo', 9: 'h'}
+    colors = {0: 'b', 1: 'g', 2: 'r', 3: 'm', 4: 'orange', 5: 'c', 6: 'y', 7: 'skyblue', 8: 'indigo', 9: 'yellowgreen'}
     markers = {0: 'o', 1: '+', 2: 'D', 3: 'x', 4: '1', 5: '2', 6: '4', 7: '8', 8: 'H', 9: '*'}
 
     tableData = getTableData(data)
@@ -167,7 +171,7 @@ def generate_figure(directory, input_file, output_file):
 
     ax1.set_xlim( 0, maxPeriod )
     ax1.set_ylim( minPrice, maxPrice )
-    ax1.set_ylabel( "Price(Usd)", fontsize=8 )
+    ax1.set_ylabel( "Price", fontsize=8 )
     ax1.set_xlabel("Periods", fontsize=8)
     ax1.legend(tuple(rects), tuple(labels), loc='best', prop={'size':8})
     for tick in ax1.yaxis.get_major_ticks():
@@ -194,7 +198,7 @@ def generate_figure(directory, input_file, output_file):
                     firstTime = False
     ax2.set_xlim( 0, maxPeriod )
     ax2.set_ylim( minDelay, maxDelay )
-    ax2.set_ylabel( "Delay(ms)", fontsize=8 )
+    ax2.set_ylabel( "Delay", fontsize=8 )
     ax2.set_xlabel("Periods", fontsize=8)
     ax2.legend(tuple(rects), tuple(labels), loc='best', prop={'size':8})
     for tick in ax2.yaxis.get_major_ticks():

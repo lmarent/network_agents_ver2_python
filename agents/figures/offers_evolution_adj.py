@@ -74,13 +74,13 @@ def generate_figure(directory, input_file, output_file):
 
     ax1.set_xlim( 0, maxPeriod )
     ax1.set_ylim( minPrice, maxPrice )
-    ax1.set_ylabel( "Price(Usd)", fontsize=8 )
+    ax1.set_ylabel( "Price", fontsize=8 )
     ax1.set_xlabel("Periods", fontsize=8)
 
     ax2 = figure.add_subplot(1,2,2)
     ax2.set_xlim( 0, maxPeriod )
     ax2.set_ylim( minDelay, maxDelay )
-    ax2.set_ylabel( "Delay(ms)", fontsize=8 )
+    ax2.set_ylabel( "Delay", fontsize=8 )
     ax2.set_xlabel("Periods", fontsize=8)
     
     xdata = []

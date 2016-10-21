@@ -51,10 +51,7 @@ class Bid(object):
     This method sets a value to the decision variable.
     '''
     def setDecisionVariable(self, decisionVariable, value):
-        	if decisionVariable in self._decision_variables:
-        	    raise FoundationException("Decision variable is already included")
-        	else:   
-        	    self._decision_variables[decisionVariable] = value
+        self._decision_variables[decisionVariable] = value
 
     '''
     This method returns the decision variable.
@@ -305,6 +302,8 @@ class Bid(object):
             else:
                 raise FoundationException("The Decision variable is not part of the offer")
 
+    def removeQualityRequirements(self):
+        (self._qualityRequirements).clear()
         	
     ''' 
     This method gets the number of predecessor that a bid has

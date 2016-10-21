@@ -463,7 +463,7 @@ def test_calculate_own_quality_for_purchasable_bid( ispProvider, transitProvider
         raise FoundationException("error in test_calculate_own_quality_for_purchasable_bid - Error:12")
     
                    
-def test_capacity_update(provider1):
+def test_capacity_update(provider1, fileResult):
     
     # Assigns locally the capacity to 100 for all of the resources.
     provider1.restartAvailableCapacity()
@@ -471,7 +471,7 @@ def test_capacity_update(provider1):
     for resourceId in resources:
         print (resources[resourceId])['Capacity']
         print (resources[resourceId])['Cost']
-        provider1.updateAvailability(resourceId, 100)
+        provider1.updateAvailability(resourceId, 100,fileResult)
         
     availability = {}
     for resourceId in resources:
@@ -479,7 +479,7 @@ def test_capacity_update(provider1):
         if (availability[resourceId] != 100):
             raise FoundationException("error in test_capacity_update")
         
-    provider1.sendCapacityEdgeProvider(availability)
+    provider1.sendCapacityEdgeProvider(availability, fileResult)
         
     # Assigns locally the capacity to 200 for all of the resources.
     provider1.restartAvailableCapacity()
@@ -487,7 +487,7 @@ def test_capacity_update(provider1):
     for resourceId in resources:
         print (resources[resourceId])['Capacity']
         print (resources[resourceId])['Cost']
-        provider1.updateAvailability(resourceId, 200)
+        provider1.updateAvailability(resourceId, 200,fileResult)
         
     availability = {}
     for resourceId in resources:
@@ -495,12 +495,12 @@ def test_capacity_update(provider1):
         if (availability[resourceId] != 200):
             raise FoundationException("error in test_capacity_update")
                 
-    provider1.sendCapacityEdgeProvider(availability)
+    provider1.sendCapacityEdgeProvider(availability, fileResult)
     provider1.restartAvailableCapacity()
     availability = {}
     for resourceId in resources:
         availability[resourceId] = provider1.getAvailableCapacity(resourceId)
-    provider1.sendCapacityEdgeProvider(availability)
+    provider1.sendCapacityEdgeProvider(availability, fileResult)
 
 
 def test_get_related_decision_variable(ispProvider, transitProvider):
@@ -775,7 +775,7 @@ def test_purchase_bid(currentPeriod, ispProvider, transitProvider, fileResult):
     # The following lines test purchasing for what we have enough capacity.
     resources = provider1._used_variables['resources']
     for resourceId in resources:
-        provider1.updateAvailability(resourceId, 50)
+        provider1.updateAvailability(resourceId, 50, fileResult)
         
     transitProvider.send_capacity()
 
@@ -793,7 +793,7 @@ def test_purchase_bid(currentPeriod, ispProvider, transitProvider, fileResult):
     # The following lines test purchasing for what we have enough capacity and provider does not have enough capacity.
     resources = provider1._used_variables['resources']
     for resourceId in resources:
-        provider1.updateAvailability(resourceId, 300)
+        provider1.updateAvailability(resourceId, 300, fileResult)
 
     transitProvider.send_capacity()
 
@@ -835,7 +835,7 @@ def test_purchase_bids(currentPeriod, ispProvider, transitProvider, fileResult):
     # set the ISP capacity enough for the first two bids.
     resources = provider1._used_variables['resources']
     for resourceId in resources:
-        provider1.updateAvailability(resourceId, 40)
+        provider1.updateAvailability(resourceId, 40, fileResult)
         
     staged_bids = {}
     staged_bids[ownBid1.getId()] = {'Object': ownBid1, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 10 }
@@ -992,6 +992,14 @@ if __name__ == '__main__':
         
         logger.info('Starting test providers created - Step:1')
         
+        prices = []
+        prices.append(0.3)
+        prices.append(0.2)
+        prices.append(0.5)
+        prices.append(0.4)
+        prices.append(0.45)
+        
+        
         currentPeriod = 1
         test_swap_purchased_bid(provider1, currentPeriod, fileResult1)
         test_get_related_decision_variable(provider1, provider2)        
@@ -1014,7 +1022,7 @@ if __name__ == '__main__':
         
         logger.info('Starting test providers created - Step:2')
         
-        test_capacity_update(provider1)
+        test_capacity_update(provider1, fileResult1)
         test_purchase_from_previous_bids(provider1, provider2, fileResult1)
                                      
         pass        

@@ -610,7 +610,7 @@ class ProviderEdgeMonopoly(ProviderEdge):
                 self.purgeBids(staged_bids, fileResult)        
                 self.registerLog(fileResult, 'Nbr bids after method purgeBids:' + str(len(self._list_vars['Bids'])) )
                 
-                self.sendCapacityEdgeProvider()
+                self.sendCapacityEdgeProvider(fileResult)
             except ProviderException as e:
                 self.registerLog(fileResult, e.message)
             except Exception as e:
