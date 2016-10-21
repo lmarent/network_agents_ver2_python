@@ -21,9 +21,9 @@ import xml.dom.minidom
 import threading
 
 
-logger = logging.getLogger('agent')
-fh = logging.FileHandler('agent_logs.log')
-fh.setLevel(logging.INFO)
+logger = logging.getLogger('agent_server')
+logger.setLevel(logging.INFO)
+fh = logging.FileHandler('agent_server_logs.log', mode='w')
 formatter = logging.Formatter('format="%(threadName)s:-%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
@@ -206,7 +206,6 @@ class AgentServerHandler(asyncore.dispatcher):
                 self._list_args['Current_Bids'] = {}  
                 logger.debug('clear Handle competitor bids')
                 
-            logger.info('clear 2 Handle competitor bids')
             for bid in bids:
                 logger.debug('We are inside the bid loop')
                 competitor_bid = Bid()
@@ -240,32 +239,30 @@ class AgentServerHandler(asyncore.dispatcher):
     This method receives the offer information from competitors
     '''
     def receive_bid_information(self, message):
-        logger.debug('Initiating Receive bid information')
         self.lock.acquire()
         if self.testThread == True:
-            logger.debug('Acquire the lock')
+            logger.info('Acquire the lock')
         try:
+            logger.info('Initiating competitor bid information - Agent:%s', str(self._list_args['Id']) )
             agent_type = self._list_args['Type']
             if (( agent_type.getType() == AgentType.PROVIDER_ISP) or 
                  (agent_type.getType() == AgentType.PROVIDER_BACKHAUL) or 
                   (agent_type.getType() == AgentType.PRESENTER_TYPE)):
-                print 'reading the xml'
                 period = int(message.getParameter("Period"))
                 document = self.removeIlegalCharacters(message.getBody())
                 dom = xml.dom.minidom.parseString(document)
                 competitorsXmlNodes = dom.getElementsByTagName("New_Bids")
                 for competitorsXmlNode in competitorsXmlNodes:
                     self.handleCompetitorBids(period, competitorsXmlNode)
-                print 'finish reading the xml'
-            logger.debug('Competitor bids Loaded')
+            logger.info('Competitor bids Loaded Agent: %s', str(self._list_args['Id']))
         except Exception as e: 
             logger.debug('Exception raised' + str(e) ) 
             raise FoundationException(str(e))
         finally:
            if self.testThread == True:
-               logger.debug('Going to sleep')
+               logger.info('Going to sleep')
                time.sleep(2)
-               logger.debug('After sleep')
+               logger.info('After sleep')
            self.lock.release()
             
         
@@ -277,7 +274,7 @@ class AgentServerHandler(asyncore.dispatcher):
     def receive_purchase_feedback(self, message):
         self.lock.acquire()
         try:
-            logger.debug('Initiating Receive Purchase feedback')
+            logger.info('Initiating Receive Purchase feedback Agent:%s', str(self._list_args['Id']))
             agent_type = self._list_args['Type']
             if (( agent_type.getType() == AgentType.PROVIDER_ISP) 
                or ( agent_type.getType() == AgentType.PROVIDER_BACKHAUL) 
@@ -296,10 +293,7 @@ class AgentServerHandler(asyncore.dispatcher):
                 if (( agent_type.getType() == AgentType.PROVIDER_ISP) 
                     or (agent_type.getType() == AgentType.PROVIDER_BACKHAUL)):
                     self._list_args['State'] = AgentServerHandler.BID_PERMITED    
-                if agent_type.getType() == AgentType.PRESENTER_TYPE:
-                    logger.info('Receive Purchase feedback - Period: %s', 
-                             str(self._list_args['Current_Period'] ))        
-                logger.debug('Purchase statistics Loaded')
+                logger.info('Receive Purchase feedback - Agent:%s Period: %s ', str(self._list_args['Id']), str(self._list_args['Current_Period'] ))        
         except Exception as e: 
            raise FoundationException(str(e))
         finally:
@@ -429,9 +423,12 @@ class AgentServerHandler(asyncore.dispatcher):
             data = self.recv(1024)
             self._strings_received[string_key] += data
             message = self.getMessage(string_key)
-            if message is not None:
-                logger.debug('Message for parent %s message: %d',self._list_args['Id'], len(message.__str__()) )
+            logger.info('Message for parent %s from:%s, character received:%s', self._list_args['Id'], string_key, str(len(self._strings_received[string_key])) )
+            # We need to do a while because more than one message could arrive almost at the same time for the agent.
+            while (message is not None):
+                logger.info('Message for parent %s message: %d',self._list_args['Id'], len(message.__str__()) )
                 self.do_processing(message)
+                message = self.getMessage(string_key)
         except Exception as e:
             raise asyncore.ExitNow('Server is quitting!')
 
