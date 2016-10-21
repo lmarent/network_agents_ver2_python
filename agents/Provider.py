@@ -2034,9 +2034,7 @@ class Provider(Agent):
             while (self._list_vars['State'] != AgentServerHandler.TERMINATE):
                 if self._list_vars['State'] == AgentServerHandler.BID_PERMITED:
                     self.exec_algorithm()
-                time.sleep(1)
-                logger.debug('Awake')
-                #time.sleep(0.1)
+                time.sleep(0.1)
             logger.debug('Shuting down the agent %s', self._list_vars['strId'])
         except ProviderException as e:
             logger.error(e.message)
