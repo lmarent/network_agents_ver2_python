@@ -744,7 +744,8 @@ class ProviderEdge(Provider):
             self.moveBetterProfits(currentPeriod, radius,  staged_bids, fileResult)
         else:
             self.moveForMarketShare(currentPeriod, radius, staged_bids, fileResult)        
-
+        
+        self.exploreMarket(currentPeriod, radius, staged_bids, fileResult)
         for bidId in staged_bids:
             self.registerLog(fileResult, 'End Update Current BidId:' + ((staged_bids[bidId])['Object']).__str__() + 'Forecast:' + str((staged_bids[bidId])['Forecast']), Provider.INFO )
         
@@ -828,6 +829,7 @@ class ProviderEdge(Provider):
                 fileResult = open(self._list_vars['strId'] + '.log',"a")
                 self.registerLog(fileResult, 'executing algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(currentPeriod), Provider.INFO )
                 
+                # This function is call for testing purposes. 
                 self.verifyBidQuantities( currentPeriod, fileResult)
                 self.restartAvailableCapacity()
                  # Sends the request to the market place to find the best offerings             
@@ -842,6 +844,7 @@ class ProviderEdge(Provider):
                     self.registerLog(fileResult, 'The Number of updated Staged offers is:' + str(len(staged_bids)) ) 
                 self.eliminateNeighborhoodBid(staged_bids, fileResult)
                 self.registerLog(fileResult, 'The Final Number of Staged offers is:' + str(len(staged_bids)) ) 
+                
                 
                 staged_bids = self.purchaseBids(currentPeriod, staged_bids, fileResult)
                 self.sendBids(staged_bids, fileResult) #Pending the status of the bid.

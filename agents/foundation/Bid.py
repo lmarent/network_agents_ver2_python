@@ -141,9 +141,10 @@ class Bid(object):
 
         parentBidElement = bidXmlNode.getElementsByTagName("ParentBid")[0]
         parentBidId = self.getText(parentBidElement.childNodes)
-        parentBid = Bid()
-        parentBid.setId(parentBidId)
-        self.insertParentBid(parentBid)
+        if len(parentBidId) > 0:
+            parentBid = Bid()
+            parentBid.setId(parentBidId)
+            self.insertParentBid(parentBid)
         
         variableXmlNodes = bidXmlNode.getElementsByTagName("Decision_Variable")
         for variableXmlNode in variableXmlNodes:

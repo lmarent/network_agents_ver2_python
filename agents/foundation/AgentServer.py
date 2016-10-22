@@ -220,8 +220,18 @@ class AgentServerHandler(asyncore.dispatcher):
                         else:
                             if (competitor_bid.isActive() == True):
                                 competitor_bid.setCreationPeriod(period)
-                            (self._list_args['Related_Bids'])[competitor_bid.getId()] = competitor_bid
+
+                            # Replace the parent bid, looking for the actual one already in the dictionary 
+                            if (competitor_bid.getParentBid() != None):
+                                parentBidId = competitor_bid.getParentBid().getId() 
+                                if parentBidId not in self._list_args['Related_Bids']:
+                                    logger.error('Parent BidId %s not found in related bids', parentBidId)
+                                else:
+                                    parentBid = (self._list_args['Related_Bids'])[parentBidId]
+                                    competitor_bid.insertParentBid(parentBid)
+                                
                             #logger.debug('Inserting competitor bid:' + competitor_bid.__str__())
+                            (self._list_args['Related_Bids'])[competitor_bid.getId()] = competitor_bid
                         
                         # Inserts on exchanged bids
                         if (agent_type.getType() == AgentType.PRESENTER_TYPE):
@@ -229,7 +239,7 @@ class AgentServerHandler(asyncore.dispatcher):
                                     
             if (agent_type.getType() == AgentType.PRESENTER_TYPE):
                 logger.debug('End Handle competitor bids - num exchanged:' + str(len(self._list_args['Current_Bids'])))
-            logger.info('clear 3 Handle competitor bids')
+            logger.debug('clear 3 Handle competitor bids')
             logger.debug('Ending handled bid competitors for agent is:' + str(self._list_args['Id']))
             
         except Exception as e:
@@ -241,20 +251,23 @@ class AgentServerHandler(asyncore.dispatcher):
     def receive_bid_information(self, message):
         self.lock.acquire()
         if self.testThread == True:
-            logger.info('Acquire the lock')
+            logger.debug('Acquire the lock')
         try:
-            logger.info('Initiating competitor bid information - Agent:%s', str(self._list_args['Id']) )
+            logger.debug('Initiating competitor bid information - Agent:%s', str(self._list_args['Id']) )
             agent_type = self._list_args['Type']
             if (( agent_type.getType() == AgentType.PROVIDER_ISP) or 
                  (agent_type.getType() == AgentType.PROVIDER_BACKHAUL) or 
                   (agent_type.getType() == AgentType.PRESENTER_TYPE)):
                 period = int(message.getParameter("Period"))
+                period = period - 1 # The server sends the information tagged with the next period.
+                                    # TODO: Change the Market Place Server to send the correct period.
                 document = self.removeIlegalCharacters(message.getBody())
+                logger.info('Period' + str(period) + 'bid document' + str(document))
                 dom = xml.dom.minidom.parseString(document)
                 competitorsXmlNodes = dom.getElementsByTagName("New_Bids")
                 for competitorsXmlNode in competitorsXmlNodes:
                     self.handleCompetitorBids(period, competitorsXmlNode)
-            logger.info('Competitor bids Loaded Agent: %s', str(self._list_args['Id']))
+            logger.debug('Competitor bids Loaded Agent: %s', str(self._list_args['Id']))
         except Exception as e: 
             logger.debug('Exception raised' + str(e) ) 
             raise FoundationException(str(e))
@@ -274,7 +287,7 @@ class AgentServerHandler(asyncore.dispatcher):
     def receive_purchase_feedback(self, message):
         self.lock.acquire()
         try:
-            logger.info('Initiating Receive Purchase feedback Agent:%s', str(self._list_args['Id']))
+            logger.debug('Initiating Receive Purchase feedback Agent:%s', str(self._list_args['Id']))
             agent_type = self._list_args['Type']
             if (( agent_type.getType() == AgentType.PROVIDER_ISP) 
                or ( agent_type.getType() == AgentType.PROVIDER_BACKHAUL) 
@@ -293,7 +306,7 @@ class AgentServerHandler(asyncore.dispatcher):
                 if (( agent_type.getType() == AgentType.PROVIDER_ISP) 
                     or (agent_type.getType() == AgentType.PROVIDER_BACKHAUL)):
                     self._list_args['State'] = AgentServerHandler.BID_PERMITED    
-                logger.info('Receive Purchase feedback - Agent:%s Period: %s ', str(self._list_args['Id']), str(self._list_args['Current_Period'] ))        
+                logger.debug('Receive Purchase feedback - Agent:%s Period: %s ', str(self._list_args['Id']), str(self._list_args['Current_Period'] ))        
         except Exception as e: 
            raise FoundationException(str(e))
         finally:
@@ -423,10 +436,10 @@ class AgentServerHandler(asyncore.dispatcher):
             data = self.recv(1024)
             self._strings_received[string_key] += data
             message = self.getMessage(string_key)
-            logger.info('Message for parent %s from:%s, character received:%s', self._list_args['Id'], string_key, str(len(self._strings_received[string_key])) )
+            logger.debug('Message for parent %s from:%s, character received:%s', self._list_args['Id'], string_key, str(len(self._strings_received[string_key])) )
             # We need to do a while because more than one message could arrive almost at the same time for the agent.
             while (message is not None):
-                logger.info('Message for parent %s message: %d',self._list_args['Id'], len(message.__str__()) )
+                logger.debug('Message for parent %s message: %d',self._list_args['Id'], len(message.__str__()) )
                 self.do_processing(message)
                 message = self.getMessage(string_key)
         except Exception as e:
