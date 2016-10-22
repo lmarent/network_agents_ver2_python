@@ -630,11 +630,12 @@ class ProviderEdge(Provider):
     
     def setInitialPrice(self, marketPosition, bidList,staged_bids, fileResult ):
         # The following establishes the price for each of the initial bids.
-        self.registerLog(fileResult, 'Starting setInitialPrice - Period:' + str(self._list_vars['Current_Period']) )
+        self.registerLog(fileResult, 'Starting setInitialPrice - Period:' + str(self._list_vars['Current_Period']), Provider.INFO )
         for decisionVariable in (self._service)._decision_variables:
             if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
                 priceUp = self.set_price_markup(marketPosition, bidList, fileResult)
-                priceUp = (priceUp)*(1.3)
+                minValue = ((self._service)._decision_variables[decisionVariable]).getMinValue()
+                maxValue = ((self._service)._decision_variables[decisionVariable]).getMaxValue()
                 
                 for bidId in staged_bids:
                     action = (staged_bids[bidId])['Action']
@@ -643,15 +644,26 @@ class ProviderEdge(Provider):
                         self.registerLog(fileResult, 'setInitialBids - BidId - 1' + bidId )
                         currentPrice = bid.getDecisionVariable(decisionVariable)
                         currentCost = self.calculateBidUnitaryCost(bid, fileResult)
-                        if currentPrice < currentCost:
-                            currentPrice = currentCost
-                        newPrice = currentPrice + priceUp 
+                        self.registerLog(fileResult, 'setInitialPrice - Period:' + 'currentCost:' + str(currentCost) +  'CurrentPrice:' + str(currentPrice) + 'PriceUp:' + str(priceUp), Provider.INFO )
+                        if (currentCost + priceUp) >= maxValue:
+                            newPrice = maxValue
+                        elif (currentCost + priceUp) <= minValue:
+                            newPrice = minValue
+                        else:
+                            if (currentCost + (priceUp*1.3)) <= currentPrice:
+                                newPrice = currentPrice
+                            else:
+                                if currentCost + (priceUp*1.3) <= maxValue:
+                                    newPrice = currentCost + (priceUp*1.3)
+                                else:
+                                    newPrice = maxValue
+                                
                         ((staged_bids[bidId])['Object']).setDecisionVariable(decisionVariable, newPrice) 
 
         for bidId in staged_bids:
-            self.registerLog(fileResult, 'BidId:' + ((staged_bids[bidId])['Object']).__str__() )
+            self.registerLog(fileResult, 'BidId:' + ((staged_bids[bidId])['Object']).__str__(), Provider.INFO )
 
-        self.registerLog(fileResult, 'Ending setInitialPrice - Period:' + str(self._list_vars['Current_Period']) + 'bids included:' + str(self.countByStatus(staged_bids)) )
+        self.registerLog(fileResult, 'Ending setInitialPrice - Period:' + str(self._list_vars['Current_Period']) + 'bids included:' + str(self.countByStatus(staged_bids)), Provider.INFO )
     
     def completeInitialBids(self, staged_bids_tmp, fileResult):
         self.registerLog(fileResult, 'Starting completeInitialBids - Period:' + str(self._list_vars['Current_Period']) )
