@@ -766,7 +766,7 @@ class Provider(Agent):
         radiusTmp = radius * len(bid1._decision_variables)
         if distance <= radiusTmp:
             val_return = True            
-        #self.registerLog(fileResult, 'Ending - areNeighborhoodBids - Radius' + str(radius) + ' distance:' + str(distance))
+        self.registerLog(fileResult, 'Ending - areNeighborhoodBids ' + 'BidFrom:' + bid1.getId() + ' BidTo:' + bid2.getId() + ' - Radius' + str(radius) + ' distance:' + str(distance), Provider.INFO )
         return val_return
         
 
@@ -785,7 +785,7 @@ class Provider(Agent):
                 if (dominated == True) or (neighbor == True):
                     val_return = True
                     break
-        self.registerLog(fileResult, 'Ending - isANonValueAddedBid - Period:' + str(self.getCurrentPeriod()) + ' output:' + str(val_return))
+        self.registerLog(fileResult, 'Ending - isANonValueAddedBid - Period:' + str(self.getCurrentPeriod()) + ' output:' + str(val_return), Provider.INFO )
         return val_return
     
     def eliminateNeighborhoodBid(self, staged_bids, fileResult):
@@ -1750,10 +1750,9 @@ class Provider(Agent):
         this method will move the offer to the better position in unit
         steps.
         '''
-        self.registerLog(fileResult,"Initiating moveBid:"+ bid.__str__() + ':marketShare:' + str(marketShare) + 'staged_bids:' + str(self.countByStatus(staged_bids)) )
+        self.registerLog(fileResult,"Initiating moveBid - Radius:" + str(radius) + 'BidId:' + bid.__str__() + ':marketShare:' + str(marketShare) + 'staged_bids:' + str(self.countByStatus(staged_bids)), Provider.INFO )
         send = False
         forecast = 0
-        staged_bids_tmp = []
         bidsRelated = [] # This is a variable to know which bids were created for the bid moved.
         self.registerLog(fileResult, 'moveBid:' + bid.getId() + 'NumBids:' + str(len(staged_bids))) 
         for directionMove in moveDirections:
@@ -1767,10 +1766,18 @@ class Provider(Agent):
                         marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, bid, newBid, orientation, fileResult)
                         self.registerLog(fileResult, 'New bid created - ready to be send:' +  newBid.getId() + 'Forecast:' + str(forecast))
                         staged_bids[newBid.getId()] = {'Object': newBid, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
-                        staged_bids_tmp.append(newBid.getId())
                         bidsRelated.append(newBid.getId())
             else:
                 self.registerLog(fileResult, 'Bid not moved:' + bid.getId())
+        
+        self.registerLog(fileResult, 'After move bid on directions:', Provider.INFO )
+        
+        # print the results
+        for newBidId in bidsRelated:
+            newBid = (staged_bids[newBidId])['Object']
+            forecast = (staged_bids[newBidId])['Forecast']
+            action = (staged_bids[newBidId])['Action']
+            self.registerLog(fileResult,"Bid:" + bid.__str__() + "newBid:" + newBid.__str__() + "Forecast:" + str(forecast) + "Action:" + str(action), Provider.INFO )
 
         # In any case inactive the current bid, if it has purchases copy it.
         if (marketShare > 0): 
@@ -1780,22 +1787,34 @@ class Provider(Agent):
             bidPrice = self.getBidPrice(copyB)
             self.completeNewBidInformation(copyB, bidPrice, fileResult)
             marketZoneDemand, forecast = self.calculateMovedBidForecast(currentPeriod, radius, bid, copyB, orientation, fileResult)
-            self.registerLog(fileResult, 'newBids:' + ', '.join(staged_bids_tmp))
             bidsRelated.append(copyB.getId())
+            
+            totForecast = 0
+            neigborhoodBids = []
             # If the bid that is being moved is close to any new bid, then we share their forecast.
-            for newBidId in staged_bids_tmp:
-                newBid = (staged_bids[newBidId])['Object']
-                if (self.areNeighborhoodBids(radius, copyB, newBid, fileResult)):
-                    forecast = (staged_bids[newBidId])['Forecast']
-                    (staged_bids[newBidId])['Forecast'] = forecast * 0.3
-                    if copyB.getId() in staged_bids:
-                        (staged_bids[copyB.getId()])['Forecast'] = (staged_bids[copyB.getId()])['Forecast'] + (forecast * 0.7)
-                    else:
-                        staged_bids[copyB.getId()] = {'Object': copyB, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast *0.7 }
+            for newBidId in staged_bids:
+                if (staged_bids[newBidId])['Action'] == Bid.ACTIVE:
+                    newBid = (staged_bids[newBidId])['Object']
+                    if (self.areNeighborhoodBids(radius, copyB, newBid, fileResult)):
+                        totForecast = totForecast + (staged_bids[newBidId])['Forecast']
+                        neigborhoodBids.append(newBidId) 
+            
+            self.registerLog(fileResult, 'Number of sharing bids:' + str(neigborhoodBids) + 'TotForecast:' + str(totForecast) + 'Initial Forecast:' + str(forecast), Provider.INFO )
+            
+            if (len(neigborhoodBids) > 0):
+                bidForecast = round(totForecast / (len(neigborhoodBids) + 1),1)
+                for newBidId in neigborhoodBids:
+                    (staged_bids[newBidId])['Forecast'] = bidForecast
+                staged_bids[copyB.getId()] = {'Object': copyB, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': bidForecast }    
+            else:
+                staged_bids[copyB.getId()] = {'Object': copyB, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
 
             # None of the new bid is a neighborhood bids
             if copyB.getId() not in staged_bids:
                 staged_bids[copyB.getId()] = {'Object': copyB, 'Action': Bid.ACTIVE, 'MarketShare': marketZoneDemand, 'Forecast': forecast }
+
+        self.registerLog(fileResult, 'After inserting a bid copy', Provider.INFO )
+
         
         # Inactive the bid being moved.
         staged_bids[bid.getId()] = {'Object': bid, 'Action': Bid.INACTIVE, 'MarketShare' : {}, 'Forecast': 0 }
@@ -2060,7 +2079,14 @@ class Provider(Agent):
                 moveDirections = self.evaluateDirectionalDerivate(currentPeriod, radius, bid, competitiveBids, followed, fileResult)
                 bidDemand, marketShare = self.getDBBidMarketShare( bid.getId(), currentPeriod-1, self._used_variables['numPeriodsMarketShare'], fileResult) 
                 self.moveBid(currentPeriod, radius, bid, moveDirections, marketShare, staged_bids, Provider.MARKET_SHARE_ORIENTED, fileResult)
-        self.registerLog(fileResult, 'Finish moveForMarketShare Nbr staged_bids:' + str(len(staged_bids)))
+        
+        self.registerLog(fileResult, 'Finishing moveForMarketShare Nbr staged_bids:' + str(len(staged_bids)), Provider.INFO )
+        # print the staged_bids
+        for newBidId in staged_bids:
+            newBid = (staged_bids[newBidId])['Object']
+            forecast = (staged_bids[newBidId])['Forecast']
+            action = (staged_bids[newBidId])['Action']
+            self.registerLog(fileResult,"newBid:" + newBid.__str__() + "Forecast:" + str(forecast) + "Action:" + str(action), Provider.INFO )
 
     def exploreMarket(self, currentPeriod, radius, staged_bids, fileResult):
         '''

@@ -170,9 +170,10 @@ def generate_figure(directory, input_file, output_file):
                     firstTime = False
 
     ax1.set_xlim( 0, maxPeriod )
-    ax1.set_ylim( minPrice, maxPrice )
+#    ax1.set_ylim( minPrice, maxPrice )
+    ax1.set_ylim( 0, 1.5 )
     ax1.set_ylabel( "Price", fontsize=8 )
-    ax1.set_xlabel("Periods", fontsize=8)
+    ax1.set_xlabel("Time", fontsize=8)
     ax1.legend(tuple(rects), tuple(labels), loc='best', prop={'size':8})
     for tick in ax1.yaxis.get_major_ticks():
         tick.label.set_fontsize(8) 
@@ -197,9 +198,10 @@ def generate_figure(directory, input_file, output_file):
                     rects.append(sc2)
                     firstTime = False
     ax2.set_xlim( 0, maxPeriod )
-    ax2.set_ylim( minDelay, maxDelay )
-    ax2.set_ylabel( "Delay", fontsize=8 )
-    ax2.set_xlabel("Periods", fontsize=8)
+#    ax2.set_ylim( minDelay, maxDelay )
+    ax2.set_ylim( 0, 1.5 )
+    ax2.set_ylabel( "Quality", fontsize=8 )
+    ax2.set_xlabel("Time", fontsize=8)
     ax2.legend(tuple(rects), tuple(labels), loc='best', prop={'size':8})
     for tick in ax2.yaxis.get_major_ticks():
         tick.label.set_fontsize(8) 
