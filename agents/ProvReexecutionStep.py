@@ -24,7 +24,7 @@ from foundation.DecisionVariable import DecisionVariable
 
 logger = logging.getLogger('provider_test')
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('providers_test.log')
+fh = logging.FileHandler('providers_test.log', mode='w')
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
@@ -170,6 +170,34 @@ def bringBidFromPeriod(db, executionCount, strProv, service, period):
     logger.info('Ending bringBidFromPeriod + numCreated' + str(len(listBids)))
     return listBids
 
+def bringOtherProviderBids(db, executionCount, strProv, service, period):
+    logger.info('Starting bringOtherProviderBids + executionCount:' + str(executionCount) + 'Period:' + str(period) + 'provider:' + str(strProv))
+    listBids = {}
+    cursor = db.cursor() 
+    sql =  'select a.period, a.providerId, a.bidId, a.unitary_profit, \
+                a.parentBidId, a.unitary_cost, a.init_capacity \
+            from simulation_bid a \
+            where a.execution_count = %s \
+              and a.status = %s \
+              and a.providerId in (select concat(name,id) from simulation_provider where service_id = %s ) \
+              and a.providerId <> %s \
+              and a.period = %s\
+            order by a.period'
+    cursor.execute(sql, (executionCount, '1', service.getId(), strProv, period))
+    results = cursor.fetchall()
+    for row in results:
+        period = int(row[0]) 
+        providerId = row[1]
+        bidId = row[2]
+        unitary_profit = float(row[3])
+        parentBidId = row[4]
+        unitary_cost = row[5]
+        init_capacity = float(row[6])
+        bid = createBid(db, executionCount, bidId, providerId, service, period, unitary_cost, unitary_profit, init_capacity )
+        listBids[bidId] = bid
+    logger.info('Ending bringOtherProviderBids + numCreated' + str(len(listBids)))
+    return listBids
+
 def getSeed(seed, year, month, day, hour, minute, second, microsecond):
     if (seed == 1):
             # the seed for random numbers was defined, therefore we use it.
@@ -205,7 +233,7 @@ def load_classes(list_classes):
     currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     sys.path.append(currentdir)
     agents_directory = currentdir
-    black_list = ['ProviderExecution', 'ProviderAgentException', 'ProviderExecutionTest', 'ProviderEdgeTest']
+    black_list = ['ProviderExecution', 'ProviderAgentException', 'ProviderExecutionTest', 'ProviderEdgeTest', 'ProviderPublicTest']
     for filename in os.listdir (agents_directory):
             # Ignore subfolders
             if os.path.isdir (os.path.join(agents_directory, filename)):
@@ -322,12 +350,14 @@ def test_moveForMarketShare_on_previous_execution(executionCount, providerId, re
         w = providers[0]
         w.start_agent()
         w.initialize()
-        fileResult = open(w.getProviderId() + '_replay.log',"a")
+        fileResult = open(w.getProviderId() + '_replay.log',"w")
         w._list_vars['State'] == AgentServerHandler.BID_PERMITED
         radius = foundation.agent_properties.own_neighbor_radius
         staged_bids = {}
         listBids = bringBidFromPeriod(db, executionCount, w.getProviderId(), w._service,replayPeriod - 1)
+        listBidProviders = bringOtherProviderBids(db, executionCount, w.getProviderId(), w._service,replayPeriod - 1)
         w._list_vars['Bids'] = listBids
+        w._list_vars['Related_Bids'] = listBidProviders
         w.moveForMarketShare(replayPeriod, radius, staged_bids, fileResult)
         for bidId in staged_bids:
             forecast = (staged_bids[bidId])['Forecast']
@@ -351,4 +381,4 @@ def test_moveForMarketShare_on_previous_execution(executionCount, providerId, re
         w.stop_agent()
 
 
-test_moveForMarketShare_on_previous_execution(1725, 5, 37)
+test_moveForMarketShare_on_previous_execution(1987, 5, 28)

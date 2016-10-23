@@ -184,7 +184,7 @@ class ProviderEdge(Provider):
         # Check if message was succesfully received by the marketplace
         if messageResult.isMessageStatusOk():
             quantity = float(messageResult.getParameter("Quantity_Purchased"))
-            self.registerLog(fileResult,'Ending Purchase - Period:' + str(self.getCurrentPeriod()) + '- bidId:' + bid.getId() + 'qty_purchased:' + str(quantity) )
+            self.registerLog(fileResult,'Ending Purchase - Period:' + str(self.getCurrentPeriod()) + '- bidId:' + bid.getId() + 'qty_purchased:' + str(quantity), Provider.INFO )
             return quantity
         else:
             self.registerLog(fileResult, 'Period: ' + str(self.getCurrentPeriod()) + '- Purchase not received! Communication failed - Message:' + messageResult.__str__())
@@ -389,7 +389,7 @@ class ProviderEdge(Provider):
                         bidQuality = ownBid.getDecisionVariable(decisionVariable)
                         providerQuality = bid.getDecisionVariable(decisionVariableTo)
                         qualityRequired = self.calculateRequiredQuality(bidQuality, minValue, maxValue, providerQuality, optObjetive, aggregationMode)
-                        self.registerLog(fileResult, 'Own Offered quality:' + str(bidQuality) + 'ProviderQuality:' + str(providerQuality) + 'Calculated required:' + str(qualityRequired), Provider.INFO )  
+                        self.registerLog(fileResult, 'Own Offered quality:' + str(bidQuality) + 'ProviderQuality:' + str(providerQuality) + 'Calculated required:' + str(qualityRequired) )  
         
         self.registerLog(fileResult, 'getPurchasedFront - Period:' + str(self._list_vars['Current_Period']) + '- Number of options:' + str(len(dict_return)) )
         return dict_return
@@ -630,7 +630,7 @@ class ProviderEdge(Provider):
     
     def setInitialPrice(self, marketPosition, bidList,staged_bids, fileResult ):
         # The following establishes the price for each of the initial bids.
-        self.registerLog(fileResult, 'Starting setInitialPrice - Period:' + str(self._list_vars['Current_Period']), Provider.INFO )
+        self.registerLog(fileResult, 'Starting setInitialPrice - Period:' + str(self._list_vars['Current_Period']) )
         for decisionVariable in (self._service)._decision_variables:
             if ((self._service)._decision_variables[decisionVariable].getModeling() == DecisionVariable.MODEL_PRICE):
                 priceUp = self.set_price_markup(marketPosition, bidList, fileResult)
@@ -644,7 +644,7 @@ class ProviderEdge(Provider):
                         self.registerLog(fileResult, 'setInitialBids - BidId - 1' + bidId )
                         currentPrice = bid.getDecisionVariable(decisionVariable)
                         currentCost = self.calculateBidUnitaryCost(bid, fileResult)
-                        self.registerLog(fileResult, 'setInitialPrice - Period:' + 'currentCost:' + str(currentCost) +  'CurrentPrice:' + str(currentPrice) + 'PriceUp:' + str(priceUp), Provider.INFO )
+                        self.registerLog(fileResult, 'setInitialPrice - Period:' + 'currentCost:' + str(currentCost) +  'CurrentPrice:' + str(currentPrice) + 'PriceUp:' + str(priceUp))
                         if (currentCost + priceUp) >= maxValue:
                             newPrice = maxValue
                         elif (currentCost + priceUp) <= minValue:
@@ -661,9 +661,9 @@ class ProviderEdge(Provider):
                         ((staged_bids[bidId])['Object']).setDecisionVariable(decisionVariable, newPrice) 
 
         for bidId in staged_bids:
-            self.registerLog(fileResult, 'BidId:' + ((staged_bids[bidId])['Object']).__str__(), Provider.INFO )
+            self.registerLog(fileResult, 'BidId:' + ((staged_bids[bidId])['Object']).__str__() )
 
-        self.registerLog(fileResult, 'Ending setInitialPrice - Period:' + str(self._list_vars['Current_Period']) + 'bids included:' + str(self.countByStatus(staged_bids)), Provider.INFO )
+        self.registerLog(fileResult, 'Ending setInitialPrice - Period:' + str(self._list_vars['Current_Period']) + 'bids included:' + str(self.countByStatus(staged_bids)) )
     
     def completeInitialBids(self, staged_bids_tmp, fileResult):
         self.registerLog(fileResult, 'Starting completeInitialBids - Period:' + str(self._list_vars['Current_Period']) )
@@ -759,7 +759,7 @@ class ProviderEdge(Provider):
         
         self.exploreMarket(currentPeriod, radius, staged_bids, fileResult)
         for bidId in staged_bids:
-            self.registerLog(fileResult, 'End Update Current BidId:' + ((staged_bids[bidId])['Object']).__str__() + 'Forecast:' + str((staged_bids[bidId])['Forecast']), Provider.INFO )
+            self.registerLog(fileResult, 'End Update Current BidId:' + ((staged_bids[bidId])['Object']).__str__() + 'Forecast:' + str((staged_bids[bidId])['Forecast']) )
         
         
 
@@ -823,7 +823,7 @@ class ProviderEdge(Provider):
                     totResourceConsumption[resource] = units*resourceConsumption[resource]
 
         for resource in totResourceConsumption:
-            self.registerLog(fileResult, 'calculate_capacity - Resource:' + str(resource) + 'Consuption:' + str(totResourceConsumption[resource]), Provider.INFO )
+            self.registerLog(fileResult, 'calculate_capacity - Resource:' + str(resource) + 'Consuption:' + str(totResourceConsumption[resource]) )
         self.registerLog(fileResult, 'Ending calculate_capacity ')
         return totResourceConsumption            
         

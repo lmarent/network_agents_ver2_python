@@ -251,6 +251,23 @@ class Bid(object):
                 break
         return equal
 
+    ''' 
+    This methods establish if the offer pass as parameter has the
+    same decision variables.
+    '''
+    def isAlmostEqual(self, bidtoCompare, rounddecimals):
+        equal = True
+        for decisionVariable in self._decision_variables:
+            myDecisionVar = round(self._decision_variables[decisionVariable], rounddecimals)
+            otherDecisionVar = round(bidtoCompare.getDecisionVariable(decisionVariable), rounddecimals)
+            if ( myDecisionVar == otherDecisionVar):
+                pass
+            else:
+                equal = False
+                break
+        return equal
+
+
 	'''
 	This method inserts the bid as parameter as a parent of this bid.
 	'''
