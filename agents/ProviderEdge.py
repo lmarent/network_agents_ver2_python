@@ -863,8 +863,8 @@ class ProviderEdge(Provider):
                                 
                 self.purgeBids(staged_bids, fileResult)
                 self.sendCapacityEdgeProvider(fileResult)
-                self.registerLog(fileResult, 'End algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(currentPeriod), Provider.INFO )
-                self.registerLog(fileResult, 'End algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(self.getCurrentPeriod()), Provider.INFO )
+                
+                self.registerLog(fileResult, 'End algorithm ####### ProviderId:' + str(self.getProviderId()) + ' - Period: ' +  str(self.getCurrentPeriod()) + 'NumBids:' + str(len(self._list_vars['Bids'])), Provider.INFO )
 
         except ProviderException as e:
             self.registerLog(fileResult, e.message, Provider.ERROR)
