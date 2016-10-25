@@ -25,7 +25,7 @@ import threading
 
 logger = logging.getLogger('Provider')
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('provider_logs.log')
+fh = logging.FileHandler('provider_logs.log', mode='w')
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)

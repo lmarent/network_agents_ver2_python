@@ -190,6 +190,20 @@ def verifyPurchase(sock2, qty):
         if (qtyPurchased <> qty):
             raise FoundationException("error in creating purchase - Qty purchased" + str(qtyPurchased)+ " not equal to " + str(qty))
 
+def verifyPurchaseMessage(sock2, qty):
+    received = sock2.recv(16800)
+    messagePurchase= Message(received)
+    print messagePurchase.__str__()
+    if (not messagePurchase.isMessageStatusOk()):
+        raise FoundationException("error in creating purchase")
+    else:
+        # verify that the quantity purchased.
+        qtyPurchasedStr = messagePurchase.getParameter('Quantity_Purchased')
+        qtyPurchased = float(qtyPurchasedStr)
+        if (qtyPurchased <> qty):
+            print "error in creating purchase - Qty purchased" + str(qtyPurchased)+ " not equal to " + str(qty)
+
+
 def verifyAvailability(sock2, qty):
     received = sock2.recv(16800)
     messageAvail= Message(received)
@@ -203,6 +217,21 @@ def verifyAvailability(sock2, qty):
         qtyAvail = round(qtyAvail,2)
         if (qtyAvail <> qty):
             raise FoundationException("error in the quantity available" + str(qtyAvail)+ "- Qty not equal to " + str(qty))
+
+def verifyAvailabilityMessage(sock2, qty):
+    received = sock2.recv(16800)
+    messageAvail= Message(received)
+    print messageAvail.__str__()
+    if (not messageAvail.isMessageStatusOk()):
+        raise FoundationException("error in the availability message")
+    else:
+        # verify that the quantity purchased.
+        qtyStr = messageAvail.getParameter('Quantity')
+        qtyAvail = float(qtyStr)
+        qtyAvail = round(qtyAvail,2)
+        if (qtyAvail <> qty):
+            print "error in the quantity available" + str(qtyAvail)+ "- Qty not equal to " + str(qty)
+
 
 
 # Sends the availability for the provider
@@ -542,6 +571,7 @@ def test_bulk_capacity_service4():
                     qtyAvail = 0
                     verifyAvailability(sock2, qtyAvail)
 
+
                     print 'It is going to sleep 10 seconds to see whether or not the server restart the availability' 
                     # this part test the restart of the capacity in the provider.
                     time.sleep(10)
@@ -549,6 +579,29 @@ def test_bulk_capacity_service4():
                     sock2.sendall(message.__str__())
                     qtyAvail = round(120, 2)
                     verifyAvailability(sock2, qtyAvail)
+
+                    # we have performance problems with bid insertion. we test it.
+                    i = 1
+                    q = 0.05
+                    while i <= 40:
+                        message2, bidId2 = createBidService4(strProv, serviceId, str(q), str(0.324563087213))
+                        sock2.sendall(message2.__str__())
+                        verifyBid(sock2)                        
+                        
+                        message3 = purchaseService4(serviceId, bidId2, str(q), str(0), str(0.324563087213))
+                        sock2.sendall(message3.__str__())
+                        verifyPurchaseMessage(sock2,q)
+                        
+                        message3 = getAvailability(strProv,serviceId,'')                
+                        sock2.sendall(message3.__str__())
+                        verifyAvailabilityMessage(sock2, qtyAvail)
+                        
+                        if q < 0.5:
+                            q = q + 0.05
+                        i = i + 1
+
+
+
                     
 
     finally:
@@ -634,7 +687,7 @@ def test_bid_capacity():
                     message = getAvailability(strProv,serviceId, bidId1)
                     sock2.sendall(message.__str__())
                     qtyAvail = 0
-                    verifyAvailability(sock2, qtyAvail)
+                    verifyAvailabilityMessage(sock2, qtyAvail)
 
     finally:
         sock.shutdown(socket.SHUT_WR)

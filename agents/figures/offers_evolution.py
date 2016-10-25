@@ -31,7 +31,6 @@ def getProviderData(offerdata, provider):
     return offerdata[np.in1d(offerdata[:,5], [provider])]
 
 def getPeriodProviderData(offerdata, period, provider):
-    print period 
     periodData = offerdata[np.in1d(offerdata[:,0], [period])]
     if (periodData.size > 0):
         periodProviderData = periodData[np.in1d(periodData[:,5], [provider])]
@@ -83,6 +82,7 @@ def eliminateLinesNotPurchased(tableData, maxPeriod, vendors):
     # First put on the graph purchased offers.
     i = 0
     firstTime = True
+    print 'the len of table data is:' + str(len(tableData))
     while (i < len(tableData)):
         if (tableData[i,3] > 0 ):
             line = tableData[i,:]
@@ -133,17 +133,15 @@ def generate_figure(directory, input_file, output_file):
     maxPeriod = np.max(data['Period'])
     minDelay = np.min(data['Delay'])
     maxDelay = np.max(data['Delay']) 
-    minDelay = minDelay - ((maxDelay - minDelay) / 10)
-    maxDelay = maxDelay + ((maxDelay - minDelay) / 10)
+    minDelay = -0.1
+    maxDelay = 1.1
 
-    minPrice = np.min(data['Price'])
-    maxPrice = np.max(data['Price'])
-    minPrice = minPrice - ((maxPrice - minPrice) / 10) 
-    maxPrice = maxPrice + ((maxPrice - minPrice) / 10)    
+    minPrice = 0 
+    maxPrice = 1
     
     figure = plt.figure()
-    figure.set_size_inches(6, 3)
-    ax1 = figure.add_subplot(1,2,1)
+    figure.set_size_inches(3, 3)
+    ax1 = figure.add_subplot(1,1,1)
 
     colors = {0: 'b', 1: 'g', 2: 'r', 3: 'm', 4: 'orange', 5: 'c', 6: 'y', 7: 'skyblue', 8: 'indigo', 9: 'yellowgreen'}
     markers = {0: 'o', 1: '+', 2: 'D', 3: 'x', 4: '1', 5: '2', 6: '4', 7: '8', 8: 'H', 9: '*'}
@@ -154,10 +152,24 @@ def generate_figure(directory, input_file, output_file):
     labels = []
     rects = []
     for provider in providers:
-        print 'Provider:',  provider 
+        print 'Provider:',  int(provider)
         
     for provider in providers:
-        labels.append('Provider '+ str(int(provider)))
+        if (int(provider) == 5):
+            labels.append('ISP 1')
+        elif(int(provider) == 7): 
+            labels.append('ISP 2')
+        elif(int(provider) == 9):
+            labels.append('ISP 3')
+        elif (int(provider) == 0):
+            labels.append('Transit 1')
+        elif (int(provider) == 6):
+            labels.append('Transit 2')
+        elif (int(provider) == 8):
+            labels.append('Transit 3')
+        else:
+            labels.append('Provider'+ str(int(provider)))            
+            
         firstTime = True    
         for period in range(1,int(maxPeriod+1)):
             purch = getPeriodProviderData(finalData, period, provider)
@@ -170,21 +182,42 @@ def generate_figure(directory, input_file, output_file):
                     firstTime = False
 
     ax1.set_xlim( 0, maxPeriod )
-#    ax1.set_ylim( minPrice, maxPrice )
-    ax1.set_ylim( 0, 1.5 )
+    ax1.set_ylim( minPrice, maxPrice )
     ax1.set_ylabel( "Price", fontsize=8 )
-    ax1.set_xlabel("Time", fontsize=8)
+    ax1.set_xlabel("Periods", fontsize=8)
     ax1.legend(tuple(rects), tuple(labels), loc='best', prop={'size':8})
     for tick in ax1.yaxis.get_major_ticks():
         tick.label.set_fontsize(8) 
     for tick in ax1.xaxis.get_major_ticks():
         tick.label.set_fontsize(8) 
 
-    ax2 = figure.add_subplot(1,2,2)
+    figure.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
+    output_file_prices = directory + '/' + agent_properties.result_directory + 'images/' + output_file + '_prices.eps'
+    plt.savefig(output_file_prices)
+
+
+    figure = plt.figure()
+    figure.set_size_inches(3, 3)
+    ax2 = figure.add_subplot(1,1,1)
+
     labels = []
     rects = []
     for provider in providers:
-        labels.append('Provider '+ str(int(provider)))
+        if (int(provider) == 5):
+            labels.append('ISP 1')
+        elif(int(provider) == 7): 
+            labels.append('ISP 2')
+        elif(int(provider) == 9):
+            labels.append('ISP 3')
+        elif (int(provider) == 0):
+            labels.append('Transit 1')
+        elif (int(provider) == 6):
+            labels.append('Transit 2')
+        elif (int(provider) == 8):
+            labels.append('Transit 3')
+        else:
+            labels.append('Provider'+ str(int(provider)))
+
         #rect = matplotlib.patches.Rectangle((0, 0), 1, 1, fc=colors[int(provider)])
         #rects.append(rect)
         firstTime = True
@@ -198,10 +231,9 @@ def generate_figure(directory, input_file, output_file):
                     rects.append(sc2)
                     firstTime = False
     ax2.set_xlim( 0, maxPeriod )
-#    ax2.set_ylim( minDelay, maxDelay )
-    ax2.set_ylim( 0, 1.5 )
-    ax2.set_ylabel( "Quality", fontsize=8 )
-    ax2.set_xlabel("Time", fontsize=8)
+    ax2.set_ylim( minDelay, maxDelay )
+    ax2.set_ylabel( "Latency", fontsize=8 )
+    ax2.set_xlabel("Periods", fontsize=8)
     ax2.legend(tuple(rects), tuple(labels), loc='best', prop={'size':8})
     for tick in ax2.yaxis.get_major_ticks():
         tick.label.set_fontsize(8) 
@@ -209,8 +241,9 @@ def generate_figure(directory, input_file, output_file):
         tick.label.set_fontsize(8) 
 
     figure.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
-    output_file = directory + '/' + agent_properties.result_directory + 'images/' + output_file
-    plt.savefig(output_file)
+    output_file_delay = directory + '/' + agent_properties.result_directory + 'images/' + output_file + '_latency.eps'
+    plt.savefig(output_file_delay)
+
 
 
 def main(argv):

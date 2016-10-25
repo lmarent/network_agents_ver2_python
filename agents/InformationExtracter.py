@@ -21,7 +21,7 @@ import MySQLdb
 
 logger = logging.getLogger('presenter')
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('presenter.log')
+fh = logging.FileHandler('presenter.log', mode='w')
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
