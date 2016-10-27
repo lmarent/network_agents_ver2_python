@@ -45,7 +45,7 @@ if __name__ == '__main__':
         results = cursor5.fetchall()
         for row in results:
             execution_count = row[0]
-        test_information_extracter(execution_count, graphics)
+        test_information_extracter(2195, graphics)
 
     except ProviderException as e:
         print e.__str__()

@@ -219,9 +219,8 @@ class Provider(Agent):
                     if (self.areNeighborhoodBids(radius, bid, bidOwn, fileResult)):
                         ret_relatedBids[bidId] = bidOwn
 
-            
             for bidId in ret_relatedBids:
-                self.registerLog(fileResult, 'getOwnRelatedBids - bidId:' + str(bidId) )
+                self.registerLog(fileResult, 'getOwnRelatedBids - bidId:' + str(bidId), )
             self.registerLog(fileResult, 'Ending getOwnRelatedBids - Numrelated:' + str(len(ret_relatedBids)) )
         finally:
             self.lock.release()
@@ -426,7 +425,7 @@ class Provider(Agent):
         '''
         This procedure creates a new exploratory bid towards the minimum quality
         '''
-        self.registerLog(fileResult, 'Starting calculateNewBidMinimumQuality')
+        self.registerLog(fileResult, 'Starting calculateNewBidMinimumQuality', Provider.INFO)
         orientation = Provider.MARKET_SHARE_ORIENTED
         newBid = None
         if currBid.isEqual(PotentialMinBid):
@@ -832,7 +831,10 @@ class Provider(Agent):
         finally:
             self.lock.release()
         self.registerLog(fileResult, 'Ending - eliminateNeighborhoodBid  - output:' + str(len(staged_bids)))
-            
+        for bidId in staged_bids:
+            self.registerLog(fileResult, 'End eliminateNeighborhoodBid BidId:' + ((staged_bids[bidId])['Object']).__str__() + 'Forecast:' + str((staged_bids[bidId])['Forecast']) + 'Action:' + str((staged_bids[bidId])['Action']), Provider.INFO )
+
+    
     def isDominated(self, bid, competitorBid):    
         '''
         This method establishes if a bid is dominated by a competitor bid or not. 
@@ -922,7 +924,7 @@ class Provider(Agent):
             else:
                 bidDemand[int(row[0])] = float(row[1]) + (float(row[2]) * 0.1)
             totQuantity = totQuantity + float(row[1]) + (float(row[2]) * 0.1)
-        self.registerLog(fileResult, 'Ending getDBBidMarketShare' + 'bidId:' + bidId + 'totQuantity:' + str(totQuantity))
+        self.registerLog(fileResult, 'Ending getDBBidMarketShare' + 'bidId:' + bidId + 'totQuantity:' + str(totQuantity), )
         return bidDemand, totQuantity
     
     ''' 
@@ -971,7 +973,7 @@ class Provider(Agent):
                         bidParentId = ''
                     nbrAncestors = nbrAncestors + 1
 
-        self.registerLog(fileResult, 'Ending getDBBidAncestorsMarketShare:' + str(totQuantity) )
+        self.registerLog(fileResult, 'Ending getDBBidAncestorsMarketShare:' + str(totQuantity), )
         return bidDemand, totQuantity
     
     '''
@@ -1322,7 +1324,7 @@ class Provider(Agent):
             step = 0
             for decisionVariable in (self._service)._decision_variables:
                 output[decisionVariable] = {'Direction' : direction, 'Step' : step }
-        self.registerLog(fileResult, 'followCompetitorsBid:' + str(output)) 
+        self.registerLog(fileResult, 'followCompetitorsBid:' + str(output), Provider.INFO ) 
         return output
     
     def improveBidForProfits(self, service, fileResult, reverse):
@@ -1435,7 +1437,7 @@ class Provider(Agent):
         Generate direction to go into the opposite direction of a 
         worse offer than the current one.
         '''
-        self.registerLog(fileResult, 'starting avoidCompetitorBid') 
+        self.registerLog(fileResult, 'starting avoidCompetitorBid' ) 
         output = {}
         try:
             rounddecimals = 5
@@ -1501,7 +1503,7 @@ class Provider(Agent):
         If the current offer has no competitors, the method looks to 
         improve its market share by increasing its decision variables.
         '''
-        self.registerLog(fileResult,"Initializing evaluateDirectionalDerivate")
+        self.registerLog(fileResult,"Initializing evaluateDirectionalDerivate" )
         
         # Variable initialization
         direction = []
@@ -1701,15 +1703,15 @@ class Provider(Agent):
             self.registerLog(fileResult, 'calculateBidForecast - period'+ str(period)+ 'Qty:' + str(bidDemand3[period]) )
         progression =self.calculateForecastProgression(bidDemand3)
         forecast = self.movingAverage(progression)
-        self.registerLog(fileResult, 'Ending calculateBidForecast:' + 'BidId:' + bid.getId() + 'forecast:' + str(forecast))
+        self.registerLog(fileResult, 'Ending calculateBidForecast:' + 'BidId:' + bid.getId() + 'forecast:' + str(forecast), )
         return bidDemand3, forecast
-        
+
     '''
     Calculates the forecast for a bid according with the orientation for the bid.
     Tested: Ok
     '''    
     def calculateMovedBidForecast(self, currentPeriod, radius, bid, newBid, orientation, fileResult):
-        self.registerLog(fileResult, 'starting calculateMovedBidForecast OldBidId:' + bid.getId() +  'NewBidId:' + newBid.getId() + str(orientation) )
+        self.registerLog(fileResult, 'starting calculateMovedBidForecast OldBidId:' + bid.getId() +  'NewBidId:' + newBid.__str__() + str(orientation) )
         marketZoneDemand = {}        
         forecast = 0
         totForecast = 0
@@ -1723,25 +1725,34 @@ class Provider(Agent):
             bidDemand, forecast = self.calculateBidForecast(currentPeriod, ownBid, fileResult)
             if forecast > 0:
                 marketZoneDemand[ownBidId] = bidDemand
+            self.registerLog(fileResult, 'own related Bid:' + str(ownBidId) + 'forecast:' + str(forecast)  )
             totForecast = totForecast + forecast
-                
+        
+        self.registerLog(fileResult, 'calculateMovedBidForecast ownForecast:' + str(totForecast) )
+        
+        totCompetitorForecast = 0
+        numRelated = 0
+        compProviders = []
         # Then if it is market share, it brings the demand for all related bids.
         if (orientation == Provider.MARKET_SHARE_ORIENTED):
             self.registerLog(fileResult, 'Provider Market Share Oriented')
-            
-            competitorBids = self.getRelatedBids(newBid, currentPeriod - 1 , 0, radius, fileResult)
+
+            competitorBids = self.getRelatedBids(newBid, currentPeriod -1 , 0, radius, fileResult)
             for compBidId in competitorBids:
                 competitorBid = competitorBids[compBidId]
                 bidDemand, forecast = self.calculateBidForecast(currentPeriod, competitorBid, fileResult)
+                self.registerLog(fileResult, 'competitor Bid:' + str(compBidId) + 'Forecast:' + str(forecast) )
                 if forecast > 0:
-                    numRelated = numRelated + 1
+                    if competitorBid.getProvider() not in compProviders:
+                        compProviders.append(competitorBid.getProvider())
                     marketZoneDemand[compBidId] = bidDemand
-                totForecast = totForecast + forecast
-                
-            totForecast = totForecast / ( numRelated + 1 )
-                
+                totCompetitorForecast = totCompetitorForecast + forecast
+
+        totForecast = totForecast + (totCompetitorForecast / (len(compProviders) + 1))
+
+        self.registerLog(fileResult, 'calculateMovedBidForecast competitors Forecast:' + str(totCompetitorForecast) )
         self.registerLog(fileResult, 'NewBidId:' + newBid.getId() + 'End TotForecast:' + str(totForecast) + 'numRelated' + str(numRelated) )
-        self.registerLog(fileResult, 'Ending calculateMovedBidForecast - Period: ' + str(currentPeriod) + ' Forecast:' + str(totForecast))
+        self.registerLog(fileResult, 'Ending calculateMovedBidForecast - Period: ' + str(currentPeriod) + ' Forecast:' + str(totForecast) )
         return marketZoneDemand, totForecast
 
     def moveBid(self, currentPeriod, radius, bid, moveDirections, marketShare, staged_bids, orientation, fileResult):
@@ -1750,7 +1761,7 @@ class Provider(Agent):
         this method will move the offer to the better position in unit
         steps.
         '''
-        self.registerLog(fileResult,"Initiating moveBid - Radius:" + str(radius) + 'BidId:' + bid.__str__() + ':marketShare:' + str(marketShare) + 'staged_bids:' + str(self.countByStatus(staged_bids)) )
+        self.registerLog(fileResult,"Initiating moveBid - Radius:" + str(radius) + 'BidId:' + bid.__str__() + ':marketShare:' + str(marketShare) + 'staged_bids:' + str(self.countByStatus(staged_bids)), )
         send = False
         forecast = 0
         bidsRelated = [] # This is a variable to know which bids were created for the bid moved.
@@ -2071,7 +2082,7 @@ class Provider(Agent):
         
         followed = {} # This are bids from providers that have been already used to follow.
         competitiveBids = self.createBidStatistics(currentPeriod, fileResult)
-        
+
         sortedActiveBids = self.sortByLastMarketShare(currentPeriod, fileResult)
         for bidId in sortedActiveBids:
             if bidId not in staged_bids:
@@ -2079,7 +2090,7 @@ class Provider(Agent):
                 moveDirections = self.evaluateDirectionalDerivate(currentPeriod, radius, bid, competitiveBids, followed, fileResult)
                 bidDemand, marketShare = self.getDBBidMarketShare( bid.getId(), currentPeriod-1, self._used_variables['numPeriodsMarketShare'], fileResult) 
                 self.moveBid(currentPeriod, radius, bid, moveDirections, marketShare, staged_bids, Provider.MARKET_SHARE_ORIENTED, fileResult)
-        
+
         self.registerLog(fileResult, 'Finishing moveForMarketShare Nbr staged_bids:' + str(len(staged_bids)), Provider.INFO )
         # print the staged_bids
         for newBidId in staged_bids:
@@ -2100,18 +2111,20 @@ class Provider(Agent):
         try:        
             adapt_factor = self._used_variables['adaptationFactor']
             value = self._list_vars['Random'].uniform(0,1)
-            self.registerLog(fileResult, 'exploreMarket adapt_factor:' + str(adapt_factor)+ ' prob value:' + str(value) )
+            self.registerLog(fileResult, 'exploreMarket adapt_factor:' + str(adapt_factor)+ ' prob value:' + str(value), Provider.INFO )
             if (value <= adapt_factor):        
                 minBid = self.calculateBidMinimumQuality()
-                minCurBid = self.getBidMinimumQuality()        
-                self.calculateNewBidMinimumQuality(currentPeriod, radius, minCurBid, minBid, staged_bids, fileResult)
+                minCurBid = self.getBidMinimumQuality()
+                if (minCurBid != None) and (minBid != None) :
+                    self.calculateNewBidMinimumQuality(currentPeriod, radius, minCurBid, minBid, staged_bids, fileResult)
 
                 maxBid = self.calculateBidMaximumQuality()
                 maxCurBid = self.getBidMaximumQuality()
-                self.calculateNewBidMaximumQuality(currentPeriod, radius, maxCurBid, maxBid, staged_bids, fileResult)
+                if (maxCurBid != None) and (maxBid != None):
+                    self.calculateNewBidMaximumQuality(currentPeriod, radius, maxCurBid, maxBid, staged_bids, fileResult)
         finally:
             self.lock.release()
-        self.registerLog(fileResult, 'Finish exploreMarket Nbr staged_bids:' + str(self.countByStatus(staged_bids)) )
+        self.registerLog(fileResult, 'Finish exploreMarket Nbr staged_bids:' + str(self.countByStatus(staged_bids)), Provider.INFO )
 
                  
     def exec_algorithm(self):

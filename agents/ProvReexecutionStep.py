@@ -358,7 +358,10 @@ def test_moveForMarketShare_on_previous_execution(executionCount, providerId, re
         listBidProviders = bringOtherProviderBids(db, executionCount, w.getProviderId(), w._service,replayPeriod - 1)
         w._list_vars['Bids'] = listBids
         w._list_vars['Related_Bids'] = listBidProviders
-        w.moveForMarketShare(replayPeriod, radius, staged_bids, fileResult)
+        w.updateCurrentBids(replayPeriod, radius, staged_bids, fileResult)
+        w.eliminateNeighborhoodBid(staged_bids, fileResult)
+        staged_bids = w.purchaseBids(replayPeriod, staged_bids, fileResult)
+        
         for bidId in staged_bids:
             forecast = (staged_bids[bidId])['Forecast']
             action = (staged_bids[bidId])['Action']
@@ -381,4 +384,4 @@ def test_moveForMarketShare_on_previous_execution(executionCount, providerId, re
         w.stop_agent()
 
 
-test_moveForMarketShare_on_previous_execution(1993, 9, 13)
+test_moveForMarketShare_on_previous_execution(2131, 9, 3)

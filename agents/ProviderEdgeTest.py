@@ -15,13 +15,13 @@ import uuid
 from foundation.Agent import Agent
 from foundation.AgentType import AgentType
 from foundation.DecisionVariable import DecisionVariable
-
+import time
 
 
 
 logger = logging.getLogger('provider_application')
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('providers_test.log')
+fh = logging.FileHandler('providers_test.log', mode='w')
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
@@ -465,6 +465,8 @@ def test_calculate_own_quality_for_purchasable_bid( ispProvider, transitProvider
                    
 def test_capacity_update(provider1, fileResult):
     
+    logger.info('Starting test test_capacity_update')
+    
     # Assigns locally the capacity to 100 for all of the resources.
     provider1.restartAvailableCapacity()
     resources = provider1._used_variables['resources']
@@ -479,7 +481,7 @@ def test_capacity_update(provider1, fileResult):
         if (availability[resourceId] != 100):
             raise FoundationException("error in test_capacity_update")
         
-    provider1.sendCapacityEdgeProvider(availability, fileResult)
+    provider1.sendCapacityEdgeProvider(fileResult)
         
     # Assigns locally the capacity to 200 for all of the resources.
     provider1.restartAvailableCapacity()
@@ -495,13 +497,14 @@ def test_capacity_update(provider1, fileResult):
         if (availability[resourceId] != 200):
             raise FoundationException("error in test_capacity_update")
                 
-    provider1.sendCapacityEdgeProvider(availability, fileResult)
+    provider1.sendCapacityEdgeProvider(fileResult)
     provider1.restartAvailableCapacity()
     availability = {}
     for resourceId in resources:
         availability[resourceId] = provider1.getAvailableCapacity(resourceId)
-    provider1.sendCapacityEdgeProvider(availability, fileResult)
-
+    provider1.sendCapacityEdgeProvider(fileResult)
+    
+    logger.info('Ending test test_capacity_update')
 
 def test_get_related_decision_variable(ispProvider, transitProvider):
 
@@ -670,6 +673,9 @@ def test_get_purchased_front(ispProvider, transitProvider, fileResult):
                 raise FoundationException("error in test_get_purchased_front - Error 3")
 
 def test_get_purchasable_bid( ispProvider, transitProvider, fileResult ):
+
+    logger.info('Starting test test_get_purchasable_bid')
+    
     # create the own bid    
     ownBid = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.17, 14)
     dic_bids = {}    
@@ -730,31 +736,38 @@ def test_get_purchasable_bid( ispProvider, transitProvider, fileResult ):
             qualityValue = round(((dic_return[bidId])['QualityRequirements'])['2'],2)
             if (qualityValue != 0.15):
                 raise FoundationException("error in test_get_purchased_front - Error 3")
+    
+    logger.info('Ending test test_get_purchasable_bid')
 
 def test_purchase_bid(currentPeriod, ispProvider, transitProvider, fileResult):
     # create the own bid    
-    ownBid = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.17, 14)
+    ownBid = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.19, 19.1)
     dic_bids = {}    
 
     transitProvider.send_capacity()
         
     # create a bid for the provider
-    providerBid1 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.03, 11)
+    providerBid1 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.03, 11) # Requirement - own delay:0.16
     sendBid(providerBid1, Bid.ACTIVE, transitProvider)
 
-    providerBid2 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.025, 10.3)
+    providerBid2 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.025, 10.3) # Requirement - own delay:0.165
     sendBid(providerBid2, Bid.ACTIVE, transitProvider)
 
-    providerBid3 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.028, 10.5)
+    providerBid3 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.028, 10.5) # Requirement - own delay:0.162
     sendBid(providerBid3, Bid.ACTIVE, transitProvider)
     
-    providerBid4 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.02, 10)
+    providerBid4 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.02, 10) # Requirement - own delay:0.17 - which means in a cost of (0.4 +(1*0.5))*10 = 9
     sendBid(providerBid4, Bid.ACTIVE, transitProvider)
         
     dic_bids[2] = [providerBid1, providerBid2]
     dic_bids[3] = [providerBid3, providerBid4]
-
+    
+    ispProvider.registerLog(fileResult, 'it is going to start required steps for the puchase method')
     dic_return = ispProvider.getPurchasableBid(ownBid, dic_bids, fileResult)
+    bidPrice = ispProvider.getBidPrice(ownBid)
+    newOwnBids = ispProvider.replicateBids(ownBid, bidPrice, dic_return, fileResult)
+       
+    logger.info('Num of bids possible to purchase:' + str(len(newOwnBids)))
     
     #
     # The quantity to purchase is 10 (the availability of the ISP provider) / resource requirement (1.23)   
@@ -762,13 +775,13 @@ def test_purchase_bid(currentPeriod, ispProvider, transitProvider, fileResult):
     # we need to put a bid requiring 1.23 unit of resource by every unit being sell. 
     
     # The following lines test purchasing for what we don't have enough capacity.
-    totPurchased, purchasedBids = ispProvider.purchaseBid(ownBid, transitProvider.getServiceId(), 10, 30, dic_return, fileResult)
+    totPurchased, purchasedBids = ispProvider.purchaseBid(ownBid, transitProvider.getServiceId(), 10, bidPrice, newOwnBids, fileResult)
 
     if len(purchasedBids) != 1:
         raise FoundationException("error in test_purchase_bid - Error 1")
 
     val = round(totPurchased,1)
-    if val != 8.1:
+    if val != 10.0:
         logger.error('Val %s', str(val))
         raise FoundationException("error in test_purchase_bid - Error 2")
 
@@ -781,7 +794,12 @@ def test_purchase_bid(currentPeriod, ispProvider, transitProvider, fileResult):
 
     ownBid2 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.17, 14)
     dic_return = ispProvider.getPurchasableBid(ownBid2, dic_bids, fileResult)
-    totPurchased, purchasedBids = ispProvider.purchaseBid(ownBid2, transitProvider.getServiceId(), 10, 30, dic_return, fileResult)
+    bidPrice = 30
+    newOwnBids2 = ispProvider.replicateBids(ownBid2, bidPrice, dic_return, fileResult)
+    
+    logger.info('Num of bids possible to purchase:' + str(len(newOwnBids2)))
+    
+    totPurchased, purchasedBids = ispProvider.purchaseBid(ownBid2, transitProvider.getServiceId(), 10, 30, newOwnBids2, fileResult)
 
     if len(purchasedBids) != 1:
         raise FoundationException("error in test_purchase_bid - Error 3")
@@ -796,57 +814,156 @@ def test_purchase_bid(currentPeriod, ispProvider, transitProvider, fileResult):
         provider1.updateAvailability(resourceId, 300, fileResult)
 
     transitProvider.send_capacity()
-
+    
     ownBid3 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.17, 14)
     dic_return = ispProvider.getPurchasableBid(ownBid3, dic_bids, fileResult)
-    totPurchased, purchasedBids = ispProvider.purchaseBid(ownBid3, transitProvider.getServiceId(), 120, 30, dic_return, fileResult)
+    bidPrice = 30
+    newOwnBids3 = ispProvider.replicateBids(ownBid3, bidPrice, dic_return, fileResult)
+    
+    logger.info('Num of bids possible to purchase:' + str(len(newOwnBids3)))
+    
+    totPurchased, purchasedBids = ispProvider.purchaseBid(ownBid3, transitProvider.getServiceId(), 120, 30, newOwnBids3, fileResult)
 
-    if len(purchasedBids) != 0:
+    if len(purchasedBids) != 1:
         raise FoundationException("error in test_purchase_bid - Error 5")
 
-    val = round(totPurchased,1)    
-    if val != 0:
-        raise FoundationException("error in test_purchase_bid - Error 6")
-        
+    val = round(totPurchased,2)    
+    if val != 79.01:
+        raise FoundationException("error in test_purchase_bid - Error 6 + qtyExpec: 80.90" + str(val))
+   
+    logger.info('Ending method test_purchase_bid')
+   
     pass
     
 
-def test_purchase_bids(currentPeriod, ispProvider, transitProvider, fileResult):
+def test_purchase_bids(currentPeriod, ispProvider, transitProvider, fileResult1, fileResult2):
+    
+
+    logger.info('Starting method test_purchase_bids')
+
+    logger.info('Starting method improveBidForFactibility')
+
+    ownBid1_iff = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.15, 20)
+    ownBid2_iff = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.14, 15)
+    ownBid3_iff = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.17, 16)
+    ownBid4_iff = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.2, 16)
+    
+    stepPrice = (20.0 - 12.0)/100
+    stepQuality = (0.2 - 0.14)/100
+    
+    curPrice = 20.0 - stepPrice
+    curQuality = 0.15 + stepQuality
+    i = 1 
+    while (i < 100):
+        ispProvider.improveBidForFactibility( ownBid1_iff, ispProvider._service, fileResult1)
+        price = ownBid1_iff.getDecisionVariable('1')
+        quality = ownBid1_iff.getDecisionVariable('2')
+        if (price != curPrice) or (quality != curQuality):
+            raise FoundationException("error in method improveBidForFactibility Step:1 - PriceExp:" + str(curPrice) + "price:" + str(price) + "QualiExp:" + str(curQuality) + "Quality:" + str(quality))
+        
+        if (curPrice - stepPrice) >= 12.0:
+            curPrice = curPrice - stepPrice
+        
+        if (curQuality + stepQuality) <= 0.2:
+            curQuality = curQuality + stepQuality
+        
+        i = i + 1
+
+
+    curPrice = 15.0 - stepPrice
+    curQuality = 0.14 + stepQuality
+    i = 1 
+    while (i < 100):
+        ispProvider.improveBidForFactibility( ownBid2_iff, ispProvider._service, fileResult1)
+        price = ownBid2_iff.getDecisionVariable('1')
+        quality = ownBid2_iff.getDecisionVariable('2')
+        if (price != curPrice) or (quality != curQuality):
+            raise FoundationException("error in method improveBidForFactibility Step:2 - PriceExp:" + str(curPrice) + "price:" + str(price) + "QualiExp:" + str(curQuality) + "Quality:" + str(quality))
+        
+        if (curPrice - stepPrice) >= 12:
+            curPrice = curPrice - stepPrice
+        
+        if (curQuality + stepQuality) <= 0.2:
+            curQuality = curQuality + stepQuality
+        
+        i = i + 1
+
+
+    curPrice = 16.0 - stepPrice
+    curQuality = 0.17 + stepQuality
+    i = 1 
+    while (i < 100):
+        ispProvider.improveBidForFactibility( ownBid3_iff, ispProvider._service, fileResult1)
+        price = ownBid3_iff.getDecisionVariable('1')
+        quality = ownBid3_iff.getDecisionVariable('2')
+        if (price != curPrice) or (quality != curQuality):
+            raise FoundationException("error in method improveBidForFactibility Step:3 - PriceExp:" + str(curPrice) + "price:" + str(price) + "QualiExp:" + str(curQuality) + "Quality:" + str(quality))
+        
+        if (curPrice - stepPrice) >= 12:
+            curPrice = curPrice - stepPrice
+        
+        if (curQuality + stepQuality) <= 0.2:
+            curQuality = curQuality + stepQuality
+        
+        i = i + 1
+
+
+    market_position = 0.2
+    staged_provider_bids = transitProvider.initializeBids(market_position, 10, fileResult1)
+
+    staged_prov_bids = []
+    for bidId in staged_provider_bids:
+        bidProv = (staged_provider_bids[bidId])['Object']
+        if (bidProv.getDecisionVariable('3') >= 0.03) and (bidProv.getDecisionVariable('3') <= 0.20):    
+            staged_prov_bids.append(bidProv)
+    
+    ownBid1 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.14, 12)
+    dic_return = {}
+    dic_return[1] = staged_prov_bids
+    
+    newOwnBids = ispProvider.makeBidFactible(ownBid1, dic_return, fileResult1)
+    
+    if len(newOwnBids) != 1:
+        raise FoundationException("error in method makeBidFactible -1")
+    
     # create the own bid    
-    ownBid1 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.17, 30)
-    ownBid2 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.175, 30.5)
-    ownBid3 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.18, 31.0)
-
-    transitProvider.send_capacity()
-
+    #ownBid1 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.17, 30)
+    #ownBid2 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.175, 30.5)
+    #ownBid3 = createBid(ispProvider.getProviderId(), ispProvider.getServiceId(), 0.18, 31.0)
+    
+    # we sleep 10 seconds to let the market place to restart capacity in the provider.
+    #time.sleep(10)            
+    
     # create a bid for the provider
-    providerBid1 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.03, 11)
-    sendBid(providerBid1, Bid.ACTIVE, transitProvider)
+    #providerBid1 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.03, 11)
+    #sendBid(providerBid1, Bid.ACTIVE, transitProvider)
 
-    providerBid2 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.025, 10.3)
-    sendBid(providerBid2, Bid.ACTIVE, transitProvider)
+    #providerBid2 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.025, 10.3)
+    #sendBid(providerBid2, Bid.ACTIVE, transitProvider)
     
-    providerBid3 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.028, 10.5)
-    sendBid(providerBid3, Bid.ACTIVE, transitProvider)
+    #providerBid3 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.028, 10.5)
+    #sendBid(providerBid3, Bid.ACTIVE, transitProvider)
     
-    providerBid4 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.02, 10)
-    sendBid(providerBid4, Bid.ACTIVE, transitProvider)
+    #providerBid4 = createBidService2(transitProvider.getProviderId(), transitProvider.getServiceId(), 0.02, 10)
+    #sendBid(providerBid4, Bid.ACTIVE, transitProvider)
 
     # set the ISP capacity enough for the first two bids.
-    resources = provider1._used_variables['resources']
-    for resourceId in resources:
-        provider1.updateAvailability(resourceId, 40, fileResult)
+    #resources = provider1._used_variables['resources']
+    #for resourceId in resources:
+    #    provider1.updateAvailability(resourceId, 60, fileResult)
         
-    staged_bids = {}
-    staged_bids[ownBid1.getId()] = {'Object': ownBid1, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 10 }
-    staged_bids[ownBid2.getId()] = {'Object': ownBid1, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 20 }
-    staged_bids[ownBid3.getId()] = {'Object': ownBid1, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 15 }
+    #staged_bids = {}
+    #staged_bids[ownBid1.getId()] = {'Object': ownBid1, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 10 }
+    #staged_bids[ownBid2.getId()] = {'Object': ownBid1, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 20 }
+    #staged_bids[ownBid3.getId()] = {'Object': ownBid1, 'Action': Bid.ACTIVE, 'MarketShare': {}, 'Forecast': 15 }
+    #
+    #staged_bids = ispProvider.purchaseBids(currentPeriod, staged_bids, fileResult)
     
-    staged_bids = ispProvider.purchaseBids(currentPeriod, staged_bids, fileResult)
+    #if len(staged_bids) != 3:
+    #    raise FoundationException("error in test_purchase_bids - Number staged:" + str(len(staged_bids)) +  " - Error 1")
     
-    if len(staged_bids) != 3:
-        raise FoundationException("error in test_purchase_bids - Number staged:" + len(staged_bids) +  " - Error 1")
-        
+    logger.info('Ending method test_purchase_bids')
+    
     pass
 
             
@@ -983,8 +1100,8 @@ if __name__ == '__main__':
         provider1 = providers[0] # Edge provider
         provider2 =providers[1]  # Transit Provider
         
-        fileResult1 = open(provider1.getProviderId() + '.log',"a")
-        fileResult2 = open(provider1.getProviderId() + '.log',"a")
+        fileResult1 = open(provider1.getProviderId() + '.log',"w")
+        fileResult2 = open(provider2.getProviderId() + '.log',"w")
         
         test_initialization(provider1)
         test_initialization(provider2)
@@ -1018,13 +1135,14 @@ if __name__ == '__main__':
 
         logger.info('Starting test providers created - Step:1c')
 
-        test_purchase_bids(currentPeriod, provider1, provider2, fileResult1)
+        test_purchase_bids(currentPeriod, provider1, provider2, fileResult1, fileResult2)
         
         logger.info('Starting test providers created - Step:2')
         
-        test_capacity_update(provider1, fileResult1)
-        test_purchase_from_previous_bids(provider1, provider2, fileResult1)
-                                     
+        #test_capacity_update(provider1, fileResult1)
+        #test_purchase_from_previous_bids(provider1, provider2, fileResult1)
+        
+        
         pass        
 	
     except FoundationException as e:

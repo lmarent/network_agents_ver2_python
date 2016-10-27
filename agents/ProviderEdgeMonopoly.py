@@ -455,11 +455,11 @@ class ProviderEdgeMonopoly(ProviderEdge):
         totForecast = 0        
         for bidId in staged_bids:
             bid = (staged_bids[bidId])['Object']
-            related_bids = self.getOwnRelatedBids( bid, radius, currentPeriod - 1, numPeriods, fileResult)
+            related_bids = self.getOwnRelatedBids( bid, currentPeriod - 1, numPeriods, radius, fileResult)
             marketZoneDemand, totQuantity, numRelated = self.getDBMarketShareZone(bid, related_bids, currentPeriod -1, numPeriods, fileResult)
             marketZoneBacklog, totQtyBacklog, numRelatedBacklog = self.getDBMarketShareZone(bid, related_bids, currentPeriod -1, numPeriods, fileResult, Provider.BACKLOG)
             (staged_bids[bidId])['MarketShare'] = marketZoneDemand
-            totQtyBacklog = totQtyBacklog * 0.05
+            totQtyBacklog = totQtyBacklog * 0.2
             totForecast = totForecast + (totQuantity + totQtyBacklog) / (numRelated + 1)
             (staged_bids[bidId])['Forecast'] = (totQuantity + totQtyBacklog) / (numRelated + 1)
         
@@ -468,7 +468,7 @@ class ProviderEdgeMonopoly(ProviderEdge):
             for bidId in staged_bids:
                 (staged_bids[bidId])['Forecast'] = initialQtyByBid
         
-        self.registerLog(fileResult, 'Starting canAdoptStrongPosition', Provider.INFO )
+        self.registerLog(fileResult, 'Starting calculateForecast', Provider.INFO )
 
     def canAdoptStrongPosition(self, currentPeriod, fileResult):
         val_return = True
