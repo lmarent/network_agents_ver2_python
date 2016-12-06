@@ -1,8 +1,12 @@
 
-import sys
-sys.path.append("/home/network_agents_ver2_python/agents/foundation")
 
-sys.path.insert(1,'/home/network_agents_ver2_python/agents')
+import sys
+import os
+syspath = os.path.dirname(os.path.abspath(__file__))
+parent_path = os.path.abspath(os.path.join(syspath, os.pardir))
+found_path = parent_path + "/foundation"
+sys.path.append(found_path)
+sys.path.insert(1,parent_path)
 
 from Bid import Bid
 from ChannelClockServer import Channel_ClockServer
@@ -166,3 +170,5 @@ if agntClientVect[0] == None:
     print 'Error the agent client is None'
 else:
     stop_customer(agntClientVect)
+
+print 'Ending Test'
