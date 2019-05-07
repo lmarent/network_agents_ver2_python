@@ -22,7 +22,7 @@ SECRET_KEY = 'l58-mx=del#6y^u&go(_4b5j=w0)t63*tsh#fbegq!9tj@r0lw'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-TEMPLATE_DEBUG = True
+# TEMPLATE_DEBUG = True
 
 ALLOWED_HOSTS = []
 
@@ -39,7 +39,23 @@ INSTALLED_APPS = (
     'simulation'
 )
 
-MIDDLEWARE_CLASSES = (
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [os.path.join(os.path.dirname(__file__), 'templates')],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+MIDDLEWARE = (
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -62,7 +78,7 @@ DATABASES = {
         'NAME': 'Network_Simulation',
         'USER': 'root',
         'PASSWORD': 'password',
-        'HOST': '192.168.2.13',
+        'HOST': '127.0.0.1',
         'PORT': '3306',
     }
 }

@@ -6,7 +6,6 @@ import os
 import re
 import sys
 
-
 from simulation.models import ProbabilityDistribution
 from simulation.models import DiscreteProbabilityDistribution
 from simulation.models import CostFunction
@@ -17,6 +16,7 @@ class ProbabilityDistributionForm(forms.ModelForm):
 
     class Meta:
         model = ProbabilityDistribution
+        fields = ('name', 'class_name', 'domain')
 
     def formfield_for_choice_field(self, available_choices):
         currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -53,7 +53,7 @@ class ProbabilityDistributionForm(forms.ModelForm):
 # to a child model (Address)
 DiscreteProbabilityFormSet = inlineformset_factory(
     ProbabilityDistribution,
-    DiscreteProbabilityDistribution,
+    DiscreteProbabilityDistribution, fields=('value','label','probability')
 )
 
 
@@ -61,6 +61,7 @@ class CostFunctionForm(forms.ModelForm):
 
     class Meta:
         model = CostFunction
+        fields = ('name', 'class_name', 'range_function')
 
     def formfield_for_choice_field(self, available_choices):
         currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -95,5 +96,5 @@ class CostFunctionForm(forms.ModelForm):
 # to a child model (Address)
 ConstinousCostFunctionFormSet = inlineformset_factory(
     CostFunction,
-    ContinuousCostFunction,
+    ContinuousCostFunction, fields=('parameter', 'value')
 )
